@@ -1,4 +1,5 @@
-const API_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const API_URL = IS_LOCAL
   ? 'http://localhost:3000'
   : 'https://sua-api.koyeb.app';
 
@@ -55,9 +56,17 @@ function setLoading(button, loading) {
 }
 
 async function request(path, options = {}) {
+  if (!IS_LOCAL && API_URL.includes('sua-api.koyeb.app')) {
+    throw new Error('A API ainda não foi conectada. Finalize a configuração do backend no Koyeb.');
+  }
   const headers = new Headers(options.headers || {});
   if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  } catch {
+    throw new Error('Não foi possível conectar à API. Verifique se o backend está disponível.');
+  }
   let data;
   try { data = await response.json(); } catch { data = {}; }
   if (!response.ok) {
