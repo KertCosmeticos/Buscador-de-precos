@@ -1,0 +1,137 @@
+const express = require('express');
+const cors = require('cors');
+const { searchAllMarketplaces } = require('./services/multiMarketplace');
+const { demoSearch } = require('./services/demo');
+const { assertValidEan, normalizeEan, isValidEan } = require('./utils/validation');
+const { mapWithConcurrency } = require('./utils/limit');
+const productRoutes = require('./routes/products');
+const authRoutes = require('./routes/auth');
+
+const app = express();
+const demoMode = process.env.DEMO_MODE === 'true';
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origem não permitida pelo CORS.'));
+  }
+}));
+app.use(express.json({ limit: '100kb' }));
+app.use('/auth', authRoutes);
+app.use('/produtos', productRoutes);
+
+function summarize(ean, listings, sources = []) {
+  const prices = listings.map((item) => item.price);
+  const sum = prices.reduce((total, price) => total + price, 0);
+  const grouped = new Map();
+  listings.forEach((listing) => {
+    const marketplace = listing.marketplace || 'Não informado';
+    if (!grouped.has(marketplace)) grouped.set(marketplace, []);
+    grouped.get(marketplace).push(listing.price);
+  });
+  const marketplaceSummary = [...grouped].map(([marketplace, marketplacePrices]) => ({
+    marketplace,
+    minPrice: Math.min(...marketplacePrices),
+    maxPrice: Math.max(...marketplacePrices),
+    averagePrice: marketplacePrices.reduce((total, price) => total + price, 0) / marketplacePrices.length,
+    listingsCount: marketplacePrices.length
+  }));
+  return {
+    ean,
+    minPrice: prices.length ? Math.min(...prices) : null,
+    maxPrice: prices.length ? Math.max(...prices) : null,
+    averagePrice: prices.length ? sum / prices.length : null,
+    listingsCount: listings.length,
+    marketplaces: [...new Set(listings.map((item) => item.marketplace).filter(Boolean))],
+    marketplaceSummary,
+    sources,
+    listings
+  };
+}
+
+async function searchFresh(ean) {
+  const search = demoMode
+    ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
+    : await searchAllMarketplaces(ean);
+  const result = summarize(ean, search.listings, search.sources);
+  return result;
+}
+
+app.get('/health', (_req, res) => res.json({
+  status: 'ok',
+  mode: demoMode ? 'demo' : 'real',
+  providers: {
+    mercadoLivre: !demoMode,
+    googleShopping: !demoMode && Boolean(process.env.SERPAPI_KEY),
+    productCatalog: true
+  }
+}));
+
+app.get('/buscar', async (req, res, next) => {
+  try {
+    const ean = assertValidEan(req.query.ean);
+    const result = await searchFresh(ean);
+    if (result.listingsCount === 0) {
+      return res.status(404).json({
+        error: 'Nenhum anúncio foi encontrado para este EAN.',
+        ...result
+      });
+    }
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/buscar/lote', async (req, res, next) => {
+  try {
+    const input = Array.isArray(req.body) ? req.body : req.body?.eans;
+    if (!Array.isArray(input) || input.length === 0) {
+      return res.status(400).json({ error: 'Envie um array com pelo menos um EAN.' });
+    }
+    if (input.length > 100) {
+      return res.status(400).json({ error: 'O limite é de 100 EANs por consulta.' });
+    }
+
+    const eans = [...new Set(input.map(normalizeEan))];
+    const results = await mapWithConcurrency(eans, 5, async (ean) => {
+      if (!isValidEan(ean)) {
+        return { ean, error: 'EAN inválido. Informe somente de 8 a 14 dígitos.' };
+      }
+      try {
+        const result = await searchFresh(ean);
+        return result.listingsCount
+          ? result
+          : { ...result, error: 'Nenhum anúncio foi encontrado para este EAN.' };
+      } catch (error) {
+        return { ean, error: error.message || 'Erro inesperado durante a busca.' };
+      }
+    });
+
+    return res.json({ results });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.use((_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  if (error?.code === 11000) {
+    return res.status(409).json({ error: 'Este EAN já está cadastrado.' });
+  }
+  const status = error.status || (error.message?.includes('CORS') ? 403 : 500);
+  const message = status === 500
+    ? 'Ocorreu um erro interno. Tente novamente mais tarde.'
+    : error.message;
+  res.status(status).json({ error: message });
+});
+
+module.exports = app;

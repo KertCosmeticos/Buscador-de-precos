@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Monitoramento de preços de produtos por EAN">
+  <title>Price Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container brand">
+      <div class="brand-mark">PM</div>
+      <div>
+        <h1>Price Monitor</h1>
+        <p>Inteligência de sell-out em múltiplos marketplaces</p>
+      </div>
+      <span id="data-mode" class="mode-badge">Verificando fonte…</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" aria-label="Seções">
+      <button class="tab active" type="button" data-tab="search" aria-selected="true">Consulta</button>
+      <button class="tab" type="button" data-tab="catalog" aria-selected="false">Catálogo de produtos</button>
+      <button class="tab" type="button" data-tab="registrations" aria-selected="false">Cadastros</button>
+    </nav>
+
+    <section id="search-panel" class="panel active" aria-labelledby="Busca">
+      <div class="card search-card">
+        <div class="card-heading">
+          <div>
+            <h2>Consultar produtos</h2>
+          </div>
+        </div>
+        <label for="quick-product-search">Consultar por seleção</label>
+        <input id="quick-product-search" placeholder="Digite o EAN, Nome, Categoria ou Família" autocomplete="off">
+        <div class="catalog-picker">
+          <div class="subheading"><div><h3>Consultar preços por seleção</h3><p>Digite o nome do produto ou selecione a categoria/família para realizar a busca.</p></div><span id="selected-count">0 selecionado(s)</span></div>
+          <div class="filter-grid">
+            <div class="field filter-field"><label for="name-filter-search">Nome do produto</label><input id="name-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="name-filter-options" class="filter-options"></div></div>
+            <div class="field filter-field"><label for="category-filter-search">Categoria</label><input id="category-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="category-filter-options" class="filter-options"></div></div>
+            <div class="field filter-field"><label for="family-filter-search">Família</label><input id="family-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="family-filter-options" class="filter-options"></div></div>
+          </div>
+          <label id="filtered-select-all" class="check-row select-all" hidden><input id="select-all-products" type="checkbox"> Selecionar todos os produtos filtrados</label>
+          <div id="product-picker-list" class="product-picker-list"><p>Carregando catálogo…</p></div>
+        </div>
+        <div class="actions">
+          <button id="search-button" class="button primary" type="button">Buscar preços</button>
+          <button id="export-button" class="button secondary" type="button" disabled>Exportar CSV</button>
+        </div>
+        <div id="search-message" class="message" role="status" aria-live="polite"></div>
+        <div id="demo-notice" class="demo-notice" hidden>
+          Modo demonstração: preços e vendedores abaixo são ilustrativos. Links diretos aparecem somente na busca real.
+        </div>
+      </div>
+
+      <div id="results-card" class="card results-card" hidden>
+        <div class="card-heading">
+          <div><h2>Resultados</h2><p id="results-count"></p></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>EAN</th><th>Produto</th><th>Marketplaces encontrados</th><th>Preço mín.</th><th>Preço máx.</th>
+              <th>Preço médio</th><th>Anúncios</th><th>Vendedor mais barato</th><th>Links dos marketplaces</th>
+            </tr></thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="details-card" class="card results-card" hidden>
+        <div class="card-heading">
+          <div><h2>Detalhamento por marketplace</h2><p id="details-count"></p></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>EAN</th><th>Marketplace</th><th>Produto</th><th>Preço</th><th>Vendedor</th>
+              <th>Vendidos</th><th>Condição</th><th>Frete grátis</th><th>Anúncio</th>
+            </tr></thead>
+            <tbody id="details-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="catalog-panel" class="panel" aria-labelledby="Catálogo" hidden>
+      <div class="page-intro"><h2>Catálogo de produtos</h2><p>Visualize todos os produtos disponíveis para consulta.</p></div>
+      <div class="card results-card">
+        <div class="card-heading"><div><h2>Produtos</h2><p id="catalog-view-count"></p></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th></tr></thead>
+          <tbody id="catalog-view-body"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <section id="registrations-panel" class="panel" aria-labelledby="Cadastros" hidden>
+      <div class="page-intro"><h2>Área restrita</h2><p>O gerenciamento do catálogo exige autenticação.</p></div>
+      <div id="restricted-login" class="card login-card">
+        <h2>Entrar em Cadastros</h2>
+        <form id="login-form">
+          <div class="field"><label for="login-username">Usuário</label><input id="login-username" autocomplete="username" required></div>
+          <div class="field"><label for="login-password">Senha</label><input id="login-password" type="password" autocomplete="current-password" required></div>
+          <button class="button primary" type="submit">Entrar</button>
+        </form>
+        <p id="demo-login-hint" class="login-hint" hidden>Demonstração: usuário <strong>admin</strong> e senha <strong>admin123</strong>.</p>
+        <div id="login-message" class="message" role="status" aria-live="polite"></div>
+      </div>
+      <div id="admin-content" hidden>
+      <div class="admin-heading"><div><h2>Cadastros</h2><p>Cadastre, edite ou exclua produtos da base.</p></div><button id="logout-button" class="button secondary" type="button">Sair</button></div>
+      <div class="card">
+        <h2 id="product-form-title">Cadastrar produto</h2>
+        <form id="product-form" class="product-form">
+          <input id="product-id" type="hidden">
+          <div class="field"><label for="catalog-ean">EAN *</label><input id="catalog-ean" inputmode="numeric" required></div>
+          <div class="field"><label for="catalog-sku">Código interno</label><input id="catalog-sku"></div>
+          <div class="field span-2"><label for="catalog-name">Nome do produto *</label><input id="catalog-name" required></div>
+          <div class="field"><label for="catalog-category">Categoria *</label><input id="catalog-category" required></div>
+          <div class="field"><label for="catalog-family">Família *</label><input id="catalog-family" required></div>
+          <div class="form-actions span-2">
+            <button class="button primary" type="submit">Salvar produto</button>
+            <button id="cancel-edit" class="button secondary" type="button" hidden>Cancelar edição</button>
+          </div>
+        </form>
+        <div id="catalog-message" class="message" role="status" aria-live="polite"></div>
+      </div>
+      <div class="card results-card">
+        <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th><th>Ações</th></tr></thead>
+          <tbody id="catalog-body"></tbody>
+        </table></div>
+      </div>
+      </div>
+    </section>
+
+  </main>
+  <footer>Monitoramento consolidado de ofertas em diferentes lojas e marketplaces.</footer>
+</body>
+</html>

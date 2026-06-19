@@ -1,0 +1,6 @@
+.git
+.github
+price-monitor-web
+price-monitor-api/node_modules
+price-monitor-api/.env
+**/*.log
