@@ -5,7 +5,7 @@ const serpApi = axios.create({
   timeout: 15000,
   headers: { 'User-Agent': 'price-monitor-api/1.0' }
 });
-const searchLocation = process.env.SEARCH_LOCATION || 'Sao Paulo, State of Sao Paulo, Brazil';
+const searchLocation = process.env.SEARCH_LOCATION || undefined;
 
 function hasFreeShipping(result) {
   const delivery = String(result.delivery || result.shipping || '').toLowerCase();
