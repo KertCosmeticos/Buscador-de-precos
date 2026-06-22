@@ -24,7 +24,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Planilha-modelo gerada pelo painel, validação prévia e barra de progresso por lotes.
 - Instruções de cadastro manual e importação dentro da aba Cadastros.
 - Modo de pesquisa pelo Chrome local, sem consumo da SerpApi.
-- Extensão Chrome 3.0 com consulta direta e sequencial em 70 lojas B2C autorizadas.
+- Extensão Chrome 3.1 com consulta direta em 70 lojas B2C autorizadas e até quatro lojas simultâneas.
 - Validador compartilhado que interpreta marca, tipo, linha, cor/variante e nuance numérica antes de aceitar uma oferta.
 - Filtro B2C que exige preço, título e link no mesmo anúncio e exclui atacadistas, distribuidoras e portais para revendedores.
 - Em cada loja: busca por EAN; sem oferta válida, busca por nome; sem preço, passa para a próxima loja.

@@ -24,6 +24,14 @@ function waitForTab(tabId, timeout = 25000) {
   });
 }
 
+async function updateTabAndWait(tabId, url, timeout = 25000) {
+  // Registra o observador antes da navegação para não perder páginas que
+  // carregam muito rápido e acabar esperando o timeout inteiro.
+  const loaded = waitForTab(tabId, timeout);
+  await chrome.tabs.update(tabId, { url });
+  await loaded;
+}
+
 async function sendToTab(tabId, type, payload = {}) {
   let lastError;
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -62,29 +70,32 @@ function deduplicate(listings) {
 async function navigateStoreSearch(tabId, query, store) {
   const discovery = await sendToTab(tabId, 'DISCOVER_STORE_SEARCH', { query }).catch(() => null);
   if (discovery?.url) {
-    await chrome.tabs.update(tabId, { url: discovery.url });
-    await waitForTab(tabId);
+    await updateTabAndWait(tabId, discovery.url);
   } else if (discovery?.submitted) {
     // Algumas lojas atualizam os resultados por JavaScript, sem nova navegação.
     await waitForTab(tabId, 7000).catch(() => {});
   } else {
     const fallback = new URL('/busca', store.url);
     fallback.searchParams.set('q', query);
-    await chrome.tabs.update(tabId, { url: fallback.href });
-    await waitForTab(tabId);
+    await updateTabAndWait(tabId, fallback.href);
   }
-  await delay(2800);
+  await delay(900);
 }
 
 async function searchRetailStore(product, store) {
-  const tab = await chrome.tabs.create({ url: store.url, active: false });
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
   try {
-    await waitForTab(tab.id);
-    await delay(1200);
+    await updateTabAndWait(tab.id, store.url);
+    await delay(500);
     const attempts = [product.ean, product.name].filter(Boolean);
     for (let index = 0; index < attempts.length; index += 1) {
       await navigateStoreSearch(tab.id, attempts[index], store);
-      const extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
+      let extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
+      if (extracted?.blocked) return { status: 'blocked', listings: [] };
+      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
+      // Algumas vitrines renderizam os cartões depois do evento de carregamento.
+      await delay(1200);
+      extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
       if (extracted?.blocked) return { status: 'blocked', listings: [] };
       if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
     }
@@ -107,21 +118,28 @@ async function runSearch(port, message) {
     const listings = [];
     const sources = [];
     const label = product.name || product.ean;
-    for (const store of RetailStores) {
-      safePost(port, {
-        type: 'BROWSER_SEARCH_PROGRESS', requestId,
-        completed: completedSteps, total: totalSteps,
-        message: `Verificando ${label} em ${store.name} (${completedSteps + 1} de ${totalSteps})…`
-      });
-      try {
-        const search = await searchRetailStore(product, store);
-        listings.push(...search.listings);
-        sources.push({ name: store.name, status: search.status, count: search.listings.length });
-      } catch (error) {
-        sources.push({ name: store.name, status: 'error', count: 0, error: error.message });
+    let nextStore = 0;
+    const worker = async () => {
+      while (nextStore < RetailStores.length) {
+        const store = RetailStores[nextStore];
+        nextStore += 1;
+        safePost(port, {
+          type: 'BROWSER_SEARCH_PROGRESS', requestId,
+          completed: completedSteps, total: totalSteps,
+          message: `Verificando ${label} em ${store.name} (${completedSteps + 1} de ${totalSteps})…`
+        });
+        try {
+          const search = await searchRetailStore(product, store);
+          listings.push(...search.listings);
+          sources.push({ name: store.name, status: search.status, count: search.listings.length });
+        } catch (error) {
+          sources.push({ name: store.name, status: 'error', count: 0, error: error.message });
+        }
+        completedSteps += 1;
       }
-      completedSteps += 1;
-    }
+    };
+    // Quatro abas equilibram velocidade, memória e risco de bloqueio.
+    await Promise.all(Array.from({ length: 4 }, () => worker()));
     results.push({ ean: product.ean, listings: deduplicate(listings), sources });
   }
   safePost(port, { type: 'BROWSER_SEARCH_RESULT', requestId, results });
