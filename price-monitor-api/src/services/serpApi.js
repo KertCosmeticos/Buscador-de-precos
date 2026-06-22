@@ -64,6 +64,67 @@ async function findShoppingProducts(query) {
   return (data.shopping_results || []).filter((item) => item.product_id);
 }
 
+function sellerFromResult(result) {
+  if (result.source) return result.source;
+  try {
+    return new URL(result.link).hostname.replace(/^www\./, '');
+  } catch {
+    return 'Loja não informada';
+  }
+}
+
+function priceFromOrganicResult(result) {
+  const detected = [
+    result.extracted_price,
+    result.price,
+    result.rich_snippet?.top?.detected_extensions?.price,
+    result.rich_snippet?.bottom?.detected_extensions?.price
+  ];
+  for (const value of detected) {
+    const price = numberFromPrice(value);
+    if (Number.isFinite(price)) return price;
+  }
+  const text = [
+    result.title,
+    result.snippet,
+    ...(result.extensions || []),
+    ...(result.rich_snippet?.top?.extensions || []),
+    ...(result.rich_snippet?.bottom?.extensions || [])
+  ].filter(Boolean).join(' ');
+  const match = text.match(/R\$\s*([\d.]+,\d{2})/i);
+  return match ? numberFromPrice(match[1]) : null;
+}
+
+function googleWebOffersFromData(data) {
+  return (data.organic_results || []).map((result) => {
+    const seller = sellerFromResult(result);
+    return {
+      title: result.title || 'Produto sem nome',
+      price: priceFromOrganicResult(result),
+      seller,
+      marketplace: seller,
+      link: result.link || '',
+      soldQuantity: null,
+      condition: 'new',
+      freeShipping: false
+    };
+  }).filter((item) => Number.isFinite(item.price) && item.link);
+}
+
+async function searchGoogleWeb(ean, productName) {
+  const { data } = await serpApi.get('/search.json', {
+    params: {
+      engine: 'google',
+      q: [ean, productName].filter(Boolean).join(' '),
+      gl: 'br',
+      hl: 'pt-br',
+      google_domain: 'google.com.br',
+      api_key: process.env.SERPAPI_KEY
+    }
+  });
+  return googleWebOffersFromData(data);
+}
+
 async function searchGoogleShopping(ean, productName = '') {
   if (!process.env.SERPAPI_KEY) return [];
 
@@ -72,7 +133,8 @@ async function searchGoogleShopping(ean, productName = '') {
     if (!products.length && productName) products = await findShoppingProducts(productName);
     products = products.slice(0, 3);
     const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
-    return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    const shoppingOffers = offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    return shoppingOffers.length ? shoppingOffers : searchGoogleWeb(ean, productName);
   } catch (error) {
     const message = error.code === 'ECONNABORTED'
       ? 'O Google Shopping demorou demais para responder.'
@@ -83,4 +145,4 @@ async function searchGoogleShopping(ean, productName = '') {
   }
 }
 
-module.exports = { searchGoogleShopping };
+module.exports = { searchGoogleShopping, googleWebOffersFromData };
