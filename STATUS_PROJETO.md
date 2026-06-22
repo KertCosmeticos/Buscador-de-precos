@@ -37,6 +37,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Filtro de relevância por marca, linha e variação para remover produtos concorrentes.
 - Até 30 resultados da Web por produto, com tentativa de extrair preço da página e exigir link direto do anúncio.
 - Shopping consultado sempre por EAN e nome, com resolução de até cinco grupos de vendedores.
+- Busca adicional direcionada a marketplaces, perfumarias e drogarias prioritários.
 - Links diretos das ofertas quando disponibilizados pela fonte.
 - CRUD do catálogo de produtos.
 - Login administrativo com JWT e expiração de oito horas.

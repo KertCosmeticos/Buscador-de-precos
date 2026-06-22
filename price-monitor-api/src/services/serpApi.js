@@ -6,6 +6,20 @@ const serpApi = axios.create({
   headers: { 'User-Agent': 'price-monitor-api/1.0' }
 });
 const searchLocation = process.env.SEARCH_LOCATION || undefined;
+const priorityDomains = [
+  'amazon.com.br',
+  'mercadolivre.com.br',
+  'shopee.com.br',
+  'belezanaweb.com.br',
+  'perfumariasumire.com.br',
+  'liviadistribuidora.com.br',
+  'riobelcosmeticos.com.br',
+  'magazineluiza.com.br',
+  'epocacosmeticos.com.br',
+  'drogariasaopaulo.com.br',
+  'drogasil.com.br',
+  'drogaraia.com.br'
+];
 
 function hasFreeShipping(result) {
   const delivery = String(result.delivery || result.shipping || '').toLowerCase();
@@ -331,11 +345,11 @@ async function resolveGoogleWebOffers(offers) {
   return results.filter(Boolean);
 }
 
-async function searchGoogleWeb(ean, productName) {
+async function findGoogleWebResults(query) {
   const { data } = await serpApi.get('/search.json', {
     params: {
       engine: 'google',
-      q: productName || ean,
+      q: query,
       gl: 'br',
       hl: 'pt-br',
       google_domain: 'google.com.br',
@@ -345,7 +359,22 @@ async function searchGoogleWeb(ean, productName) {
       api_key: process.env.SERPAPI_KEY
     }
   });
-  return resolveGoogleWebOffers(googleWebOffersFromData(data, productName));
+  return data;
+}
+
+async function searchGoogleWeb(ean, productName) {
+  const baseQuery = productName || ean;
+  const domainQuery = productName
+    ? `"${productName}" (${priorityDomains.map((domain) => `site:${domain}`).join(' OR ')})`
+    : '';
+  const searches = await Promise.allSettled([
+    findGoogleWebResults(baseQuery),
+    ...(domainQuery ? [findGoogleWebResults(domainQuery)] : [])
+  ]);
+  const offers = searches.flatMap((result) => result.status === 'fulfilled'
+    ? googleWebOffersFromData(result.value, productName)
+    : []);
+  return resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
 }
 
 async function searchGoogleShopping(ean, productName = '') {
