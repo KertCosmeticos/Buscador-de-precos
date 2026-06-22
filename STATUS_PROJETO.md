@@ -24,8 +24,8 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Planilha-modelo gerada pelo painel, validação prévia e barra de progresso por lotes.
 - Instruções de cadastro manual e importação dentro da aba Cadastros.
 - Modo de pesquisa pelo Chrome local, sem consumo da SerpApi.
-- Extensão Chrome 3.3 com consulta direta em 70 lojas B2C autorizadas e até seis lojas simultâneas.
-- Conectores de catálogo VTEX e Shopify executados antes da busca visual, reduzindo tempo e erros de leitura.
+- Extensão Chrome 4.0 restaurada para pesquisa na internet por EAN, nome, consulta semântica, Google Shopping e Mercado Livre.
+- Varredura direta da lista de 70 lojas removida por baixa compatibilidade entre os mecanismos internos dos sites.
 - Rotas dedicadas para Mercado Livre, Amazon e Shopee; domínios reais de Sumirê e Rio Bel corrigidos.
 - Validador compartilhado que interpreta marca, tipo, linha, cor/variante e nuance numérica antes de aceitar uma oferta.
 - Filtro B2C que exige preço, título e link no mesmo anúncio e exclui atacadistas, distribuidoras e portais para revendedores.
@@ -78,7 +78,7 @@ A base oficial `PRODUTOS EM LINHA 2026 - BD.xlsx` foi validada e importada com 2
 
 ## Próximos passos
 
-1. Recarregar a extensão 3.0 no Chrome e testar quais lojas exigem conector específico, CEP ou login.
+1. Recarregar a extensão 4.0 no Chrome e validar uma amostra de produtos por nome e por EAN.
 2. Testar a reimportação de uma planilha para confirmar a atualização por EAN.
 3. Acompanhar o consumo mensal de pesquisas no painel da SerpApi.
 

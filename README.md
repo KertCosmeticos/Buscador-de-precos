@@ -35,6 +35,6 @@ As colunas aceitas são `COD SFA`, `NOME`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`.
 
 ## Pesquisa pelo Chrome
 
-A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que consulta diretamente uma lista controlada de lojas B2C usando a sessão local do navegador, sem consumir SerpApi. O workflow do Pages publica também `price-monitor-chrome.zip`, disponível no próprio painel.
+A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Google Web, Google Shopping e Mercado Livre usando a sessão local do navegador, sem consumir SerpApi. O workflow do Pages publica também `price-monitor-chrome.zip`, disponível no próprio painel.
 
-Em cada loja, a extensão pesquisa primeiro o EAN e, se não encontrar uma oferta válida, tenta o nome oficial. O resultado só é aceito quando nome compatível, preço em reais e link direto pertencem ao mesmo cartão de produto. Cor/nuance e tipo compatível são obrigatórios. A extensão abre uma loja por vez em segundo plano e fecha a aba ao terminar; sites com CAPTCHA, exigência de CEP, login ou bloqueio podem ficar sem resultado até receberem um conector específico.
+A extensão combina EAN, nome oficial e uma consulta semântica por tipo, linha e variante. O resultado só é aceito quando nome compatível, preço em reais e link direto pertencem ao mesmo anúncio B2C. Cor/nuance e tipo compatível são obrigatórios.

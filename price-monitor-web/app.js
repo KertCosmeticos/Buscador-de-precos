@@ -201,15 +201,15 @@ function searchWithBrowser(products) {
   if (!browserExtensionAvailable) {
     return Promise.reject(new Error('A extensão do Chrome não está conectada. Instale-a ou selecione API online.'));
   }
-  if (products.length > 1) {
-    return Promise.reject(new Error('A consulta direta percorre 70 lojas e aceita um produto por vez.'));
+  if (products.length > 5) {
+    return Promise.reject(new Error('A pesquisa pelo Chrome aceita até cinco produtos por vez.'));
   }
   const requestId = crypto.randomUUID();
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       browserSearchRequests.delete(requestId);
-      reject(new Error('A consulta às lojas excedeu vinte minutos. Algumas lojas podem estar bloqueando ou exigindo CEP/login.'));
-    }, 1200000);
+      reject(new Error('A pesquisa pelo Chrome excedeu oito minutos. Verifique se o Google solicitou CAPTCHA.'));
+    }, 480000);
     browserSearchRequests.set(requestId, { resolve, reject, timeout });
     window.postMessage({
       source: 'price-monitor-web',
@@ -232,7 +232,7 @@ window.addEventListener('message', (event) => {
   if (!request) return;
   if (message.type === 'BROWSER_SEARCH_PROGRESS') {
     const percent = message.total ? (message.completed / message.total) * 100 : 0;
-    setSearchProgress(percent, message.message || 'Consultando lojas B2C…');
+    setSearchProgress(percent, message.message || 'Pesquisando na internet…');
     return;
   }
   clearTimeout(request.timeout);
@@ -666,9 +666,8 @@ byId('search-button').addEventListener('click', async () => {
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
     const sourceDiagnostics = currentResults.flatMap((item) => item.sources || []);
-    const storesWithOffers = sourceDiagnostics.filter((source) => Number(source.count) > 0).length;
-    const blockedStores = sourceDiagnostics.filter((source) => source.status === 'blocked').length;
-    const failedStores = sourceDiagnostics.filter((source) => source.status === 'error').length;
+    const sourcesWithOffers = sourceDiagnostics.filter((source) => Number(source.count) > 0).length;
+    const failedSources = sourceDiagnostics.filter((source) => source.status === 'error').length;
     const errorGroups = new Map();
     sourceDiagnostics.filter((source) => source.status === 'error').forEach((source) => {
       const reason = source.error || 'Erro não identificado';
@@ -677,7 +676,7 @@ byId('search-button').addEventListener('click', async () => {
     const mainErrors = [...errorGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
       .map(([reason, count]) => `${count}× ${reason}`).join(' | ');
     const diagnosticText = searchSource === 'browser' && sourceDiagnostics.length
-      ? ` ${storesWithOffers} loja(s) com oferta, ${blockedStores} bloqueada(s) e ${failedStores} com erro técnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
+      ? ` ${sourcesWithOffers} fonte(s) com oferta e ${failedSources} com erro técnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
       : '';
     setMessage(
       byId('search-message'),

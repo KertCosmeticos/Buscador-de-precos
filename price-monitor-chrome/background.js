@@ -1,4 +1,4 @@
-importScripts('product-matcher.js', 'retail-stores.js');
+importScripts('product-matcher.js');
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -8,7 +8,7 @@ function safePost(port, message) {
   try { port.postMessage(message); } catch { /* painel fechado */ }
 }
 
-function waitForTab(tabId, timeout = 25000) {
+function waitForTab(tabId, timeout = 30000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
@@ -24,10 +24,8 @@ function waitForTab(tabId, timeout = 25000) {
   });
 }
 
-async function updateTabAndWait(tabId, url, timeout = 25000) {
-  // Registra o observador antes da navegação para não perder páginas que
-  // carregam muito rápido e acabar esperando o timeout inteiro.
-  const loaded = waitForTab(tabId, timeout);
+async function navigateTab(tabId, url) {
+  const loaded = waitForTab(tabId);
   await chrome.tabs.update(tabId, { url });
   await loaded;
 }
@@ -39,10 +37,48 @@ async function sendToTab(tabId, type, payload = {}) {
       return await chrome.tabs.sendMessage(tabId, { type, ...payload });
     } catch (error) {
       lastError = error;
-      await delay(600);
+      await delay(700);
     }
   }
-  throw lastError || new Error('Não foi possível ler a loja.');
+  throw lastError || new Error('Não foi possível ler a página de pesquisa.');
+}
+
+async function searchGoogle(query, product, mode = 'web') {
+  const parameters = new URLSearchParams({ q: query, hl: 'pt-BR', gl: 'br', num: '30' });
+  if (mode === 'shopping') parameters.set('tbm', 'shop');
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+  let keepOpen = false;
+  try {
+    await navigateTab(tab.id, `https://www.google.com/search?${parameters}`);
+    await delay(mode === 'shopping' ? 2600 : 1600);
+    const result = await sendToTab(tab.id, 'EXTRACT_GOOGLE_RESULTS', { product });
+    if (result?.captcha) {
+      keepOpen = true;
+      await chrome.tabs.update(tab.id, { active: true });
+      throw new Error('O Google solicitou verificação. Resolva o CAPTCHA na aba aberta e repita a busca.');
+    }
+    return result?.listings || [];
+  } finally {
+    if (!keepOpen) await chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
+function mercadoLivreUrl(query) {
+  const slug = String(query || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return `https://lista.mercadolivre.com.br/${slug}`;
+}
+
+async function searchMercadoLivre(product) {
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+  try {
+    await navigateTab(tab.id, mercadoLivreUrl(product.name || product.ean));
+    await delay(2200);
+    const result = await sendToTab(tab.id, 'EXTRACT_ML_RESULTS', { product });
+    return result?.listings || [];
+  } finally {
+    await chrome.tabs.remove(tab.id).catch(() => {});
+  }
 }
 
 function normalizeLink(value) {
@@ -67,122 +103,62 @@ function deduplicate(listings) {
   return [...byLink.values()];
 }
 
-async function navigateStoreSearch(tabId, query, store) {
-  const knownSearchUrl = (() => {
-    const url = new URL(store.url);
-    if (store.host === 'amazon.com.br') {
-      url.pathname = '/s'; url.searchParams.set('k', query); return url.href;
-    }
-    if (store.host === 'shopee.com.br') {
-      url.pathname = '/search'; url.searchParams.set('keyword', query); return url.href;
-    }
-    return '';
-  })();
-  if (knownSearchUrl) {
-    await updateTabAndWait(tabId, knownSearchUrl);
-    await delay(900);
-    return;
-  }
-  const discovery = await sendToTab(tabId, 'DISCOVER_STORE_SEARCH', { query }).catch(() => null);
-  if (discovery?.url) {
-    await updateTabAndWait(tabId, discovery.url);
-  } else if (discovery?.submitted) {
-    // Algumas lojas atualizam os resultados por JavaScript, sem nova navegação.
-    await waitForTab(tabId, 7000).catch(() => {});
-  } else {
-    const fallback = new URL('/busca', store.url);
-    fallback.searchParams.set('q', query);
-    await updateTabAndWait(tabId, fallback.href);
-  }
-  await delay(900);
-}
-
-function mercadoLivreSearchUrl(query) {
-  const slug = String(query || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return `https://lista.mercadolivre.com.br/${slug}`;
-}
-
-async function searchMercadoLivre(product, store) {
-  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
-  try {
-    for (const query of [product.ean, product.name].filter(Boolean)) {
-      await updateTabAndWait(tab.id, mercadoLivreSearchUrl(query));
-      await delay(1200);
-      const extracted = await sendToTab(tab.id, 'EXTRACT_ML_RESULTS', { product, store });
-      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
-    }
-    return { status: 'not_found', listings: [] };
-  } finally {
-    await chrome.tabs.remove(tab.id).catch(() => {});
-  }
-}
-
-async function searchRetailStore(product, store) {
-  if (store.host === 'mercadolivre.com.br') return searchMercadoLivre(product, store);
-  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
-  try {
-    await updateTabAndWait(tab.id, store.url);
-    await delay(500);
-    const attempts = [product.ean, product.name].filter(Boolean);
-    const catalog = await sendToTab(tab.id, 'QUERY_STORE_CATALOG', {
-      queries: attempts, product, store
-    }).catch(() => null);
-    if (catalog?.listings?.length) return { status: 'ok', listings: catalog.listings };
-    for (let index = 0; index < attempts.length; index += 1) {
-      await navigateStoreSearch(tab.id, attempts[index], store);
-      let extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
-      if (extracted?.blocked) return { status: 'blocked', listings: [] };
-      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
-      // Algumas vitrines renderizam os cartões depois do evento de carregamento.
-      await delay(1200);
-      extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
-      if (extracted?.blocked) return { status: 'blocked', listings: [] };
-      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
-    }
-    return { status: 'not_found', listings: [] };
-  } finally {
-    await chrome.tabs.remove(tab.id).catch(() => {});
-  }
-}
-
 async function runSearch(port, message) {
   const requestId = message.requestId;
-  const products = Array.isArray(message.products) ? message.products.slice(0, 1) : [];
+  const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
   if (!products.length) throw new Error('Nenhum produto válido foi enviado à extensão.');
 
-  const results = [];
-  const totalSteps = products.length * RetailStores.length;
+  const totalSteps = products.length * 5;
   let completedSteps = 0;
+  const results = [];
 
   for (const product of products) {
     const listings = [];
     const sources = [];
     const label = product.name || product.ean;
-    let nextStore = 0;
-    const worker = async () => {
-      while (nextStore < RetailStores.length) {
-        const store = RetailStores[nextStore];
-        nextStore += 1;
-        safePost(port, {
-          type: 'BROWSER_SEARCH_PROGRESS', requestId,
-          completed: completedSteps, total: totalSteps,
-          message: `Verificando ${label} em ${store.name} (${completedSteps + 1} de ${totalSteps})…`
-        });
-        try {
-          const search = await searchRetailStore(product, store);
-          listings.push(...search.listings);
-          sources.push({ name: store.name, status: search.status, count: search.listings.length });
-        } catch (error) {
-          sources.push({ name: store.name, status: 'error', count: 0, error: error.message });
-        }
-        completedSteps += 1;
+    const semantic = ProductMatcher.buildSemanticQuery(product);
+    const steps = [
+      { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
+      { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
+      { name: 'Google Semântico', query: semantic || product.name || product.ean, mode: 'web' },
+      { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
+    ];
+
+    for (const step of steps) {
+      safePost(port, {
+        type: 'BROWSER_SEARCH_PROGRESS', requestId,
+        completed: completedSteps, total: totalSteps,
+        message: `Pesquisando ${label} em ${step.name}…`
+      });
+      try {
+        const found = step.query
+          ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
+          : [];
+        listings.push(...found);
+        sources.push({ name: step.name, status: 'ok', count: found.length });
+      } catch (error) {
+        sources.push({ name: step.name, status: 'error', count: 0, error: error.message });
+        if (/CAPTCHA|verificação/i.test(error.message)) throw error;
       }
-    };
-    // Seis abas aceleram a varredura sem abrir a lista inteira de uma vez.
-    await Promise.all(Array.from({ length: 6 }, () => worker()));
+      completedSteps += 1;
+    }
+
+    safePost(port, {
+      type: 'BROWSER_SEARCH_PROGRESS', requestId,
+      completed: completedSteps, total: totalSteps,
+      message: `Pesquisando ${label} no Mercado Livre…`
+    });
+    try {
+      const found = await searchMercadoLivre(product);
+      listings.push(...found);
+      sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
+    } catch (error) {
+      sources.push({ name: 'Mercado Livre', status: 'error', count: 0, error: error.message });
+    }
+    completedSteps += 1;
     results.push({ ean: product.ean, listings: deduplicate(listings), sources });
   }
+
   safePost(port, { type: 'BROWSER_SEARCH_RESULT', requestId, results });
 }
 
