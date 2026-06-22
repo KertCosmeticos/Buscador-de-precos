@@ -291,7 +291,7 @@ async function searchGoogleWeb(ean, productName) {
   const { data } = await serpApi.get('/search.json', {
     params: {
       engine: 'google',
-      q: [ean, productName].filter(Boolean).join(' '),
+      q: productName || ean,
       gl: 'br',
       hl: 'pt-br',
       google_domain: 'google.com.br',
