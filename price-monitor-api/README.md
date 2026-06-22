@@ -16,7 +16,7 @@ No Windows, copie `.env.example` para `.env` manualmente. Configure `SERPAPI_KEY
 
 Para uma demonstração local sem banco e sem chamadas externas, use `DEMO_MODE=true`. Nunca ative esse modo em produção. Para a varredura real multiloja, crie uma chave na SerpApi e configure `SERPAPI_KEY`.
 
-Na busca real, a API consulta sempre o Google Shopping pelo EAN e pelo nome cadastrado, além da busca web comum e de uma busca direcionada a marketplaces, perfumarias e drogarias prioritários. Os resultados são unidos e filtrados por marca, linha e variação do produto. Até cinco grupos do Shopping têm seus vendedores consultados. Quando o Google encontra uma loja sem expor o valor, a API tenta ler o preço estruturado na página do produto. Somente ofertas com preço e link direto de produto entram na comparação; páginas de busca ou categoria são descartadas. Uma consulta pode consumir cerca de nove créditos da SerpApi, então acompanhe a cota mensal.
+Na busca real, a API consulta sempre o Google Shopping pelo EAN e pelo nome cadastrado, além da busca web comum e de três buscas equilibradas entre marketplaces, perfumarias e drogarias prioritários. Os resultados são unidos e filtrados por marca, linha e variação do produto. Até cinco grupos do Shopping têm seus vendedores consultados. Quando o Google encontra uma loja sem expor o valor, a API tenta ler o preço estruturado na página do produto. Somente ofertas com preço e link direto de produto entram na comparação; páginas de busca ou categoria são descartadas. Uma consulta pode consumir cerca de onze créditos da SerpApi, então acompanhe a cota mensal.
 
 As pesquisas são nacionais por padrão. Para restringir a uma região, configure opcionalmente `SEARCH_LOCATION` no Koyeb com um local aceito pela SerpApi.
 

@@ -2,13 +2,36 @@ const { searchByEan } = require('./mercadoLivre');
 const { searchGoogleShopping } = require('./serpApi');
 
 function deduplicate(listings) {
-  const seen = new Set();
-  return listings.filter((item) => {
-    const key = item.link || `${item.marketplace}|${item.title}|${item.price}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+  const results = [];
+  const positions = new Map();
+  listings.forEach((item) => {
+    let normalizedLink = item.link || '';
+    if (normalizedLink) {
+      try {
+        const url = new URL(normalizedLink);
+        [...url.searchParams.keys()].forEach((key) => {
+          if (/^(utm_.+|srsltid|gclid|fbclid|ref|tag)$/i.test(key)) url.searchParams.delete(key);
+        });
+        url.hash = '';
+        normalizedLink = url.href.replace(/\/$/, '');
+      } catch {
+        // Mantém o link original quando a fonte retorna um endereço fora do padrão.
+      }
+    }
+    const normalized = { ...item, link: normalizedLink };
+    const key = normalizedLink || `${item.marketplace}|${item.title}|${item.price}`;
+    if (!positions.has(key)) {
+      positions.set(key, results.length);
+      results.push(normalized);
+      return;
+    }
+    const index = positions.get(key);
+    if (Number.isFinite(normalized.price)
+      && (!Number.isFinite(results[index].price) || normalized.price < results[index].price)) {
+      results[index] = normalized;
+    }
   });
+  return results;
 }
 
 async function searchAllMarketplaces(ean, productName = '') {
@@ -35,4 +58,4 @@ async function searchAllMarketplaces(ean, productName = '') {
   return { listings, sources };
 }
 
-module.exports = { searchAllMarketplaces };
+module.exports = { searchAllMarketplaces, deduplicate };

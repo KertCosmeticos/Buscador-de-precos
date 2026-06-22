@@ -6,19 +6,10 @@ const serpApi = axios.create({
   headers: { 'User-Agent': 'price-monitor-api/1.0' }
 });
 const searchLocation = process.env.SEARCH_LOCATION || undefined;
-const priorityDomains = [
-  'amazon.com.br',
-  'mercadolivre.com.br',
-  'shopee.com.br',
-  'belezanaweb.com.br',
-  'perfumariasumire.com.br',
-  'liviadistribuidora.com.br',
-  'riobelcosmeticos.com.br',
-  'magazineluiza.com.br',
-  'epocacosmeticos.com.br',
-  'drogariasaopaulo.com.br',
-  'drogasil.com.br',
-  'drogaraia.com.br'
+const priorityDomainGroups = [
+  ['amazon.com.br', 'mercadolivre.com.br', 'shopee.com.br', 'magazineluiza.com.br'],
+  ['belezanaweb.com.br', 'perfumariasumire.com.br', 'liviadistribuidora.com.br', 'riobelcosmeticos.com.br'],
+  ['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'drogasil.com.br', 'drogaraia.com.br']
 ];
 
 function hasFreeShipping(result) {
@@ -364,12 +355,12 @@ async function findGoogleWebResults(query) {
 
 async function searchGoogleWeb(ean, productName) {
   const baseQuery = productName || ean;
-  const domainQuery = productName
-    ? `"${productName}" (${priorityDomains.map((domain) => `site:${domain}`).join(' OR ')})`
-    : '';
+  const domainQueries = productName
+    ? priorityDomainGroups.map((domains) => `"${productName}" (${domains.map((domain) => `site:${domain}`).join(' OR ')})`)
+    : [];
   const searches = await Promise.allSettled([
     findGoogleWebResults(baseQuery),
-    ...(domainQuery ? [findGoogleWebResults(domainQuery)] : [])
+    ...domainQueries.map(findGoogleWebResults)
   ]);
   const offers = searches.flatMap((result) => result.status === 'fulfilled'
     ? googleWebOffersFromData(result.value, productName)
