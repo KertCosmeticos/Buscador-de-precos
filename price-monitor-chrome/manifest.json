@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Buscador de Preços Kert",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Pesquisa preços no Google Web, Google Shopping e Mercado Livre usando a sessão local do Chrome.",
   "permissions": ["tabs"],
   "host_permissions": [

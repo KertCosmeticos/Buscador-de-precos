@@ -30,7 +30,13 @@ const blockedDomains = new Set([
   'buscape.com.br', 'bondfaro.com.br', 'zoom.com.br', 'jacotei.com.br',
   'melhoresdescontos.com.br', 'melhornegocio.com.br',
   'canaltech.com.br', 'tecmundo.com.br', 'tudocelular.com',
+  // Atacadistas/distribuidores sem venda destinada ao consumidor final.
+  'liviadistribuidora.com.br', 'dcadistribuidor.com.br', 'ebccosmeticos.com.br',
 ]);
+
+const nonRetailPattern = /(?:^|[.\/_-])(atacado|atacadista|distribuidor|distribuidora|b2b)(?:[.\/_-]|$)/i;
+const nonRetailHostPattern = /atacad|distribuidor|distribuidora|(?:^|[.-])b2b(?:[.-]|$)/i;
+const genericResultTitle = /^(?:resultados? da web|videos?|imagens?|shopping|produtos?|mais resultados?|ver tudo)$/i;
 
 // ── Tokenização ────────────────────────────────────────────────────────────────
 
@@ -74,17 +80,15 @@ function linkPathMatchesProduct(link, product) {
 // ── Extração de preço ─────────────────────────────────────────────────────────
 
 function priceFromText(text) {
-  const prices = [];
   for (const match of cleanText(text).matchAll(/R\$\s*([\d.]+),(\d{2})/gi)) {
-    const context = text.slice(Math.max(0, match.index - 60), match.index + match[0].length + 60);
-    // "Frete grátis" costuma aparecer ao lado do preço real do produto. Não
-    // descarte a oferta inteira só por isso; bloqueie apenas valores claramente
-    // identificados como parcela, cupom, desconto ou economia.
-    if (/(cupom|parcela|economize|desconto|salve|\boff\b)/i.test(context)) continue;
+    const before = text.slice(Math.max(0, match.index - 45), match.index);
+    // Desconsidera apenas quando o próprio valor está rotulado como parcela,
+    // cupom, frete ou economia. Palavras posteriores não invalidam o preço.
+    if (/(?:parcela|cupom|frete|entrega|economize|desconto|salve|\boff\b)[^R$]{0,24}$/i.test(before)) continue;
     const price = Number(`${match[1].replaceAll('.', '')}.${match[2]}`);
-    if (Number.isFinite(price) && price > 0.5) prices.push(price);
+    if (Number.isFinite(price) && price > 0.5) return price;
   }
-  return prices.length ? Math.min(...prices) : null;
+  return null;
 }
 
 // ── Utilitários de link ───────────────────────────────────────────────────────
@@ -99,8 +103,21 @@ function isExternalLink(href) {
 function isBlockedDomain(link) {
   try {
     const host = new URL(link).hostname.replace(/^www\./, '');
-    return blockedDomains.has(host) || [...blockedDomains].some((d) => host.endsWith('.' + d));
+    return blockedDomains.has(host) || [...blockedDomains].some((d) => host.endsWith('.' + d))
+      || nonRetailHostPattern.test(host);
   } catch { return false; }
+}
+
+function isConsumerRetailOffer(link, title, text) {
+  const normalizedTitle = cleanText(title).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (isBlockedDomain(link) || genericResultTitle.test(normalizedTitle)) return false;
+  try {
+    const url = new URL(link);
+    const evidence = `${url.hostname} ${url.pathname} ${title}`;
+    if (nonRetailPattern.test(evidence.replace(/\s+/g, '-'))) return false;
+  } catch { return false; }
+  // Sinais inequívocos de portal exclusivamente comercial/B2B.
+  return !/(?:venda exclusiva|somente|exclusivo).{0,30}(?:lojistas|revendedores|profissionais)|pedido m[ií]nimo.{0,15}R\$/i.test(text);
 }
 
 function directUrl(anchor) {
@@ -156,28 +173,37 @@ function normalizeLink(value) {
   } catch { return value || ''; }
 }
 
-function resultContainer(anchor) {
-  let el = anchor;
-  for (let i = 0; el && i < 15; i += 1, el = el.parentElement) {
-    const text = cleanText(el.innerText || '');
-    if (/R\$\s*[\d.]+,\d{2}/i.test(text) && text.length >= 15 && text.length <= 5000) return el;
+const cardSelector = [
+  '.sh-dgr__grid-result', '.sh-dlr__list-result', '[data-docid]', '.pla-unit',
+  '.uEierd', '[data-text-ad]', '.g', '.Gx5Zad'
+].join(', ');
+
+function primaryOfferLink(card, heading) {
+  let current = heading;
+  while (current && current !== card) {
+    if (current.matches?.('a[href]')) {
+      const link = directUrl(current);
+      if (link) return normalizeLink(link);
+    }
+    current = current.parentElement;
   }
-  return null;
+  for (const anchor of card.querySelectorAll('a[href]')) {
+    const link = directUrl(anchor);
+    if (link) return normalizeLink(link);
+  }
+  return '';
 }
 
 // ── Construção de listing ─────────────────────────────────────────────────────
 
 function buildListing(link, text, container, product) {
-  if (isBlockedDomain(link)) return null;
-  // Valida o caminho da URL: evita links onde o produto na URL é claramente diferente
-  // (ex: casanorte.com/nutriex-moranguinho quando buscamos Canela)
+  const heading = container.querySelector('h3, h2, h4, [role="heading"]');
+  const title = cleanText(heading?.innerText || heading?.textContent || '');
+  if (!title || !isConsumerRetailOffer(link, title, text)) return null;
   if (!linkPathMatchesProduct(link, product)) return null;
   const price = priceFromText(text);
   if (!Number.isFinite(price)) return null;
-  if (!relevant(text, product, link)) return null;
-  const heading = container.querySelector('h3, h2, h4, [role="heading"]');
-  const title = cleanText(heading?.innerText || product.name || '');
-  if (!title) return null;
+  if (!relevant(`${title} ${text}`, product, link)) return null;
   const seller = sellerFromLink(link);
   return { title, price, seller, marketplace: seller, link, soldQuantity: null, condition: 'new',
            freeShipping: /frete\s+gr[aá]tis/i.test(text) };
@@ -187,50 +213,31 @@ function buildListing(link, text, container, product) {
 
 function extractListings(product) {
   const listings = new Map();
-
-  // Estratégia 1: link-first
-  // Cobre todos os links da página (Shopping widget, cards individuais, anúncios).
-  // A validação de URL garante que links para produtos errados são descartados.
-  document.querySelectorAll('a[href]').forEach((anchor) => {
-    const link = normalizeLink(directUrl(anchor));
-    if (!link || listings.has(link)) return;
-    const container = resultContainer(anchor);
-    if (!container) return;
-    const text = cleanText(container.innerText || '');
-    const listing = buildListing(link, text, container, product);
-    if (listing) listings.set(link, listing);
-  });
-
-  // Estratégia 2: card-first
-  // Cobre rich snippets onde o preço fica fora do ancestor do link.
-  document.querySelectorAll('.g, .MjjYud, .Gx5Zad, #rso > div, [data-hveid]').forEach((card) => {
+  // Somente cartões individuais. Não percorremos todos os links da página:
+  // menus como "Vídeos" e "Resultados da Web" não podem herdar o preço de
+  // outro anúncio que esteja no mesmo agrupador do Google.
+  document.querySelectorAll(cardSelector).forEach((card) => {
     const text = cleanText(card.innerText || '');
-    if (!text || text.length < 20 || text.length > 6000) return;
-    const price = priceFromText(text);
-    if (!Number.isFinite(price)) return;
-    if (!relevant(text, product)) return;
-    let link = '';
-    for (const a of card.querySelectorAll('a[href]')) {
-      const url = directUrl(a);
-      if (url && !isBlockedDomain(url)) { link = normalizeLink(url); break; }
-    }
-    if (!link || listings.has(link)) return;
-    if (!linkPathMatchesProduct(link, product)) return;
+    if (!text || text.length < 20 || text.length > 1800) return;
     const heading = card.querySelector('h3, h2, h4, [role="heading"]');
-    const title = cleanText(heading?.innerText || '');
-    if (!title) return;
-    const seller = sellerFromLink(link);
-    listings.set(link, { title, price, seller, marketplace: seller, link,
-                          soldQuantity: null, condition: 'new',
-                          freeShipping: /frete\s+gr[aá]tis/i.test(text) });
+    const link = primaryOfferLink(card, heading);
+    if (!link || listings.has(link)) return;
+    const listing = buildListing(link, text, card, product);
+    if (listing) listings.set(link, listing);
   });
 
   return [...listings.values()];
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== 'EXTRACT_GOOGLE_RESULTS') return;
-  const pageText = document.body?.innerText || '';
-  const captcha = /tráfego incomum|unusual traffic|não sou um robô|not a robot/i.test(pageText);
-  sendResponse({ captcha, listings: captcha ? [] : extractListings(message.product || {}) });
-});
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type !== 'EXTRACT_GOOGLE_RESULTS') return;
+    const pageText = document.body?.innerText || '';
+    const captcha = /tráfego incomum|unusual traffic|não sou um robô|not a robot/i.test(pageText);
+    sendResponse({ captcha, listings: captcha ? [] : extractListings(message.product || {}) });
+  });
+}
+
+if (typeof module === 'object' && module.exports) {
+  module.exports = { genericResultTitle, isBlockedDomain, isConsumerRetailOffer, priceFromText };
+}

@@ -4,6 +4,8 @@ A extensão pesquisa no Google Web, Shopping e Mercado Livre usando a sessão lo
 
 Cada produto passa por cinco etapas: EAN, nome oficial, consulta semântica por tipo/linha/variante, Shopping e Mercado Livre. A busca por EAN tem confiança direta. Nas demais, o validador exige a cor ou nuance correta, aceita sinônimos do tipo (por exemplo, banho de brilho, tonalizante ou coloração) e rejeita marcas concorrentes conhecidas.
 
+Somente ofertas B2C são exibidas: o preço e o link precisam pertencer ao mesmo cartão individual de uma loja que venda ao consumidor final. Distribuidoras, atacadistas, portais para revendedores, comparadores e atalhos genéricos do Google são descartados.
+
 ## Instalação local
 
 1. Abra `chrome://extensions/` no Chrome.

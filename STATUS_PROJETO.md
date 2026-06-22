@@ -26,6 +26,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Modo de pesquisa pelo Chrome local, sem consumo da SerpApi.
 - Extensão Chrome 2.0 com busca por EAN, Web semântica, Shopping e Mercado Livre, progresso e tratamento de CAPTCHA.
 - Validador compartilhado que interpreta marca, tipo, linha, cor/variante e nuance numérica antes de aceitar uma oferta.
+- Filtro B2C que exige preço, título e link no mesmo anúncio e exclui atacadistas, distribuidoras e portais para revendedores.
 - GitHub Pages publicado em:
   - https://kertcosmeticos.github.io/Buscador-de-precos/
 
