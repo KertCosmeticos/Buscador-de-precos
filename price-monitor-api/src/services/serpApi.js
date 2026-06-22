@@ -5,6 +5,7 @@ const serpApi = axios.create({
   timeout: 15000,
   headers: { 'User-Agent': 'price-monitor-api/1.0' }
 });
+const searchLocation = process.env.SEARCH_LOCATION || 'Sao Paulo, State of Sao Paulo, Brazil';
 
 function hasFreeShipping(result) {
   const delivery = String(result.delivery || result.shipping || '').toLowerCase();
@@ -72,6 +73,8 @@ async function getDirectSellerOffers(product, ean) {
       product_id: product.product_id,
       gl: 'br',
       hl: 'pt-br',
+      location: searchLocation,
+      device: 'desktop',
       api_key: process.env.SERPAPI_KEY
     }
   });
@@ -101,6 +104,8 @@ async function findShoppingProducts(query) {
       q: query,
       gl: 'br',
       hl: 'pt-br',
+      location: searchLocation,
+      device: 'desktop',
       api_key: process.env.SERPAPI_KEY
     }
   });
@@ -334,6 +339,8 @@ async function searchGoogleWeb(ean, productName) {
       gl: 'br',
       hl: 'pt-br',
       google_domain: 'google.com.br',
+      location: searchLocation,
+      device: 'desktop',
       num: 30,
       api_key: process.env.SERPAPI_KEY
     }
