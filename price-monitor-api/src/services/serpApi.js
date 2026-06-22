@@ -280,6 +280,7 @@ function googleWebOffersFromData(data, productName = '') {
   });
   const sponsoredResults = [
     ...(Array.isArray(data.shopping_results) ? data.shopping_results : []),
+    ...(Array.isArray(data.inline_shopping_results) ? data.inline_shopping_results : []),
     ...(Array.isArray(data.inline_products) ? data.inline_products : []),
     ...(Array.isArray(data.immersive_products) ? data.immersive_products : [])
   ];

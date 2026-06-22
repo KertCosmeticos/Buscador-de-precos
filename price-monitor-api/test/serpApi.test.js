@@ -54,7 +54,7 @@ test('extrai preço e link direto do JSON-LD da página do produto', () => {
 
 test('aproveita produtos patrocinados da busca web', () => {
   const offers = googleWebOffersFromData({
-    shopping_results: [{
+    inline_shopping_results: [{
       title: 'Keraton Tonalizante Banho de Brilho Canela 100g',
       source: 'Amazon.com.br',
       extracted_price: 47.82,
