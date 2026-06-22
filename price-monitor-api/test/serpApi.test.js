@@ -51,3 +51,17 @@ test('extrai preço e link direto do JSON-LD da página do produto', () => {
     isProductPage: true
   });
 });
+
+test('aproveita produtos patrocinados da busca web', () => {
+  const offers = googleWebOffersFromData({
+    shopping_results: [{
+      title: 'Keraton Tonalizante Banho de Brilho Canela 100g',
+      source: 'Amazon.com.br',
+      extracted_price: 47.82,
+      link: 'https://www.amazon.com.br/dp/EXEMPLO'
+    }]
+  }, 'Keraton Banho de Brilho Canela');
+  assert.equal(offers.length, 1);
+  assert.equal(offers[0].price, 47.82);
+  assert.equal(offers[0].marketplace, 'Amazon.com.br');
+});

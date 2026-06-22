@@ -127,6 +127,17 @@ function priceFromOrganicResult(result) {
     const price = numberFromPrice(value);
     if (Number.isFinite(price)) return price;
   }
+  const extensions = [
+    ...(result.extensions || []),
+    ...(result.rich_snippet?.top?.extensions || []),
+    ...(result.rich_snippet?.bottom?.extensions || [])
+  ];
+  for (const extension of extensions) {
+    if (!/R\$/i.test(String(extension)) || /(frete|cupom|parcela)/i.test(String(extension))) continue;
+    const match = String(extension).match(/R\$\s*([\d.]+,\d{2})/i);
+    const price = numberFromPrice(match?.[1]);
+    if (Number.isFinite(price)) return price;
+  }
   return null;
 }
 
@@ -150,7 +161,10 @@ function absoluteUrl(value, baseUrl) {
 function isLikelySearchUrl(value) {
   try {
     const url = new URL(value);
-    return /\/(busca|buscar|search|pesquisa|catalogsearch)(\/|$)/i.test(url.pathname)
+    const googleRedirect = /(^|\.)google\./i.test(url.hostname)
+      && /\/(aclk|url|shopping\/product)(\/|$)/i.test(url.pathname);
+    return googleRedirect
+      || /\/(busca|buscar|search|pesquisa|catalogsearch)(\/|$)/i.test(url.pathname)
       || ['q', 'query', 'search', 'keyword'].some((key) => url.searchParams.has(key));
   } catch {
     return true;
@@ -232,23 +246,24 @@ async function inspectProductPage(pageUrl) {
     return null;
   }
   try {
-    const { data } = await axios.get(parsed.href, {
+    const response = await axios.get(parsed.href, {
       timeout: 7000,
-      maxContentLength: 3 * 1024 * 1024,
+      maxContentLength: 6 * 1024 * 1024,
       responseType: 'text',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml'
       }
     });
-    return productPageDataFromHtml(data, parsed.href);
+    const finalUrl = response.request?.res?.responseUrl || parsed.href;
+    return productPageDataFromHtml(response.data, finalUrl);
   } catch {
     return null;
   }
 }
 
 function googleWebOffersFromData(data, productName = '') {
-  return (data.organic_results || []).map((result) => {
+  const organic = (data.organic_results || []).map((result) => {
     const seller = sellerFromResult(result);
     const offer = {
       title: result.title || 'Produto sem nome',
@@ -262,7 +277,30 @@ function googleWebOffersFromData(data, productName = '') {
     };
     const relevanceText = [result.title, result.snippet, ...(result.extensions || [])].filter(Boolean).join(' ');
     return { offer, relevanceText };
-  }).filter(({ offer, relevanceText }) => offer.link && isRelevantOffer(relevanceText, productName))
+  });
+  const sponsoredResults = [
+    ...(Array.isArray(data.shopping_results) ? data.shopping_results : []),
+    ...(Array.isArray(data.inline_products) ? data.inline_products : []),
+    ...(Array.isArray(data.immersive_products) ? data.immersive_products : [])
+  ];
+  const sponsored = sponsoredResults.map((result) => {
+    const seller = result.source || result.seller || sellerFromResult(result);
+    return {
+      offer: {
+        title: result.title || 'Produto sem nome',
+        price: numberFromPrice(result.extracted_price ?? result.price),
+        seller,
+        marketplace: seller,
+        link: result.product_link || result.link || '',
+        soldQuantity: null,
+        condition: 'new',
+        freeShipping: hasFreeShipping(result)
+      },
+      relevanceText: result.title || ''
+    };
+  });
+  return [...organic, ...sponsored]
+    .filter(({ offer, relevanceText }) => offer.link && isRelevantOffer(relevanceText, productName))
     .map(({ offer }) => offer);
 }
 
