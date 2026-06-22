@@ -61,15 +61,13 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 
 O frontend está publicado no GitHub Pages e conectado à API em produção no Koyeb. O MongoDB Atlas, o Mercado Livre e o Google Shopping/SerpApi estão ativos.
 
-A base oficial `PRODUTOS EM LINHA 2026 - BD.xlsx` foi validada com 252 produtos, sem EANs ausentes, inválidos ou duplicados. A primeira importação pelo painel ainda precisa ser executada após a publicação desta melhoria.
+A base oficial `PRODUTOS EM LINHA 2026 - BD.xlsx` foi validada e importada com 252 produtos, sem EANs ausentes, inválidos ou duplicados.
 
 ## Próximos passos
 
-1. Publicar a melhoria de importação no Koyeb e no GitHub Pages.
-2. Entrar em Cadastros e importar `PRODUTOS EM LINHA 2026 - BD.xlsx`.
-3. Confirmar os 252 produtos no catálogo.
-4. Pesquisar EANs reais e validar preços, lojas, links e exportação CSV.
-5. Acompanhar o consumo mensal de pesquisas no painel da SerpApi.
+1. Pesquisar EANs reais e validar preços, lojas, links e exportação CSV.
+2. Testar a reimportação de uma planilha para confirmar a atualização por EAN.
+3. Acompanhar o consumo mensal de pesquisas no painel da SerpApi.
 
 ## Segurança
 
