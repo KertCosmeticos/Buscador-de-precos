@@ -665,11 +665,18 @@ byId('search-button').addEventListener('click', async () => {
     renderResults(currentResults);
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
+    const sourceDiagnostics = currentResults.flatMap((item) => item.sources || []);
+    const storesWithOffers = sourceDiagnostics.filter((source) => Number(source.count) > 0).length;
+    const blockedStores = sourceDiagnostics.filter((source) => source.status === 'blocked').length;
+    const failedStores = sourceDiagnostics.filter((source) => source.status === 'error').length;
+    const diagnosticText = searchSource === 'browser' && sourceDiagnostics.length
+      ? ` ${storesWithOffers} loja(s) com oferta, ${blockedStores} bloqueada(s) e ${failedStores} com erro técnico.`
+      : '';
     setMessage(
       byId('search-message'),
       errors
-        ? `Busca concluída com ${errors} item(ns) sem resultado.`
-        : `Busca concluída com sucesso pelo ${searchSource === 'browser' ? 'Chrome' : 'servidor'}.`,
+        ? `Busca concluída com ${errors} item(ns) sem resultado.${diagnosticText}`
+        : `Busca concluída com sucesso pelo ${searchSource === 'browser' ? 'Chrome' : 'servidor'}.${diagnosticText}`,
       errors ? 'error' : 'success'
     );
   } catch (error) {

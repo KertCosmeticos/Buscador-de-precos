@@ -68,6 +68,21 @@ function deduplicate(listings) {
 }
 
 async function navigateStoreSearch(tabId, query, store) {
+  const knownSearchUrl = (() => {
+    const url = new URL(store.url);
+    if (store.host === 'amazon.com.br') {
+      url.pathname = '/s'; url.searchParams.set('k', query); return url.href;
+    }
+    if (store.host === 'shopee.com.br') {
+      url.pathname = '/search'; url.searchParams.set('keyword', query); return url.href;
+    }
+    return '';
+  })();
+  if (knownSearchUrl) {
+    await updateTabAndWait(tabId, knownSearchUrl);
+    await delay(900);
+    return;
+  }
   const discovery = await sendToTab(tabId, 'DISCOVER_STORE_SEARCH', { query }).catch(() => null);
   if (discovery?.url) {
     await updateTabAndWait(tabId, discovery.url);
@@ -82,7 +97,29 @@ async function navigateStoreSearch(tabId, query, store) {
   await delay(900);
 }
 
+function mercadoLivreSearchUrl(query) {
+  const slug = String(query || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return `https://lista.mercadolivre.com.br/${slug}`;
+}
+
+async function searchMercadoLivre(product, store) {
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+  try {
+    for (const query of [product.ean, product.name].filter(Boolean)) {
+      await updateTabAndWait(tab.id, mercadoLivreSearchUrl(query));
+      await delay(1200);
+      const extracted = await sendToTab(tab.id, 'EXTRACT_ML_RESULTS', { product, store });
+      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
+    }
+    return { status: 'not_found', listings: [] };
+  } finally {
+    await chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
 async function searchRetailStore(product, store) {
+  if (store.host === 'mercadolivre.com.br') return searchMercadoLivre(product, store);
   const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
   try {
     await updateTabAndWait(tab.id, store.url);
@@ -138,8 +175,8 @@ async function runSearch(port, message) {
         completedSteps += 1;
       }
     };
-    // Quatro abas equilibram velocidade, memória e risco de bloqueio.
-    await Promise.all(Array.from({ length: 4 }, () => worker()));
+    // Seis abas aceleram a varredura sem abrir a lista inteira de uma vez.
+    await Promise.all(Array.from({ length: 6 }, () => worker()));
     results.push({ ean: product.ean, listings: deduplicate(listings), sources });
   }
   safePost(port, { type: 'BROWSER_SEARCH_RESULT', requestId, results });

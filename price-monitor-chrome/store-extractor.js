@@ -77,7 +77,8 @@ function cardAroundPrice(priceElement) {
     const text = storeCleanText(element.innerText || '');
     if (text.length > 1800) break;
     const links = [...element.querySelectorAll('a[href]')].filter(isProductLink);
-    if (links.length && /R\$\s*[\d.]+(?:,\d{2})?/i.test(text)) return { element, links };
+    const hasProductText = !!element.querySelector('h1, h2, h3, h4, [class*="product-name" i], [class*="product-title" i], img[alt]');
+    if (links.length && hasProductText && /R\$\s*[\d.]+(?:,\d{2})?/i.test(text)) return { element, links };
   }
   return null;
 }
@@ -97,11 +98,18 @@ function extractStoreListings(product, store) {
     for (const anchor of card.links) {
       const link = normalizeStoreLink(anchor.href);
       if (!link || listings.has(link)) continue;
-      const heading = card.element.querySelector('h1, h2, h3, h4, [class*="name" i], [class*="title" i]');
-      const title = storeCleanText(
-        anchor.getAttribute('aria-label') || heading?.textContent || anchor.textContent
-      );
-      if (title.length < 5 || /^(comprar|ver produto|saiba mais)$/i.test(title)) continue;
+      const candidates = [
+        ...card.element.querySelectorAll('h1, h2, h3, h4, [class*="product-name" i], [class*="product-title" i]'),
+        ...card.element.querySelectorAll('img[alt]'), anchor
+      ].map((element) => storeCleanText(
+        element.tagName === 'IMG' ? element.getAttribute('alt') : element.textContent || element.getAttribute('aria-label')
+      )).filter((candidate) => candidate.length >= 5
+        && /[a-záàâãéêíóôõúç]/i.test(candidate)
+        && !/^R\$|^(?:comprar|ver produto|saiba mais)$/i.test(candidate));
+      const title = candidates.find((candidate) => ProductMatcher.matchesOffer(
+        `${candidate} ${link}`, link, { ...product, searchMode: undefined }
+      ).relevant) || '';
+      if (!title) continue;
       const evidence = `${title} ${link} ${storeCleanText(card.element.innerText || '')}`;
       if (!ProductMatcher.matchesOffer(evidence, link, { ...product, searchMode: undefined }).relevant) continue;
       if (!ProductMatcher.linkMatchesProduct(link, { ...product, searchMode: undefined })) continue;

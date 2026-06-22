@@ -69,8 +69,8 @@ function extractPrice(item) {
   }
   const text = cleanText(item.innerText || '');
   for (const match of text.matchAll(/R\$\s*([\d.]+),(\d{2})/gi)) {
-    const context = text.slice(Math.max(0, match.index - 45), match.index + match[0].length + 45);
-    if (/(frete|entrega|envio|cupom)/i.test(context)) continue;
+    const before = text.slice(Math.max(0, match.index - 45), match.index);
+    if (/(frete|entrega|envio|cupom)[^R$]{0,24}$/i.test(before)) continue;
     const price = Number(`${match[1].replaceAll('.', '')}.${match[2]}`);
     if (Number.isFinite(price) && price > 0) return price;
   }

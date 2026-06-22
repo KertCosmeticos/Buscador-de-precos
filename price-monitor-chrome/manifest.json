@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Buscador de Preços Kert",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Consulta diretamente lojas B2C autorizadas usando a sessão local do Chrome.",
   "permissions": ["tabs"],
   "host_permissions": [
@@ -50,7 +50,7 @@
         "https://*.elausa.com.br/*", "https://*.seiki.com.br/*",
         "https://*.docebeleza.com.br/*", "https://*.thebeautybox.com.br/*",
         "https://*.lemisstore.com.br/*", "https://*.cabelosnaweb.com.br/*",
-        "https://*.ikesaki.com.br/*", "https://*.sumire.com.br/*",
+        "https://*.ikesaki.com.br/*", "https://*.perfumariasumire.com.br/*",
         "https://*.lojasrede.com.br/*", "https://*.perfumariakennedy.com.br/*",
         "https://*.primor.com.br/*", "https://*.mercadolivre.com.br/*",
         "https://*.amazon.com.br/*", "https://*.shopee.com.br/*",
@@ -75,7 +75,7 @@
         "https://*.mercadoshops.com.br/*", "https://*.useorganico.com.br/*",
         "https://*.evoracosmeticos.com.br/*", "https://*.cosmeticosonline.com.br/*",
         "https://*.topcosmeticos.com.br/*", "https://*.valecosmeticos.com.br/*",
-        "https://*.mundodocabeleireiro.com.br/*", "https://*.riobel.com.br/*",
+        "https://*.mundodocabeleireiro.com.br/*", "https://*.riobelcosmeticos.com.br/*",
         "https://*.perfumariacoral.com.br/*", "https://*.supernosso.com/*",
         "https://*.atacadao.com.br/*", "https://*.samsclub.com.br/*",
         "https://*.assai.com.br/*", "https://*.savegnago.com.br/*",
