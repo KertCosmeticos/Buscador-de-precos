@@ -8,6 +8,8 @@ let adminToken = sessionStorage.getItem('priceMonitorAdminToken') || '';
 let allCatalogProducts = [];
 let catalogProducts = [];
 let pendingImportProducts = [];
+let browserExtensionAvailable = false;
+const browserSearchRequests = new Map();
 const selectedProductEans = new Set();
 const selectedNames = new Set();
 const selectedCategories = new Set();
@@ -139,6 +141,111 @@ function setImportProgress(percent, text) {
   byId('import-progress-percent').textContent = `${normalized}%`;
   byId('import-progress-text').textContent = text;
 }
+
+function setBrowserExtensionStatus(available) {
+  browserExtensionAvailable = Boolean(available);
+  const status = byId('browser-extension-status');
+  status.textContent = available
+    ? 'Extensão do Chrome conectada e pronta para pesquisar.'
+    : 'Extensão do Chrome não detectada. Instale ou recarregue a extensão e atualize esta página.';
+  status.classList.toggle('unavailable', !available);
+}
+
+function setSearchProgress(percent, text) {
+  const normalized = Math.max(0, Math.min(100, Math.round(percent)));
+  byId('search-progress').hidden = false;
+  byId('search-progress-bar').value = normalized;
+  byId('search-progress-bar').textContent = `${normalized}%`;
+  byId('search-progress-percent').textContent = `${normalized}%`;
+  byId('search-progress-text').textContent = text;
+}
+
+function summarizeBrowserResult(result) {
+  const listings = result.listings || [];
+  const prices = listings.map((listing) => listing.price).filter(Number.isFinite);
+  const sum = prices.reduce((total, price) => total + price, 0);
+  const grouped = new Map();
+  listings.forEach((listing) => {
+    const marketplace = listing.marketplace || 'Não informado';
+    if (!grouped.has(marketplace)) grouped.set(marketplace, []);
+    grouped.get(marketplace).push(listing);
+  });
+  const marketplaceSummary = [...grouped].map(([marketplace, marketplaceListings]) => {
+    const marketplacePrices = marketplaceListings.map((listing) => listing.price).filter(Number.isFinite);
+    return {
+      marketplace,
+      minPrice: marketplacePrices.length ? Math.min(...marketplacePrices) : null,
+      maxPrice: marketplacePrices.length ? Math.max(...marketplacePrices) : null,
+      averagePrice: marketplacePrices.length
+        ? marketplacePrices.reduce((total, price) => total + price, 0) / marketplacePrices.length
+        : null,
+      listingsCount: marketplaceListings.length
+    };
+  });
+  return {
+    ean: result.ean,
+    minPrice: prices.length ? Math.min(...prices) : null,
+    maxPrice: prices.length ? Math.max(...prices) : null,
+    averagePrice: prices.length ? sum / prices.length : null,
+    listingsCount: listings.length,
+    pricedListingsCount: prices.length,
+    marketplaces: [...grouped.keys()],
+    marketplaceSummary,
+    sources: result.sources || [],
+    listings,
+    ...(listings.length ? {} : { error: 'Nenhuma oferta relevante com preço e link direto foi encontrada.' })
+  };
+}
+
+function searchWithBrowser(products) {
+  if (!browserExtensionAvailable) {
+    return Promise.reject(new Error('A extensão do Chrome não está conectada. Instale-a ou selecione API online.'));
+  }
+  if (products.length > 5) {
+    return Promise.reject(new Error('A pesquisa pelo Chrome aceita até cinco produtos por vez para reduzir bloqueios do Google.'));
+  }
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      browserSearchRequests.delete(requestId);
+      reject(new Error('A pesquisa pelo Chrome excedeu quatro minutos. Verifique se o Google solicitou CAPTCHA.'));
+    }, 240000);
+    browserSearchRequests.set(requestId, { resolve, reject, timeout });
+    window.postMessage({
+      source: 'price-monitor-web',
+      type: 'BROWSER_SEARCH_REQUEST',
+      requestId,
+      products
+    }, window.location.origin);
+  });
+}
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window || event.origin !== window.location.origin) return;
+  const message = event.data;
+  if (!message || message.source !== 'price-monitor-extension') return;
+  if (message.type === 'BROWSER_EXTENSION_STATUS') {
+    setBrowserExtensionStatus(message.available);
+    return;
+  }
+  const request = browserSearchRequests.get(message.requestId);
+  if (!request) return;
+  if (message.type === 'BROWSER_SEARCH_PROGRESS') {
+    const percent = message.total ? (message.completed / message.total) * 100 : 0;
+    setSearchProgress(percent, message.message || 'Pesquisando no Google…');
+    return;
+  }
+  clearTimeout(request.timeout);
+  browserSearchRequests.delete(message.requestId);
+  if (message.type === 'BROWSER_SEARCH_RESULT') {
+    setSearchProgress(100, 'Pesquisa pelo Chrome concluída.');
+    request.resolve((message.results || []).map(summarizeBrowserResult));
+  } else if (message.type === 'BROWSER_SEARCH_ERROR') {
+    request.reject(new Error(message.error || 'A extensão não conseguiu concluir a pesquisa.'));
+  }
+});
+
+window.postMessage({ source: 'price-monitor-web', type: 'BROWSER_EXTENSION_PING' }, window.location.origin);
 
 async function request(path, options = {}) {
   if (!IS_LOCAL && API_URL.includes('sua-api.koyeb.app')) {
@@ -527,21 +634,36 @@ byId('search-button').addEventListener('click', async () => {
   }
 
   const button = byId('search-button');
+  const searchSource = document.querySelector('input[name="search-source"]:checked')?.value || 'browser';
+  const products = eans.map((ean) => {
+    const catalogProduct = allCatalogProducts.find((product) => product.ean === ean);
+    return { ean, name: catalogProduct?.name || '' };
+  });
   setLoading(button, true);
-  setMessage(byId('search-message'), 'Consultando os marketplaces…');
+  byId('search-progress').hidden = true;
+  setMessage(
+    byId('search-message'),
+    searchSource === 'browser' ? 'Preparando pesquisa no Chrome…' : 'Consultando a API online…'
+  );
   try {
-    const data = await request('/buscar/lote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eans)
-    });
-    currentResults = data.results || [];
+    if (searchSource === 'browser') {
+      currentResults = await searchWithBrowser(products);
+    } else {
+      const data = await request('/buscar/lote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eans)
+      });
+      currentResults = data.results || [];
+    }
     renderResults(currentResults);
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
     setMessage(
       byId('search-message'),
-      errors ? `Busca concluída com ${errors} item(ns) sem resultado.` : 'Busca concluída com sucesso.',
+      errors
+        ? `Busca concluída com ${errors} item(ns) sem resultado.`
+        : `Busca concluída com sucesso pelo ${searchSource === 'browser' ? 'Chrome' : 'servidor'}.`,
       errors ? 'error' : 'success'
     );
   } catch (error) {

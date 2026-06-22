@@ -1,0 +1,5 @@
+body { width: 280px; margin: 0; padding: 18px; font: 14px/1.45 system-ui, sans-serif; color: #172033; }
+h1 { margin: 0 0 10px; font-size: 17px; }
+p { margin: 0 0 14px; color: #475569; }
+a { display: block; padding: 9px 12px; border-radius: 8px; background: #2563eb; color: white; text-align: center; text-decoration: none; font-weight: 700; }
+small { display: block; margin-top: 13px; color: #64748b; }

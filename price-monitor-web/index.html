@@ -47,6 +47,30 @@
           <label id="filtered-select-all" class="check-row select-all" hidden><input id="select-all-products" type="checkbox"> Selecionar todos os produtos filtrados</label>
           <div id="product-picker-list" class="product-picker-list"><p>Carregando catálogo…</p></div>
         </div>
+        <div class="search-source-card">
+          <div>
+            <strong>Fonte da pesquisa</strong>
+            <p>Use o Chrome para pesquisar como cliente ou a API online como alternativa.</p>
+          </div>
+          <div class="search-source-options">
+            <label class="source-option"><input type="radio" name="search-source" value="browser" checked> Chrome local <span class="recommended">Mais resultados</span></label>
+            <label class="source-option"><input type="radio" name="search-source" value="api"> API online <span>Consome SerpApi</span></label>
+          </div>
+          <div id="browser-extension-status" class="extension-status unavailable">Extensão do Chrome não detectada.</div>
+          <details class="extension-help">
+            <summary>Como instalar a extensão</summary>
+            <ol>
+              <li><a href="price-monitor-chrome.zip" download>Baixe a extensão</a> e extraia o arquivo ZIP.</li>
+              <li>Abra <code>chrome://extensions/</code> e ative <strong>Modo do desenvolvedor</strong>.</li>
+              <li>Clique em <strong>Carregar sem compactação</strong> e selecione a pasta extraída.</li>
+              <li>Atualize esta página; o indicador acima ficará verde.</li>
+            </ol>
+          </details>
+        </div>
+        <div id="search-progress" class="import-progress" hidden>
+          <div class="progress-label"><span id="search-progress-text">Preparando pesquisa…</span><strong id="search-progress-percent">0%</strong></div>
+          <progress id="search-progress-bar" max="100" value="0">0%</progress>
+        </div>
         <div class="actions">
           <button id="search-button" class="button primary" type="button">Buscar preços</button>
           <button id="export-button" class="button secondary" type="button" disabled>Exportar CSV</button>

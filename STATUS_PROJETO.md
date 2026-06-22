@@ -23,6 +23,8 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Importação administrativa de planilhas `.xls` e `.xlsx`.
 - Planilha-modelo gerada pelo painel, validação prévia e barra de progresso por lotes.
 - Instruções de cadastro manual e importação dentro da aba Cadastros.
+- Modo de pesquisa pelo Chrome local, sem consumo da SerpApi.
+- Extensão Chrome com busca Web/Shopping, progresso e tratamento de CAPTCHA.
 - GitHub Pages publicado em:
   - https://kertcosmeticos.github.io/Buscador-de-precos/
 
