@@ -124,8 +124,79 @@ function extractStoreListings(product, store) {
   return [...listings.values()];
 }
 
+function listingFromCatalogProduct(entry, product, store, platform) {
+  const title = storeCleanText(entry.title || entry.productName || '');
+  const link = normalizeStoreLink(entry.link || entry.url || '');
+  const price = Number(entry.price);
+  if (!title || !link || !Number.isFinite(price) || price <= 0) return null;
+  const candidate = { ...product, searchMode: undefined };
+  if (!ProductMatcher.matchesOffer(`${title} ${link}`, link, candidate).relevant) return null;
+  if (!ProductMatcher.linkMatchesProduct(link, candidate)) return null;
+  return {
+    title, price, seller: store.name, marketplace: store.name, link,
+    soldQuantity: null, condition: 'new', freeShipping: false, sourcePlatform: platform
+  };
+}
+
+async function queryVtex(query, product, store) {
+  const response = await fetch(`/api/catalog_system/pub/products/search?ft=${encodeURIComponent(query)}`, {
+    credentials: 'include', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(4000)
+  });
+  if (!response.ok || !String(response.headers.get('content-type')).includes('json')) return { supported: false, listings: [] };
+  const products = await response.json();
+  if (!Array.isArray(products)) return { supported: false, listings: [] };
+  const listings = [];
+  products.forEach((entry) => {
+    const offers = (entry.items || []).flatMap((item) => item.sellers || [])
+      .map((seller) => seller.commertialOffer || {})
+      .filter((offer) => Number(offer.Price) > 0 && Number(offer.AvailableQuantity) > 0);
+    const lowest = offers.sort((a, b) => Number(a.Price) - Number(b.Price))[0];
+    if (!lowest) return;
+    const listing = listingFromCatalogProduct({
+      title: entry.productName, link: entry.link, price: Number(lowest.Price)
+    }, product, store, 'VTEX');
+    if (listing) listings.push(listing);
+  });
+  return { supported: true, listings };
+}
+
+async function queryShopify(query, product, store) {
+  const url = `/search/suggest.json?q=${encodeURIComponent(query)}&resources[type]=product&resources[limit]=10`;
+  const response = await fetch(url, {
+    credentials: 'include', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(4000)
+  });
+  if (!response.ok || !String(response.headers.get('content-type')).includes('json')) return { supported: false, listings: [] };
+  const data = await response.json();
+  const products = data?.resources?.results?.products;
+  if (!Array.isArray(products)) return { supported: false, listings: [] };
+  const listings = products.map((entry) => listingFromCatalogProduct({
+    title: entry.title, link: entry.url,
+    price: Number(entry.price) || parseStorePrice(String(entry.price || ''))
+  }, product, store, 'Shopify')).filter(Boolean);
+  return { supported: true, listings };
+}
+
+async function queryStoreCatalog(queries, product, store) {
+  let platformSupported = false;
+  for (const query of queries.filter(Boolean)) {
+    for (const connector of [queryVtex, queryShopify]) {
+      try {
+        const result = await connector(query, product, store);
+        platformSupported ||= result.supported;
+        if (result.listings.length) return { supported: true, listings: result.listings };
+      } catch { /* tenta a próxima plataforma ou a busca visual */ }
+    }
+  }
+  return { supported: platformSupported, listings: [] };
+}
+
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'QUERY_STORE_CATALOG') {
+      queryStoreCatalog(message.queries || [], message.product || {}, message.store || {})
+        .then(sendResponse).catch((error) => sendResponse({ supported: false, listings: [], error: error.message }));
+      return true;
+    }
     if (message.type === 'DISCOVER_STORE_SEARCH') {
       sendResponse(discoverSearch(String(message.query || '')));
       return;

@@ -669,8 +669,15 @@ byId('search-button').addEventListener('click', async () => {
     const storesWithOffers = sourceDiagnostics.filter((source) => Number(source.count) > 0).length;
     const blockedStores = sourceDiagnostics.filter((source) => source.status === 'blocked').length;
     const failedStores = sourceDiagnostics.filter((source) => source.status === 'error').length;
+    const errorGroups = new Map();
+    sourceDiagnostics.filter((source) => source.status === 'error').forEach((source) => {
+      const reason = source.error || 'Erro não identificado';
+      errorGroups.set(reason, (errorGroups.get(reason) || 0) + 1);
+    });
+    const mainErrors = [...errorGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
+      .map(([reason, count]) => `${count}× ${reason}`).join(' | ');
     const diagnosticText = searchSource === 'browser' && sourceDiagnostics.length
-      ? ` ${storesWithOffers} loja(s) com oferta, ${blockedStores} bloqueada(s) e ${failedStores} com erro técnico.`
+      ? ` ${storesWithOffers} loja(s) com oferta, ${blockedStores} bloqueada(s) e ${failedStores} com erro técnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
       : '';
     setMessage(
       byId('search-message'),

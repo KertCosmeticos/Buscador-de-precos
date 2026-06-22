@@ -4,7 +4,7 @@ A extensão consulta diretamente 70 lojas B2C autorizadas usando a sessão local
 
 Em cada site, a extensão tenta o EAN e depois o nome oficial. O validador exige a cor ou nuance correta, aceita sinônimos do tipo (por exemplo, banho de brilho, tonalizante ou coloração) e rejeita marcas concorrentes conhecidas. Sem preço e link direto no cartão do produto, nada é incluído.
 
-As lojas são consultadas com até seis abas simultâneas. Mercado Livre, Amazon e Shopee têm rotas diretas; as demais usam o mecanismo de busca encontrado na própria página. Como páginas podem mudar, exigir CEP/login ou bloquear automação, o cadastro central permite criar ajustes específicos sem voltar à busca genérica do Google.
+As lojas são consultadas com até seis abas simultâneas. A extensão tenta primeiro os catálogos VTEX e Shopify; Mercado Livre, Amazon e Shopee têm rotas diretas; por último, usa o mecanismo de busca encontrado na página. Como sites podem mudar, exigir CEP/login ou bloquear automação, o painel informa os principais erros para orientar conectores específicos.
 
 ## Instalação local
 

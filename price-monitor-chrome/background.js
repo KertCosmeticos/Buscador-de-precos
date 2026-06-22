@@ -125,6 +125,10 @@ async function searchRetailStore(product, store) {
     await updateTabAndWait(tab.id, store.url);
     await delay(500);
     const attempts = [product.ean, product.name].filter(Boolean);
+    const catalog = await sendToTab(tab.id, 'QUERY_STORE_CATALOG', {
+      queries: attempts, product, store
+    }).catch(() => null);
+    if (catalog?.listings?.length) return { status: 'ok', listings: catalog.listings };
     for (let index = 0; index < attempts.length; index += 1) {
       await navigateStoreSearch(tab.id, attempts[index], store);
       let extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
