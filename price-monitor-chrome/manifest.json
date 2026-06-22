@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Buscador de Preços Kert",
-  "version": "1.0.0",
-  "description": "Pesquisa preços no Google Web e Shopping usando a sessão local do Chrome.",
+  "version": "2.0.0",
+  "description": "Pesquisa preços no Google Web, Google Shopping e Mercado Livre usando a sessão local do Chrome.",
   "permissions": ["tabs"],
   "host_permissions": [
     "https://www.google.com/*",
-    "https://www.google.com.br/*"
+    "https://www.google.com.br/*",
+    "https://lista.mercadolivre.com.br/*",
+    "https://*.mercadolivre.com.br/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -30,7 +32,15 @@
         "https://www.google.com/search*",
         "https://www.google.com.br/search*"
       ],
-      "js": ["google-extractor.js"],
+      "js": ["product-matcher.js", "google-extractor.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://lista.mercadolivre.com.br/*",
+        "https://*.mercadolivre.com.br/*"
+      ],
+      "js": ["product-matcher.js", "mercadolivre-extractor.js"],
       "run_at": "document_idle"
     }
   ]

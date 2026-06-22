@@ -24,7 +24,8 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Planilha-modelo gerada pelo painel, validação prévia e barra de progresso por lotes.
 - Instruções de cadastro manual e importação dentro da aba Cadastros.
 - Modo de pesquisa pelo Chrome local, sem consumo da SerpApi.
-- Extensão Chrome com busca Web/Shopping, progresso e tratamento de CAPTCHA.
+- Extensão Chrome 2.0 com busca por EAN, Web semântica, Shopping e Mercado Livre, progresso e tratamento de CAPTCHA.
+- Validador compartilhado que interpreta marca, tipo, linha, cor/variante e nuance numérica antes de aceitar uma oferta.
 - GitHub Pages publicado em:
   - https://kertcosmeticos.github.io/Buscador-de-precos/
 
@@ -73,7 +74,7 @@ A base oficial `PRODUTOS EM LINHA 2026 - BD.xlsx` foi validada e importada com 2
 
 ## Próximos passos
 
-1. Pesquisar EANs reais e validar preços, lojas, links e exportação CSV.
+1. Recarregar a extensão 2.0 no Chrome e validar uma amostra de produtos de linhas diferentes.
 2. Testar a reimportação de uma planilha para confirmar a atualização por EAN.
 3. Acompanhar o consumo mensal de pesquisas no painel da SerpApi.
 

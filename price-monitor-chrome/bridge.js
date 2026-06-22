@@ -7,14 +7,24 @@ function tellPage(type, payload = {}) {
 }
 
 function connect() {
-  port = chrome.runtime.connect({ name: 'price-monitor-bridge' });
-  port.onMessage.addListener((message) => tellPage(message.type, message));
-  port.onDisconnect.addListener(() => {
-    port = null;
+  // chrome.runtime.id fica undefined quando o contexto da extensão é invalidado
+  // (ex: extensão recarregada com a página já aberta).
+  if (!chrome.runtime?.id) {
     tellPage('BROWSER_EXTENSION_STATUS', { available: false });
-    setTimeout(connect, 1000);
-  });
-  tellPage('BROWSER_EXTENSION_STATUS', { available: true });
+    return;
+  }
+  try {
+    port = chrome.runtime.connect({ name: 'price-monitor-bridge' });
+    port.onMessage.addListener((message) => tellPage(message.type, message));
+    port.onDisconnect.addListener(() => {
+      port = null;
+      tellPage('BROWSER_EXTENSION_STATUS', { available: false });
+      if (chrome.runtime?.id) setTimeout(connect, 1000);
+    });
+    tellPage('BROWSER_EXTENSION_STATUS', { available: true });
+  } catch {
+    tellPage('BROWSER_EXTENSION_STATUS', { available: false });
+  }
 }
 
 window.addEventListener('message', (event) => {

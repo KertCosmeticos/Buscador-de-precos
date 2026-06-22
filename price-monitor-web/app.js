@@ -637,7 +637,13 @@ byId('search-button').addEventListener('click', async () => {
   const searchSource = document.querySelector('input[name="search-source"]:checked')?.value || 'browser';
   const products = eans.map((ean) => {
     const catalogProduct = allCatalogProducts.find((product) => product.ean === ean);
-    return { ean, name: catalogProduct?.name || '' };
+    return {
+      ean,
+      name: catalogProduct?.name || '',
+      sku: catalogProduct?.sku || '',
+      category: catalogProduct?.category || '',
+      family: catalogProduct?.family || ''
+    };
   });
   setLoading(button, true);
   byId('search-progress').hidden = true;

@@ -35,6 +35,6 @@ As colunas aceitas são `COD SFA`, `NOME`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`.
 
 ## Pesquisa pelo Chrome
 
-A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Google Web e Shopping usando a sessão local do navegador, sem consumir SerpApi. O workflow do Pages publica também `price-monitor-chrome.zip`, disponível no próprio painel.
+A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Google Web, Shopping e Mercado Livre usando a sessão local do navegador, sem consumir SerpApi. O workflow do Pages publica também `price-monitor-chrome.zip`, disponível no próprio painel.
 
-A extensão abre abas de pesquisa em segundo plano, extrai ofertas relevantes com preço e link direto e fecha as abas ao terminar. O modo Chrome processa até cinco produtos por vez. Caso o Google apresente CAPTCHA, a aba é trazida para frente para o usuário concluir a verificação.
+A extensão consulta primeiro o EAN e depois combina nome oficial, tipo/linha e variante (cor ou nuance). EAN é tratado como identificação exata; na busca por nome, cor/nuance e tipo compatível são obrigatórios, a marca própria reforça a confiança e marcas concorrentes explícitas eliminam o resultado. Ela abre abas em segundo plano, extrai ofertas com preço e link direto e fecha as abas ao terminar. O modo Chrome processa até cinco produtos por vez. Caso o Google apresente CAPTCHA, a aba é trazida para frente para o usuário concluir a verificação.
