@@ -33,7 +33,8 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Conector do Mercado Livre.
 - Conector multiloja por Google Shopping/SerpApi.
 - Busca alternativa pelo nome cadastrado quando o EAN não aparece no Google Shopping.
-- Busca web orgânica como fallback, aproveitando ofertas que exibem preço em reais.
+- Busca simultânea no Google Shopping e na Web, aproveitando ofertas que exibem preço em reais.
+- Filtro de relevância por marca, linha e variação para remover produtos concorrentes.
 - Links diretos das ofertas quando disponibilizados pela fonte.
 - CRUD do catálogo de produtos.
 - Login administrativo com JWT e expiração de oito horas.

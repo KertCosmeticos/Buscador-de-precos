@@ -21,6 +21,49 @@ function numberFromPrice(value) {
   return Number.isFinite(price) ? price : null;
 }
 
+const trustedBrands = new Set(['kert', 'keraton', 'phytogen', 'keragen', 'reduton']);
+const genericProductWords = new Set([
+  'a', 'as', 'com', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'para', 'sem',
+  'banho', 'brilho', 'cabelo', 'cabelos', 'coloracao', 'condicionador', 'creme',
+  'descolorante', 'kit', 'mascara', 'oxidante', 'produto', 'shampoo', 'tonalizante',
+  'tratamento', 'unidade', 'uso', 'vol'
+]);
+
+function searchTokens(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !/^\d+(?:ml|g|gr|kg)$/.test(token));
+}
+
+function tokensMatch(expected, received) {
+  return expected === received
+    || (expected.length >= 6 && received.length >= 6 && expected.slice(0, 6) === received.slice(0, 6));
+}
+
+function isRelevantOffer(title, productName) {
+  if (!productName) return true;
+  const expected = searchTokens(productName);
+  const received = searchTokens(title);
+  const expectedBrands = expected.filter((token) => trustedBrands.has(token));
+  const receivedHasExpectedBrand = expectedBrands.length
+    ? expectedBrands.some((brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert')))
+    : received.some((token) => trustedBrands.has(token));
+  if (!receivedHasExpectedBrand) return false;
+
+  const distinctive = expected.filter((token) => !trustedBrands.has(token) && !genericProductWords.has(token));
+  if (!distinctive.length) return true;
+  const matches = distinctive.filter((token) => received.some((candidate) => tokensMatch(token, candidate)));
+  const lastDistinctive = distinctive[distinctive.length - 1];
+  return received.some((candidate) => tokensMatch(lastDistinctive, candidate))
+    && matches.length >= Math.max(1, Math.ceil(distinctive.length * 0.6));
+}
+
 async function getDirectSellerOffers(product, ean) {
   if (!product.product_id) return [];
   const { data } = await serpApi.get('/search.json', {
@@ -95,7 +138,7 @@ function priceFromOrganicResult(result) {
   return match ? numberFromPrice(match[1]) : null;
 }
 
-function googleWebOffersFromData(data) {
+function googleWebOffersFromData(data, productName = '') {
   return (data.organic_results || []).map((result) => {
     const seller = sellerFromResult(result);
     return {
@@ -108,7 +151,7 @@ function googleWebOffersFromData(data) {
       condition: 'new',
       freeShipping: false
     };
-  }).filter((item) => Number.isFinite(item.price) && item.link);
+  }).filter((item) => Number.isFinite(item.price) && item.link && isRelevantOffer(item.title, productName));
 }
 
 async function searchGoogleWeb(ean, productName) {
@@ -122,19 +165,25 @@ async function searchGoogleWeb(ean, productName) {
       api_key: process.env.SERPAPI_KEY
     }
   });
-  return googleWebOffersFromData(data);
+  return googleWebOffersFromData(data, productName);
 }
 
 async function searchGoogleShopping(ean, productName = '') {
   if (!process.env.SERPAPI_KEY) return [];
 
   try {
-    let products = await findShoppingProducts(ean);
-    if (!products.length && productName) products = await findShoppingProducts(productName);
-    products = products.slice(0, 3);
-    const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
-    const shoppingOffers = offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
-    return shoppingOffers.length ? shoppingOffers : searchGoogleWeb(ean, productName);
+    const shoppingPromise = (async () => {
+      let products = await findShoppingProducts(ean);
+      if (!products.length && productName) products = await findShoppingProducts(productName);
+      if (productName) products = products.filter((product) => isRelevantOffer(product.title, productName));
+      products = products.slice(0, 3);
+      const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
+      return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    })();
+    const searches = await Promise.allSettled([shoppingPromise, searchGoogleWeb(ean, productName)]);
+    const successful = searches.filter((result) => result.status === 'fulfilled');
+    if (!successful.length) throw searches[0].reason;
+    return successful.flatMap((result) => result.value);
   } catch (error) {
     const message = error.code === 'ECONNABORTED'
       ? 'O Google Shopping demorou demais para responder.'
@@ -145,4 +194,4 @@ async function searchGoogleShopping(ean, productName = '') {
   }
 }
 
-module.exports = { searchGoogleShopping, googleWebOffersFromData };
+module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer };
