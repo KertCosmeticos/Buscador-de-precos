@@ -32,6 +32,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Busca individual e em lote, com limite de cinco EANs simultâneos.
 - Conector do Mercado Livre.
 - Conector multiloja por Google Shopping/SerpApi.
+- Busca alternativa pelo nome cadastrado quando o EAN não aparece no Google Shopping.
 - Links diretos das ofertas quando disponibilizados pela fonte.
 - CRUD do catálogo de produtos.
 - Login administrativo com JWT e expiração de oito horas.

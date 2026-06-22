@@ -23,4 +23,7 @@ test('importação cria, mantém e atualiza produtos pelo EAN', async () => {
 
   const updated = await catalog.importProducts([{ ...product, name: 'Produto atualizado' }]);
   assert.deepEqual(updated, { total: 1, created: 0, updated: 1, unchanged: 0 });
+
+  const found = await catalog.getProductByEan(product.ean);
+  assert.equal(found.name, 'Produto atualizado');
 });

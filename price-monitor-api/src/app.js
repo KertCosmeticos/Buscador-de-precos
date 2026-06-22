@@ -6,6 +6,7 @@ const { assertValidEan, normalizeEan, isValidEan } = require('./utils/validation
 const { mapWithConcurrency } = require('./utils/limit');
 const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
+const productCatalog = require('./services/productCatalog');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -56,9 +57,10 @@ function summarize(ean, listings, sources = []) {
 }
 
 async function searchFresh(ean) {
+  const product = demoMode ? null : await productCatalog.getProductByEan(ean);
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean);
+    : await searchAllMarketplaces(ean, product?.name);
   const result = summarize(ean, search.listings, search.sources);
   return result;
 }

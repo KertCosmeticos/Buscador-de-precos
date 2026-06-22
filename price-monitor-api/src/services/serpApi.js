@@ -51,21 +51,26 @@ async function getDirectSellerOffers(product, ean) {
   })).filter((item) => Number.isFinite(item.price) && item.link);
 }
 
-async function searchGoogleShopping(ean) {
+async function findShoppingProducts(query) {
+  const { data } = await serpApi.get('/search.json', {
+    params: {
+      engine: 'google_shopping',
+      q: query,
+      gl: 'br',
+      hl: 'pt-br',
+      api_key: process.env.SERPAPI_KEY
+    }
+  });
+  return (data.shopping_results || []).filter((item) => item.product_id);
+}
+
+async function searchGoogleShopping(ean, productName = '') {
   if (!process.env.SERPAPI_KEY) return [];
 
   try {
-    const { data } = await serpApi.get('/search.json', {
-      params: {
-        engine: 'google_shopping',
-        q: ean,
-        gl: 'br',
-        hl: 'pt-br',
-        api_key: process.env.SERPAPI_KEY
-      }
-    });
-
-    const products = (data.shopping_results || []).filter((item) => item.product_id).slice(0, 3);
+    let products = await findShoppingProducts(ean);
+    if (!products.length && productName) products = await findShoppingProducts(productName);
+    products = products.slice(0, 3);
     const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
     return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
   } catch (error) {

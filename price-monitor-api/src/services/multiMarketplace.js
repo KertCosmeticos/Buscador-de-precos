@@ -11,13 +11,13 @@ function deduplicate(listings) {
   });
 }
 
-async function searchAllMarketplaces(ean) {
+async function searchAllMarketplaces(ean, productName = '') {
   const connectors = [
-    { name: 'Mercado Livre', enabled: true, search: searchByEan },
-    { name: 'Google Shopping', enabled: Boolean(process.env.SERPAPI_KEY), search: searchGoogleShopping }
+    { name: 'Mercado Livre', enabled: true, search: () => searchByEan(ean) },
+    { name: 'Google Shopping', enabled: Boolean(process.env.SERPAPI_KEY), search: () => searchGoogleShopping(ean, productName) }
   ].filter((connector) => connector.enabled);
 
-  const settled = await Promise.allSettled(connectors.map((connector) => connector.search(ean)));
+  const settled = await Promise.allSettled(connectors.map((connector) => connector.search()));
   const sources = settled.map((result, index) => ({
     name: connectors[index].name,
     status: result.status === 'fulfilled' ? 'ok' : 'error',

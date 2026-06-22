@@ -45,6 +45,11 @@ async function getFilters() {
   };
 }
 
+async function getProductByEan(ean) {
+  if (isDemo()) return demoProducts.find((product) => product.ean === ean && product.active !== false) || null;
+  return Product.findOne({ ean, active: true }).lean();
+}
+
 function cleanProduct(input) {
   return {
     ean: String(input.ean || '').trim(),
@@ -146,4 +151,4 @@ async function importProducts(inputs) {
   return { total: products.length, created, updated, unchanged };
 }
 
-module.exports = { listProducts, getFilters, createProduct, updateProduct, deleteProduct, importProducts };
+module.exports = { listProducts, getFilters, getProductByEan, createProduct, updateProduct, deleteProduct, importProducts };
