@@ -36,6 +36,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Busca simultânea no Google Shopping e na Web, aproveitando ofertas que exibem preço em reais.
 - Filtro de relevância por marca, linha e variação para remover produtos concorrentes.
 - Até 30 resultados da Web por produto, com tentativa de extrair preço da página e exigir link direto do anúncio.
+- Shopping consultado sempre por EAN e nome, com resolução de até cinco grupos de vendedores.
 - Links diretos das ofertas quando disponibilizados pela fonte.
 - CRUD do catálogo de produtos.
 - Login administrativo com JWT e expiração de oito horas.

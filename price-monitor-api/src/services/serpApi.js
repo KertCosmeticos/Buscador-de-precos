@@ -345,10 +345,14 @@ async function searchGoogleShopping(ean, productName = '') {
 
   try {
     const shoppingPromise = (async () => {
-      let products = await findShoppingProducts(ean);
-      if (!products.length && productName) products = await findShoppingProducts(productName);
+      const productSearches = await Promise.allSettled([
+        findShoppingProducts(ean),
+        ...(productName ? [findShoppingProducts(productName)] : [])
+      ]);
+      let products = productSearches.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+      products = [...new Map(products.map((product) => [product.product_id, product])).values()];
       if (productName) products = products.filter((product) => isRelevantOffer(product.title, productName));
-      products = products.slice(0, 3);
+      products = products.slice(0, 5);
       const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
       return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
     })();
