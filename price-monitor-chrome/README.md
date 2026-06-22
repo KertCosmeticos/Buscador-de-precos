@@ -1,10 +1,10 @@
 # Extensão Chrome — Buscador de Preços Kert
 
-A extensão pesquisa no Google Web, Shopping e Mercado Livre usando a sessão local do Chrome e devolve preço, loja e link direto ao painel do Buscador de Preços.
+A extensão consulta diretamente 70 lojas B2C autorizadas usando a sessão local do Chrome e devolve preço, loja e link direto ao painel do Buscador de Preços.
 
-Cada produto passa por cinco etapas: EAN, nome oficial, consulta semântica por tipo/linha/variante, Shopping e Mercado Livre. A busca por EAN tem confiança direta. Nas demais, o validador exige a cor ou nuance correta, aceita sinônimos do tipo (por exemplo, banho de brilho, tonalizante ou coloração) e rejeita marcas concorrentes conhecidas.
+Em cada site, a extensão tenta o EAN e depois o nome oficial. O validador exige a cor ou nuance correta, aceita sinônimos do tipo (por exemplo, banho de brilho, tonalizante ou coloração) e rejeita marcas concorrentes conhecidas. Sem preço e link direto no cartão do produto, nada é incluído.
 
-Somente ofertas B2C são exibidas: o preço e o link precisam pertencer ao mesmo cartão individual de uma loja que venda ao consumidor final. Distribuidoras, atacadistas, portais para revendedores, comparadores e atalhos genéricos do Google são descartados.
+As lojas são consultadas sequencialmente. Como páginas podem mudar, exigir CEP/login ou bloquear automação, o cadastro central permite criar ajustes específicos sem voltar à busca genérica do Google.
 
 ## Instalação local
 
@@ -14,4 +14,4 @@ Somente ofertas B2C são exibidas: o preço e o link precisam pertencer ao mesmo
 4. Selecione a pasta `price-monitor-chrome` deste projeto.
 5. Quando houver uma atualização, clique em **Recarregar** no cartão da extensão e depois atualize o painel.
 
-A extensão não lê senhas nem histórico. Ela atua somente no painel publicado e em páginas de pesquisa do Google que ela própria abre. O Google pode solicitar CAPTCHA em pesquisas repetidas; nesse caso, resolva a verificação na aba aberta e repita a consulta.
+A extensão não lê senhas nem histórico. Ela atua somente no painel publicado e nos 70 domínios cadastrados. Como percorre as lojas sequencialmente, a versão inicial consulta um produto por vez e pode levar vários minutos.

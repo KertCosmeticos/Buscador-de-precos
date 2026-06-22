@@ -1,16 +1,14 @@
-importScripts('product-matcher.js');
-
-const activePorts = new Set();
+importScripts('product-matcher.js', 'retail-stores.js');
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function safePost(port, message) {
-  try { port.postMessage(message); } catch { /* A página pode ter sido fechada. */ }
+  try { port.postMessage(message); } catch { /* painel fechado */ }
 }
 
-function waitForTab(tabId, timeout = 30000) {
+function waitForTab(tabId, timeout = 25000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
@@ -26,71 +24,24 @@ function waitForTab(tabId, timeout = 30000) {
   });
 }
 
-async function extractFromTab(tabId, messageType, payload) {
+async function sendToTab(tabId, type, payload = {}) {
   let lastError;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
-      return await chrome.tabs.sendMessage(tabId, { type: messageType, ...payload });
+      return await chrome.tabs.sendMessage(tabId, { type, ...payload });
     } catch (error) {
       lastError = error;
-      await delay(800);
+      await delay(600);
     }
   }
-  throw lastError || new Error('Não foi possível ler a página.');
-}
-
-// Abre uma aba no Google com a query recebida e extrai os resultados.
-// O objeto `product` é passado ao extractor para aplicar filtros de relevância.
-async function searchGoogleByQuery(query, product, mode = 'web') {
-  const parameters = new URLSearchParams({ q: query, hl: 'pt-BR', gl: 'br', num: '30' });
-  if (mode === 'shopping') parameters.set('tbm', 'shop');
-  const tab = await chrome.tabs.create({
-    url: `https://www.google.com/search?${parameters}`,
-    active: false,
-  });
-  let keepOpen = false;
-  try {
-    await waitForTab(tab.id);
-    await delay(mode === 'shopping' ? 3500 : 2000);
-    const result = await extractFromTab(tab.id, 'EXTRACT_GOOGLE_RESULTS', { product });
-    if (result?.captcha) {
-      keepOpen = true;
-      await chrome.tabs.update(tab.id, { active: true });
-      throw new Error('O Google solicitou uma verificação. Resolva o CAPTCHA na aba aberta e tente novamente.');
-    }
-    return { mode, listings: result?.listings || [] };
-  } finally {
-    if (!keepOpen) await chrome.tabs.remove(tab.id).catch(() => {});
-  }
-}
-
-function mlSlug(query) {
-  return query
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-async function searchMercadoLivre(product) {
-  const query = (product.name || product.ean).trim();
-  const slug  = mlSlug(query);
-  const tab   = await chrome.tabs.create({ url: `https://lista.mercadolivre.com.br/${slug}`, active: false });
-  try {
-    await waitForTab(tab.id);
-    await delay(2500);
-    const result = await extractFromTab(tab.id, 'EXTRACT_ML_RESULTS', { product });
-    return { mode: 'ml', listings: result?.listings || [] };
-  } finally {
-    await chrome.tabs.remove(tab.id).catch(() => {});
-  }
+  throw lastError || new Error('Não foi possível ler a loja.');
 }
 
 function normalizeLink(value) {
   try {
     const url = new URL(value);
     [...url.searchParams.keys()].forEach((key) => {
-      if (/^(utm_.+|srsltid|gclid|fbclid|ref|tag|source|medium|campaign)$/i.test(key)) url.searchParams.delete(key);
+      if (/^(utm_.+|srsltid|gclid|fbclid|ref|tag|source|campaign)$/i.test(key)) url.searchParams.delete(key);
     });
     url.hash = '';
     return url.href.replace(/\/$/, '');
@@ -101,131 +52,83 @@ function deduplicate(listings) {
   const byLink = new Map();
   listings.forEach((listing) => {
     const link = normalizeLink(listing.link);
-    if (!link) return;
-    const normalized = { ...listing, link };
+    if (!link || !Number.isFinite(listing.price)) return;
     const current = byLink.get(link);
-    if (!current || normalized.price < current.price) byLink.set(link, normalized);
+    if (!current || listing.price < current.price) byLink.set(link, { ...listing, link });
   });
   return [...byLink.values()];
 }
 
+async function navigateStoreSearch(tabId, query, store) {
+  const discovery = await sendToTab(tabId, 'DISCOVER_STORE_SEARCH', { query }).catch(() => null);
+  if (discovery?.url) {
+    await chrome.tabs.update(tabId, { url: discovery.url });
+    await waitForTab(tabId);
+  } else if (discovery?.submitted) {
+    // Algumas lojas atualizam os resultados por JavaScript, sem nova navegação.
+    await waitForTab(tabId, 7000).catch(() => {});
+  } else {
+    const fallback = new URL('/busca', store.url);
+    fallback.searchParams.set('q', query);
+    await chrome.tabs.update(tabId, { url: fallback.href });
+    await waitForTab(tabId);
+  }
+  await delay(2800);
+}
+
+async function searchRetailStore(product, store) {
+  const tab = await chrome.tabs.create({ url: store.url, active: false });
+  try {
+    await waitForTab(tab.id);
+    await delay(1200);
+    const attempts = [product.ean, product.name].filter(Boolean);
+    for (let index = 0; index < attempts.length; index += 1) {
+      await navigateStoreSearch(tab.id, attempts[index], store);
+      const extracted = await sendToTab(tab.id, 'EXTRACT_STORE_RESULTS', { product, store });
+      if (extracted?.blocked) return { status: 'blocked', listings: [] };
+      if (extracted?.listings?.length) return { status: 'ok', listings: extracted.listings };
+    }
+    return { status: 'not_found', listings: [] };
+  } finally {
+    await chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
 async function runSearch(port, message) {
   const requestId = message.requestId;
-  const products  = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
+  const products = Array.isArray(message.products) ? message.products.slice(0, 1) : [];
   if (!products.length) throw new Error('Nenhum produto válido foi enviado à extensão.');
 
   const results = [];
-  // 5 etapas: EAN + nome + consulta semântica + Shopping + Mercado Livre.
-  const totalSteps = products.length * 5;
+  const totalSteps = products.length * RetailStores.length;
   let completedSteps = 0;
 
   for (const product of products) {
     const listings = [];
-    const sources  = [];
-    const label    = product.name || product.ean;
-
-    // ── Etapa 1: busca por EAN ────────────────────────────────────────────────
-    // EAN retorna páginas que expõem o código de barras — resultado muito preciso.
-    // O flag searchByEan desativa o filtro de cor no extractor, pois a especificidade
-    // do EAN já garante que a página é do produto correto.
-    if (product.ean) {
+    const sources = [];
+    const label = product.name || product.ean;
+    for (const store of RetailStores) {
       safePost(port, {
         type: 'BROWSER_SEARCH_PROGRESS', requestId,
         completed: completedSteps, total: totalSteps,
-        message: `Pesquisando ${label} por código de barras (EAN)…`,
+        message: `Verificando ${label} em ${store.name} (${completedSteps + 1} de ${totalSteps})…`
       });
       try {
-        const search = await searchGoogleByQuery(product.ean, { ...product, searchMode: 'ean' }, 'web');
+        const search = await searchRetailStore(product, store);
         listings.push(...search.listings);
-        sources.push({ name: 'Google EAN (Chrome)', status: 'ok', count: search.listings.length });
+        sources.push({ name: store.name, status: search.status, count: search.listings.length });
       } catch (error) {
-        sources.push({ name: 'Google EAN (Chrome)', status: 'error', count: 0, error: error.message });
-        if (/CAPTCHA|verificação/i.test(error.message)) throw error;
-      }
-      completedSteps += 1;
-    } else {
-      completedSteps += 1; // mantém contagem correta mesmo sem EAN
-    }
-
-    // ── Etapa 2: nome oficial ─────────────────────────────────────────────────
-    safePost(port, {
-      type: 'BROWSER_SEARCH_PROGRESS', requestId,
-      completed: completedSteps, total: totalSteps,
-      message: `Pesquisando ${label} pelo nome oficial…`,
-    });
-    try {
-      const search = await searchGoogleByQuery(product.name || product.ean, product, 'web');
-      listings.push(...search.listings);
-      sources.push({ name: 'Google Nome (Chrome)', status: 'ok', count: search.listings.length });
-    } catch (error) {
-      sources.push({ name: 'Google Nome (Chrome)', status: 'error', count: 0, error: error.message });
-      if (/CAPTCHA|verificação/i.test(error.message)) throw error;
-    }
-    completedSteps += 1;
-
-    // ── Etapa 3: palavras-chave semânticas ───────────────────────────────────
-    const semanticQuery = ProductMatcher.buildSemanticQuery(product);
-    safePost(port, {
-      type: 'BROWSER_SEARCH_PROGRESS', requestId,
-      completed: completedSteps, total: totalSteps,
-      message: `Garimpando variações de nome para ${label}…`,
-    });
-    try {
-      const search = semanticQuery
-        ? await searchGoogleByQuery(semanticQuery, product, 'web')
-        : { listings: [] };
-      listings.push(...search.listings);
-      sources.push({ name: 'Google Semântico (Chrome)', status: 'ok', count: search.listings.length });
-    } catch (error) {
-      sources.push({ name: 'Google Semântico (Chrome)', status: 'error', count: 0, error: error.message });
-      if (/CAPTCHA|verificação/i.test(error.message)) throw error;
-    }
-    completedSteps += 1;
-
-    // ── Etapa 4: Google Shopping ──────────────────────────────────────────────
-    for (const mode of ['shopping']) {
-      const modeLabel = mode === 'web' ? 'Google Web' : 'Google Shopping';
-      safePost(port, {
-        type: 'BROWSER_SEARCH_PROGRESS', requestId,
-        completed: completedSteps, total: totalSteps,
-        message: `Pesquisando ${label} no ${modeLabel}…`,
-      });
-      try {
-        const search = await searchGoogleByQuery(product.name || product.ean, product, mode);
-        listings.push(...search.listings);
-        sources.push({ name: `${modeLabel} (Chrome)`, status: 'ok', count: search.listings.length });
-      } catch (error) {
-        sources.push({ name: `${modeLabel} (Chrome)`, status: 'error', count: 0, error: error.message });
-        if (/CAPTCHA|verificação/i.test(error.message)) throw error;
+        sources.push({ name: store.name, status: 'error', count: 0, error: error.message });
       }
       completedSteps += 1;
     }
-
-    // ── Etapa 5: Mercado Livre ────────────────────────────────────────────────
-    safePost(port, {
-      type: 'BROWSER_SEARCH_PROGRESS', requestId,
-      completed: completedSteps, total: totalSteps,
-      message: `Pesquisando ${label} no Mercado Livre…`,
-    });
-    try {
-      const ml = await searchMercadoLivre(product);
-      listings.push(...ml.listings);
-      sources.push({ name: 'Mercado Livre (Chrome)', status: 'ok', count: ml.listings.length });
-    } catch (error) {
-      sources.push({ name: 'Mercado Livre (Chrome)', status: 'error', count: 0, error: error.message });
-    }
-    completedSteps += 1;
-
     results.push({ ean: product.ean, listings: deduplicate(listings), sources });
   }
-
   safePost(port, { type: 'BROWSER_SEARCH_RESULT', requestId, results });
 }
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== 'price-monitor-bridge') return;
-  activePorts.add(port);
-  port.onDisconnect.addListener(() => activePorts.delete(port));
   port.onMessage.addListener((message) => {
     if (message.type === 'BROWSER_EXTENSION_PING') {
       safePost(port, { type: 'BROWSER_EXTENSION_STATUS', available: true });

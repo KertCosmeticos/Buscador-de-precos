@@ -201,15 +201,15 @@ function searchWithBrowser(products) {
   if (!browserExtensionAvailable) {
     return Promise.reject(new Error('A extensão do Chrome não está conectada. Instale-a ou selecione API online.'));
   }
-  if (products.length > 5) {
-    return Promise.reject(new Error('A pesquisa pelo Chrome aceita até cinco produtos por vez para reduzir bloqueios do Google.'));
+  if (products.length > 1) {
+    return Promise.reject(new Error('A consulta direta percorre 70 lojas e aceita um produto por vez.'));
   }
   const requestId = crypto.randomUUID();
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       browserSearchRequests.delete(requestId);
-      reject(new Error('A pesquisa pelo Chrome excedeu quatro minutos. Verifique se o Google solicitou CAPTCHA.'));
-    }, 240000);
+      reject(new Error('A consulta às lojas excedeu vinte minutos. Algumas lojas podem estar bloqueando ou exigindo CEP/login.'));
+    }, 1200000);
     browserSearchRequests.set(requestId, { resolve, reject, timeout });
     window.postMessage({
       source: 'price-monitor-web',
@@ -232,7 +232,7 @@ window.addEventListener('message', (event) => {
   if (!request) return;
   if (message.type === 'BROWSER_SEARCH_PROGRESS') {
     const percent = message.total ? (message.completed / message.total) * 100 : 0;
-    setSearchProgress(percent, message.message || 'Pesquisando no Google…');
+    setSearchProgress(percent, message.message || 'Consultando lojas B2C…');
     return;
   }
   clearTimeout(request.timeout);
@@ -620,7 +620,7 @@ function renderDetails(results) {
     }
   });
 
-  byId('details-count').textContent = `${offers.length} oferta(s), com preço quando disponibilizado pelo Google`;
+  byId('details-count').textContent = `${offers.length} oferta(s) B2C com preço e link direto`;
   byId('details-card').hidden = offers.length === 0;
 }
 

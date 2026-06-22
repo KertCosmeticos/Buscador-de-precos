@@ -34,6 +34,6 @@ A importação valida o arquivo antes do envio e exibe o progresso por lotes. Pr
 
 ## Extensão Chrome
 
-O modo **Chrome local** usa a extensão da pasta `price-monitor-chrome` para pesquisar Web e Shopping na sessão real do navegador. O painel detecta automaticamente a extensão, acompanha o progresso e mantém a API online como alternativa. A instalação detalhada está disponível no próprio painel.
+O modo **Chrome local** usa a extensão da pasta `price-monitor-chrome` para consultar diretamente as lojas B2C cadastradas na sessão real do navegador. O painel detecta automaticamente a extensão, acompanha o progresso e mantém a API online como alternativa. A instalação detalhada está disponível no próprio painel.
 
 O projeto não exige build nem dependências externas no frontend.

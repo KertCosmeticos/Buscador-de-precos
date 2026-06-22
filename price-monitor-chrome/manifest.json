@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Buscador de Preços Kert",
-  "version": "2.1.0",
-  "description": "Pesquisa preços no Google Web, Google Shopping e Mercado Livre usando a sessão local do Chrome.",
+  "version": "3.0.0",
+  "description": "Consulta diretamente lojas B2C autorizadas usando a sessão local do Chrome.",
   "permissions": ["tabs"],
   "host_permissions": [
     "https://www.google.com/*",
@@ -41,6 +41,47 @@
         "https://*.mercadolivre.com.br/*"
       ],
       "js": ["product-matcher.js", "mercadolivre-extractor.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.belezanaweb.com.br/*", "https://*.epocacosmeticos.com.br/*",
+        "https://*.amobeleza.com.br/*", "https://*.dannycosmeticos.com.br/*",
+        "https://*.elausa.com.br/*", "https://*.seiki.com.br/*",
+        "https://*.docebeleza.com.br/*", "https://*.thebeautybox.com.br/*",
+        "https://*.lemisstore.com.br/*", "https://*.cabelosnaweb.com.br/*",
+        "https://*.ikesaki.com.br/*", "https://*.sumire.com.br/*",
+        "https://*.lojasrede.com.br/*", "https://*.perfumariakennedy.com.br/*",
+        "https://*.primor.com.br/*", "https://*.mercadolivre.com.br/*",
+        "https://*.amazon.com.br/*", "https://*.shopee.com.br/*",
+        "https://*.magazineluiza.com.br/*", "https://*.casasbahia.com.br/*",
+        "https://*.ponto.com.br/*", "https://*.carrefour.com.br/*",
+        "https://*.americanas.com.br/*", "https://*.drogasil.com.br/*",
+        "https://*.drogaraia.com.br/*", "https://*.paguemenos.com.br/*",
+        "https://*.panvel.com/*", "https://*.drogariasaopaulo.com.br/*",
+        "https://*.drogariaspacheco.com.br/*", "https://*.ultrafarma.com.br/*",
+        "https://*.farmaciasnissei.com.br/*", "https://*.paodeacucar.com/*",
+        "https://*.clubeextra.com.br/*", "https://*.angeloni.com.br/*",
+        "https://*.coopsp.com.br/*", "https://*.hairfly.com.br/*",
+        "https://*.lojadoscabelos.com.br/*", "https://*.shopdoscabelos.com.br/*",
+        "https://*.liviacosmeticos.com.br/*", "https://*.goya.com.br/*",
+        "https://*.casacosta.com.br/*", "https://*.monamie.com.br/*",
+        "https://*.tokyocosmeticos.com.br/*", "https://*.beautyfair.com.br/*",
+        "https://*.kutiz.com.br/*", "https://*.cosmeticcenter.com.br/*",
+        "https://*.belshop.com.br/*", "https://*.meucabelonatural.com.br/*",
+        "https://*.lojasrenner.com.br/*", "https://*.riachuelo.com.br/*",
+        "https://*.olist.com/*", "https://*.shoppecosmeticos.com.br/*",
+        "https://*.perfumariaemcasa.com.br/*", "https://*.nocnoc.com.br/*",
+        "https://*.mercadoshops.com.br/*", "https://*.useorganico.com.br/*",
+        "https://*.evoracosmeticos.com.br/*", "https://*.cosmeticosonline.com.br/*",
+        "https://*.topcosmeticos.com.br/*", "https://*.valecosmeticos.com.br/*",
+        "https://*.mundodocabeleireiro.com.br/*", "https://*.riobel.com.br/*",
+        "https://*.perfumariacoral.com.br/*", "https://*.supernosso.com/*",
+        "https://*.atacadao.com.br/*", "https://*.samsclub.com.br/*",
+        "https://*.assai.com.br/*", "https://*.savegnago.com.br/*",
+        "https://*.mambo.com.br/*", "https://*.obahortifruti.com.br/*"
+      ],
+      "js": ["product-matcher.js", "store-extractor.js"],
       "run_at": "document_idle"
     }
   ]
