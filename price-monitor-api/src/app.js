@@ -22,7 +22,7 @@ app.use(cors({
     return callback(new Error('Origem não permitida pelo CORS.'));
   }
 }));
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 

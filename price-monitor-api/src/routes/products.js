@@ -37,6 +37,38 @@ router.get('/', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.post('/importar', requireAdmin, async (req, res, next) => {
+  try {
+    const input = Array.isArray(req.body) ? req.body : req.body?.products;
+    if (!Array.isArray(input) || input.length === 0) {
+      return res.status(400).json({ error: 'Envie uma lista com pelo menos um produto.' });
+    }
+    if (input.length > 2000) {
+      return res.status(400).json({ error: 'O limite é de 2.000 produtos por importação.' });
+    }
+    const products = input.map((item, index) => {
+      try {
+        return validateProduct(item);
+      } catch (error) {
+        error.message = `Linha ${index + 2}: ${error.message}`;
+        throw error;
+      }
+    });
+    const seen = new Set();
+    products.forEach((product, index) => {
+      if (seen.has(product.ean)) {
+        const error = new Error(`Linha ${index + 2}: o EAN ${product.ean} está duplicado no arquivo.`);
+        error.status = 400;
+        throw error;
+      }
+      seen.add(product.ean);
+    });
+    return res.json(await catalog.importProducts(products));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post('/', requireAdmin, async (req, res, next) => {
   try { res.status(201).json(await catalog.createProduct(validateProduct(req.body))); } catch (error) { next(error); }
 });

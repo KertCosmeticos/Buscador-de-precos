@@ -56,6 +56,11 @@ function cleanProduct(input) {
   };
 }
 
+function sameProduct(left, right) {
+  return ['ean', 'sku', 'name', 'category', 'family', 'active']
+    .every((field) => left[field] === right[field]);
+}
+
 async function createProduct(input) {
   const product = cleanProduct(input);
   if (isDemo()) {
@@ -89,4 +94,56 @@ async function deleteProduct(id) {
   return Boolean(await Product.findByIdAndDelete(id));
 }
 
-module.exports = { listProducts, getFilters, createProduct, updateProduct, deleteProduct };
+async function importProducts(inputs) {
+  const products = inputs.map(cleanProduct);
+  if (isDemo()) {
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    products.forEach((product) => {
+      const index = demoProducts.findIndex((item) => item.ean === product.ean);
+      if (index < 0) {
+        demoProducts.push({ _id: `demo-${Date.now()}-${created}`, ...product });
+        created += 1;
+      } else if (sameProduct(cleanProduct(demoProducts[index]), product)) {
+        unchanged += 1;
+      } else {
+        demoProducts[index] = { ...demoProducts[index], ...product };
+        updated += 1;
+      }
+    });
+    return { total: products.length, created, updated, unchanged };
+  }
+
+  const eans = products.map((product) => product.ean);
+  const existing = await Product.find({ ean: { $in: eans } }).lean();
+  const existingByEan = new Map(existing.map((product) => [product.ean, cleanProduct(product)]));
+  const operations = [];
+  let created = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  products.forEach((product) => {
+    const current = existingByEan.get(product.ean);
+    if (!current) {
+      created += 1;
+    } else if (sameProduct(current, product)) {
+      unchanged += 1;
+      return;
+    } else {
+      updated += 1;
+    }
+    operations.push({
+      updateOne: {
+        filter: { ean: product.ean },
+        update: { $set: product },
+        upsert: true
+      }
+    });
+  });
+
+  if (operations.length) await Product.bulkWrite(operations, { ordered: false });
+  return { total: products.length, created, updated, unchanged };
+}
+
+module.exports = { listProducts, getFilters, createProduct, updateProduct, deleteProduct, importProducts };

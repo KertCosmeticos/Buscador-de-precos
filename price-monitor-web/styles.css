@@ -74,6 +74,17 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .admin-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
 .admin-heading h2 { margin-bottom: 3px; }
 .admin-heading p { margin: 0; color: var(--muted); }
+.instruction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.instruction-grid h3 { margin: 0 0 10px; font-size: 1rem; }
+.instruction-grid ol { margin: 0; padding-left: 21px; color: var(--muted); line-height: 1.55; }
+.instruction-grid li + li { margin-top: 6px; }
+.import-heading { display: flex; justify-content: space-between; align-items: start; gap: 18px; }
+.import-heading p { margin-bottom: 18px; }
+.file-summary { margin: 10px 0 14px !important; font-size: .9rem; }
+.import-progress { margin: 16px 0; padding: 14px; border-radius: 10px; background: #f8fafc; border: 1px solid var(--border); }
+.progress-label { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-size: .86rem; }
+.progress-label span { color: var(--muted); }
+.import-progress progress { display: block; width: 100%; height: 12px; accent-color: var(--blue); }
 .actions { display: flex; gap: 10px; margin-top: 16px; }
 .button { border: 1px solid transparent; border-radius: 9px; padding: 10px 17px; font: inherit; font-weight: 700; cursor: pointer; transition: .15s ease; }
 .button.primary { background: var(--blue); color: white; }
@@ -105,7 +116,8 @@ footer { text-align: center; color: var(--muted); font-size: .82rem; padding: 18
   .card { padding: 18px; border-radius: 11px; }
   .brand p { display: none; }
   .actions, .inline-form { flex-direction: column; align-items: stretch; }
-  .filter-grid, .product-form { grid-template-columns: 1fr; }
+  .filter-grid, .product-form, .instruction-grid { grid-template-columns: 1fr; }
+  .import-heading { flex-direction: column; }
   .span-2 { grid-column: auto; }
   .button { width: 100%; }
 }

@@ -26,4 +26,10 @@ Frontend estático em HTML, CSS e JavaScript para comparar ofertas atuais de mú
 4. Salve e aguarde a URL `https://seu-usuario.github.io/price-monitor-web/`.
 5. Configure essa origem em `CORS_ORIGINS` no backend. Exemplo: `https://seu-usuario.github.io`.
 
+## Cadastro e importação
+
+Após entrar na aba **Cadastros**, o administrador pode cadastrar um produto pelo formulário ou importar arquivos Excel `.xls` e `.xlsx`. O botão **Baixar modelo** gera a estrutura esperada com as colunas `COD SFA`, `NOME`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`.
+
+A importação valida o arquivo antes do envio e exibe o progresso por lotes. Produtos são identificados pelo EAN: registros existentes são atualizados e registros novos são criados.
+
 O projeto não exige build nem dependências externas no frontend.

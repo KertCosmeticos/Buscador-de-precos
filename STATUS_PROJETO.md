@@ -1,6 +1,6 @@
 # Status do projeto — Buscador de preços
 
-Atualizado em 19/06/2026.
+Atualizado em 22/06/2026.
 
 ## Objetivo atual
 
@@ -20,6 +20,9 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - Seleção de todos os produtos filtrados.
 - Resumo da consulta e detalhamento por marketplace.
 - Exportação detalhada para CSV.
+- Importação administrativa de planilhas `.xls` e `.xlsx`.
+- Planilha-modelo gerada pelo painel, validação prévia e barra de progresso por lotes.
+- Instruções de cadastro manual e importação dentro da aba Cadastros.
 - GitHub Pages publicado em:
   - https://kertcosmeticos.github.io/Buscador-de-precos/
 
@@ -33,6 +36,7 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 - CRUD do catálogo de produtos.
 - Login administrativo com JWT e expiração de oito horas.
 - Rotas de escrita protegidas no backend.
+- Importação em lote protegida, com criação e atualização por EAN sem duplicidades.
 - CORS configurável.
 - Testes automatizados passando.
 - Dockerfile preparado para o Koyeb.
@@ -55,27 +59,17 @@ O sistema não armazena histórico de preços. O MongoDB guarda somente o catál
 
 ## Estado atual
 
-O frontend está online, mas ainda não está conectado ao backend. Ele mostra uma mensagem amigável informando que a API aguarda configuração.
+O frontend está publicado no GitHub Pages e conectado à API em produção no Koyeb. O MongoDB Atlas, o Mercado Livre e o Google Shopping/SerpApi estão ativos.
 
-O serviço da API ainda não foi criado no Koyeb. A conta/chave da SerpApi também ainda precisa ser concluída.
+A base oficial `PRODUTOS EM LINHA 2026 - BD.xlsx` foi validada com 252 produtos, sem EANs ausentes, inválidos ou duplicados. A primeira importação pelo painel ainda precisa ser executada após a publicação desta melhoria.
 
 ## Próximos passos
 
-1. Criar ou acessar a conta da SerpApi.
-2. Obter a chave `SERPAPI_KEY` sem colocá-la no GitHub.
-3. Criar um Web Service no Koyeb a partir deste repositório.
-4. Configurar no Koyeb:
-   - `MONGODB_URI`
-   - `SERPAPI_KEY`
-   - `ADMIN_USERNAME`
-   - `ADMIN_PASSWORD`
-   - `JWT_SECRET`
-   - `DEMO_MODE=false`
-   - `CORS_ORIGINS=https://kertcosmeticos.github.io`
-5. Fazer o deploy e testar `/health` na URL do Koyeb.
-6. No GitHub, criar a variável de repositório `API_URL` com a URL do Koyeb.
-7. Executar novamente o workflow do GitHub Pages.
-8. Testar cadastro, login, consulta real, links e exportação CSV.
+1. Publicar a melhoria de importação no Koyeb e no GitHub Pages.
+2. Entrar em Cadastros e importar `PRODUTOS EM LINHA 2026 - BD.xlsx`.
+3. Confirmar os 252 produtos no catálogo.
+4. Pesquisar EANs reais e validar preços, lojas, links e exportação CSV.
+5. Acompanhar o consumo mensal de pesquisas no painel da SerpApi.
 
 ## Segurança
 

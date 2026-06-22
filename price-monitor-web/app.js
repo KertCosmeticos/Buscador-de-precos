@@ -7,6 +7,7 @@ let currentResults = [];
 let adminToken = sessionStorage.getItem('priceMonitorAdminToken') || '';
 let allCatalogProducts = [];
 let catalogProducts = [];
+let pendingImportProducts = [];
 const selectedProductEans = new Set();
 const selectedNames = new Set();
 const selectedCategories = new Set();
@@ -53,6 +54,90 @@ function setMessage(element, text = '', type = '') {
 function setLoading(button, loading) {
   button.disabled = loading;
   button.classList.toggle('loading', loading);
+}
+
+function normalizeSpreadsheetHeader(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+}
+
+function spreadsheetCell(value) {
+  if (typeof value === 'number' && Number.isInteger(value)) return String(value);
+  return String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function readImportSpreadsheet(file) {
+  if (!globalThis.XLSX) throw new Error('O leitor de Excel não foi carregado. Atualize a página e tente novamente.');
+  return file.arrayBuffer().then((buffer) => {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: true });
+    if (rows.length < 2) throw new Error('A planilha não contém produtos.');
+
+    const headers = rows[0].map(normalizeSpreadsheetHeader);
+    const aliases = {
+      sku: ['COD SFA', 'COD DO SFA', 'SKU', 'CODIGO INTERNO'],
+      name: ['NOME', 'PRODUTO', 'NOME DO PRODUTO'],
+      ean: ['CODBARRAS', 'COD BARRAS', 'EAN', 'CODIGO DE BARRAS'],
+      category: ['CATEGORIA'],
+      family: ['FAMILIA']
+    };
+    const positions = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [
+      field,
+      headers.findIndex((header) => names.includes(header))
+    ]));
+    const missing = Object.entries(positions).filter(([, index]) => index < 0).map(([field]) => field);
+    if (missing.length) {
+      throw new Error('Cabeçalhos obrigatórios ausentes. Use a planilha-modelo disponível no painel.');
+    }
+
+    const products = [];
+    const errors = [];
+    const seenEans = new Map();
+    rows.slice(1).forEach((row, offset) => {
+      const line = offset + 2;
+      if (!row.some((value) => spreadsheetCell(value))) return;
+      const product = {
+        sku: spreadsheetCell(row[positions.sku]),
+        name: spreadsheetCell(row[positions.name]),
+        ean: spreadsheetCell(row[positions.ean]),
+        category: spreadsheetCell(row[positions.category]),
+        family: spreadsheetCell(row[positions.family]),
+        active: true
+      };
+      const emptyFields = ['sku', 'name', 'ean', 'category', 'family'].filter((field) => !product[field]);
+      if (emptyFields.length) {
+        errors.push(`Linha ${line}: existem campos obrigatórios vazios.`);
+      } else if (!/^\d{8,14}$/.test(product.ean)) {
+        errors.push(`Linha ${line}: EAN inválido (${product.ean || 'vazio'}).`);
+      } else if (seenEans.has(product.ean)) {
+        errors.push(`Linha ${line}: EAN duplicado com a linha ${seenEans.get(product.ean)}.`);
+      } else {
+        seenEans.set(product.ean, line);
+        products.push(product);
+      }
+    });
+    if (errors.length) {
+      const preview = errors.slice(0, 5).join(' ');
+      const remainder = errors.length > 5 ? ` Mais ${errors.length - 5} erro(s).` : '';
+      throw new Error(`${preview}${remainder}`);
+    }
+    if (!products.length) throw new Error('Nenhum produto válido foi encontrado na planilha.');
+    return products;
+  });
+}
+
+function setImportProgress(percent, text) {
+  const normalized = Math.max(0, Math.min(100, Math.round(percent)));
+  byId('import-progress').hidden = false;
+  byId('import-progress-bar').value = normalized;
+  byId('import-progress-bar').textContent = `${normalized}%`;
+  byId('import-progress-percent').textContent = `${normalized}%`;
+  byId('import-progress-text').textContent = text;
 }
 
 async function request(path, options = {}) {
@@ -516,6 +601,89 @@ byId('select-all-products').addEventListener('change', (event) => {
     event.target.checked ? selectedProductEans.add(product.ean) : selectedProductEans.delete(product.ean);
   });
   renderProductPicker();
+});
+
+byId('download-template').addEventListener('click', () => {
+  if (!globalThis.XLSX) {
+    setMessage(byId('import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
+    return;
+  }
+  const worksheet = XLSX.utils.aoa_to_sheet([['COD SFA', 'NOME', 'CODBARRAS', 'CATEGORIA', 'FAMILIA']]);
+  worksheet['!cols'] = [{ wch: 14 }, { wch: 42 }, { wch: 18 }, { wch: 28 }, { wch: 24 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
+  XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_PRODUTOS.xlsx');
+});
+
+byId('product-import-file').addEventListener('change', async (event) => {
+  pendingImportProducts = [];
+  byId('import-products-button').disabled = true;
+  byId('import-progress').hidden = true;
+  setMessage(byId('import-message'));
+  const [file] = event.target.files;
+  if (!file) {
+    byId('import-file-summary').textContent = 'Nenhum arquivo selecionado.';
+    return;
+  }
+  byId('import-file-summary').textContent = `Lendo ${file.name}…`;
+  try {
+    pendingImportProducts = await readImportSpreadsheet(file);
+    byId('import-file-summary').textContent = `${file.name}: ${pendingImportProducts.length} produto(s) validado(s) e pronto(s) para importar.`;
+    byId('import-products-button').disabled = false;
+    setMessage(byId('import-message'), 'Arquivo validado. EANs existentes serão atualizados e novos EANs serão criados.', 'success');
+  } catch (error) {
+    byId('import-file-summary').textContent = `${file.name}: arquivo com erro.`;
+    setMessage(byId('import-message'), error.message, 'error');
+  }
+});
+
+byId('import-products-button').addEventListener('click', async () => {
+  if (!pendingImportProducts.length) return;
+  const button = byId('import-products-button');
+  const fileInput = byId('product-import-file');
+  const batchSize = 50;
+  const totals = { total: 0, created: 0, updated: 0, unchanged: 0 };
+  let processed = 0;
+  setLoading(button, true);
+  fileInput.disabled = true;
+  setMessage(byId('import-message'));
+  setImportProgress(2, 'Preparando produtos…');
+  try {
+    for (let index = 0; index < pendingImportProducts.length; index += batchSize) {
+      const batch = pendingImportProducts.slice(index, index + batchSize);
+      setImportProgress(5 + (processed / pendingImportProducts.length) * 90, `Importando produtos ${index + 1} a ${index + batch.length}…`);
+      const result = await request('/produtos/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: batch })
+      });
+      Object.keys(totals).forEach((key) => { totals[key] += Number(result[key] || 0); });
+      processed += batch.length;
+      setImportProgress(5 + (processed / pendingImportProducts.length) * 90, `${processed} de ${pendingImportProducts.length} produtos processados…`);
+    }
+    setImportProgress(97, 'Atualizando o catálogo…');
+    await refreshCatalog();
+    setImportProgress(100, 'Importação concluída.');
+    setMessage(
+      byId('import-message'),
+      `Importação concluída: ${totals.created} criado(s), ${totals.updated} atualizado(s) e ${totals.unchanged} sem alteração.`,
+      'success'
+    );
+    pendingImportProducts = [];
+    fileInput.value = '';
+    byId('import-file-summary').textContent = 'Nenhum arquivo selecionado.';
+  } catch (error) {
+    setMessage(
+      byId('import-message'),
+      `${error.message} ${processed} de ${pendingImportProducts.length} produtos foram processados; você pode selecionar o arquivo novamente com segurança.`,
+      'error'
+    );
+    setImportProgress(5 + (processed / pendingImportProducts.length) * 90, 'Importação interrompida.');
+  } finally {
+    setLoading(button, false);
+    button.disabled = pendingImportProducts.length === 0;
+    fileInput.disabled = false;
+  }
 });
 
 byId('cancel-edit').addEventListener('click', resetProductForm);

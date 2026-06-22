@@ -28,6 +28,7 @@ Na busca real, a API consulta os vendedores do produto e retorna o `direct_link`
 - `POST /auth/login`
 - `GET /auth/me` (autenticado)
 - `POST /produtos` (administrador)
+- `POST /produtos/importar` com body `{ "products": [...] }` (administrador; máximo 2.000)
 - `PUT /produtos/:id` (administrador)
 - `DELETE /produtos/:id` (administrador)
 
