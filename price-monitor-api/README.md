@@ -16,7 +16,7 @@ No Windows, copie `.env.example` para `.env` manualmente. Configure `SERPAPI_KEY
 
 Para uma demonstração local sem banco e sem chamadas externas, use `DEMO_MODE=true`. Nunca ative esse modo em produção. Para a varredura real multiloja, crie uma chave na SerpApi e configure `SERPAPI_KEY`.
 
-Na busca real, a API consulta sempre o Google Shopping e a busca web comum do Google. No Shopping, procura primeiro pelo EAN e usa o nome cadastrado como alternativa quando necessário. Os resultados das duas pesquisas são unidos e filtrados por marca, linha e variação do produto. A API retorna links diretos para as lojas sempre que a fonte os disponibiliza. Como cada EAN gera múltiplas consultas, acompanhe o consumo de créditos da SerpApi.
+Na busca real, a API consulta sempre o Google Shopping e até 30 resultados da busca web comum do Google. No Shopping, procura primeiro pelo EAN e usa o nome cadastrado como alternativa quando necessário. Os resultados das duas pesquisas são unidos e filtrados por marca, linha e variação do produto. Quando o Google encontra uma loja sem expor o valor, a API tenta ler o preço estruturado na página do produto. Somente ofertas com preço e link direto de produto entram na comparação; páginas de busca ou categoria são descartadas. Como cada EAN gera múltiplas consultas, acompanhe o consumo de créditos da SerpApi.
 
 ## Endpoints
 

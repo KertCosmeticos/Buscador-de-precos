@@ -393,10 +393,11 @@ async function refreshCatalog() {
 }
 
 function cheapestListing(result) {
-  return (result.listings || []).reduce(
+  const listings = result.listings || [];
+  return listings.filter((listing) => Number.isFinite(listing.price)).reduce(
     (cheapest, listing) => !cheapest || listing.price < cheapest.price ? listing : cheapest,
     null
-  );
+  ) || listings[0] || null;
 }
 
 function appendCell(row, value) {
@@ -485,7 +486,9 @@ function renderDetails(results) {
   body.replaceChildren();
   const offers = results.flatMap((result) =>
     (result.listings || []).map((listing) => ({ ean: result.ean, ...listing }))
-  ).sort((a, b) => a.ean.localeCompare(b.ean) || a.price - b.price);
+  ).sort((a, b) => a.ean.localeCompare(b.ean)
+    || (Number.isFinite(a.price) ? a.price : Number.POSITIVE_INFINITY)
+      - (Number.isFinite(b.price) ? b.price : Number.POSITIVE_INFINITY));
 
   offers.forEach((offer) => {
     const row = body.insertRow();
@@ -510,7 +513,7 @@ function renderDetails(results) {
     }
   });
 
-  byId('details-count').textContent = `${offers.length} oferta(s), ordenadas pelo menor preço de cada EAN`;
+  byId('details-count').textContent = `${offers.length} oferta(s), com preço quando disponibilizado pelo Google`;
   byId('details-card').hidden = offers.length === 0;
 }
 

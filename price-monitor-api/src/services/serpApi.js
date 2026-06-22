@@ -127,21 +127,130 @@ function priceFromOrganicResult(result) {
     const price = numberFromPrice(value);
     if (Number.isFinite(price)) return price;
   }
-  const text = [
-    result.title,
-    result.snippet,
-    ...(result.extensions || []),
-    ...(result.rich_snippet?.top?.extensions || []),
-    ...(result.rich_snippet?.bottom?.extensions || [])
-  ].filter(Boolean).join(' ');
-  const match = text.match(/R\$\s*([\d.]+,\d{2})/i);
-  return match ? numberFromPrice(match[1]) : null;
+  return null;
+}
+
+function htmlAttributes(tag) {
+  const attributes = {};
+  for (const match of tag.matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/g)) {
+    attributes[match[1].toLowerCase()] = match[2].replaceAll('&amp;', '&');
+  }
+  return attributes;
+}
+
+function absoluteUrl(value, baseUrl) {
+  if (!value) return '';
+  try {
+    return new URL(value, baseUrl).href;
+  } catch {
+    return '';
+  }
+}
+
+function isLikelySearchUrl(value) {
+  try {
+    const url = new URL(value);
+    return /\/(busca|buscar|search|pesquisa|catalogsearch)(\/|$)/i.test(url.pathname)
+      || ['q', 'query', 'search', 'keyword'].some((key) => url.searchParams.has(key));
+  } catch {
+    return true;
+  }
+}
+
+function jsonLdProducts(value, found = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => jsonLdProducts(item, found));
+  } else if (value && typeof value === 'object') {
+    const types = Array.isArray(value['@type']) ? value['@type'] : [value['@type']];
+    if (types.some((type) => String(type).toLowerCase() === 'product')) found.push(value);
+    Object.values(value).forEach((item) => jsonLdProducts(item, found));
+  }
+  return found;
+}
+
+function offerDetails(offers, baseUrl) {
+  const list = Array.isArray(offers) ? offers : [offers];
+  for (const offer of list) {
+    if (!offer || typeof offer !== 'object') continue;
+    const price = numberFromPrice(offer.price ?? offer.lowPrice ?? offer.highPrice);
+    if (Number.isFinite(price)) {
+      return { price, directLink: absoluteUrl(offer.url || '', baseUrl) };
+    }
+  }
+  return { price: null, directLink: '' };
+}
+
+function productPageDataFromHtml(html, pageUrl) {
+  for (const match of String(html).matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const products = jsonLdProducts(JSON.parse(match[1].trim()));
+      for (const product of products) {
+        const details = offerDetails(product.offers, pageUrl);
+        if (Number.isFinite(details.price)) {
+          return {
+            price: details.price,
+            directLink: details.directLink || absoluteUrl(product.url || '', pageUrl) || pageUrl,
+            isProductPage: true
+          };
+        }
+      }
+    } catch {
+      // Algumas lojas publicam JSON-LD inválido; os metadados abaixo ainda podem funcionar.
+    }
+  }
+
+  let metaPrice = null;
+  let productType = false;
+  let canonical = '';
+  for (const tag of String(html).match(/<(?:meta|link)\b[^>]*>/gi) || []) {
+    const attributes = htmlAttributes(tag);
+    const key = String(attributes.property || attributes.name || attributes.itemprop || '').toLowerCase();
+    if (key === 'og:type' && String(attributes.content).toLowerCase().includes('product')) productType = true;
+    if (['product:price:amount', 'og:price:amount', 'price'].includes(key)) {
+      const price = numberFromPrice(attributes.content);
+      if (Number.isFinite(price)) metaPrice = price;
+    }
+    if (tag.toLowerCase().startsWith('<link') && String(attributes.rel).toLowerCase() === 'canonical') {
+      canonical = absoluteUrl(attributes.href || '', pageUrl);
+    }
+  }
+  return {
+    price: metaPrice,
+    directLink: canonical || pageUrl,
+    isProductPage: productType || Number.isFinite(metaPrice)
+  };
+}
+
+async function inspectProductPage(pageUrl) {
+  let parsed;
+  try {
+    parsed = new URL(pageUrl);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(parsed.hostname)) {
+    return null;
+  }
+  try {
+    const { data } = await axios.get(parsed.href, {
+      timeout: 7000,
+      maxContentLength: 3 * 1024 * 1024,
+      responseType: 'text',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml'
+      }
+    });
+    return productPageDataFromHtml(data, parsed.href);
+  } catch {
+    return null;
+  }
 }
 
 function googleWebOffersFromData(data, productName = '') {
   return (data.organic_results || []).map((result) => {
     const seller = sellerFromResult(result);
-    return {
+    const offer = {
       title: result.title || 'Produto sem nome',
       price: priceFromOrganicResult(result),
       seller,
@@ -151,7 +260,31 @@ function googleWebOffersFromData(data, productName = '') {
       condition: 'new',
       freeShipping: false
     };
-  }).filter((item) => Number.isFinite(item.price) && item.link && isRelevantOffer(item.title, productName));
+    const relevanceText = [result.title, result.snippet, ...(result.extensions || [])].filter(Boolean).join(' ');
+    return { offer, relevanceText };
+  }).filter(({ offer, relevanceText }) => offer.link && isRelevantOffer(relevanceText, productName))
+    .map(({ offer }) => offer);
+}
+
+async function resolveGoogleWebOffers(offers) {
+  const results = new Array(offers.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < offers.length) {
+      const index = nextIndex++;
+      const offer = offers[index];
+      const needsInspection = !Number.isFinite(offer.price) || isLikelySearchUrl(offer.link);
+      const page = needsInspection ? await inspectProductPage(offer.link) : null;
+      const price = Number.isFinite(offer.price) ? offer.price : page?.price;
+      const directLink = page?.directLink || offer.link;
+      const validDirectLink = directLink && !isLikelySearchUrl(directLink);
+      results[index] = Number.isFinite(price) && validDirectLink && (!needsInspection || page?.isProductPage)
+        ? { ...offer, price, link: directLink }
+        : null;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(6, offers.length) }, () => worker()));
+  return results.filter(Boolean);
 }
 
 async function searchGoogleWeb(ean, productName) {
@@ -162,10 +295,11 @@ async function searchGoogleWeb(ean, productName) {
       gl: 'br',
       hl: 'pt-br',
       google_domain: 'google.com.br',
+      num: 30,
       api_key: process.env.SERPAPI_KEY
     }
   });
-  return googleWebOffersFromData(data, productName);
+  return resolveGoogleWebOffers(googleWebOffersFromData(data, productName));
 }
 
 async function searchGoogleShopping(ean, productName = '') {
@@ -194,4 +328,4 @@ async function searchGoogleShopping(ean, productName = '') {
   }
 }
 
-module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer };
+module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml };

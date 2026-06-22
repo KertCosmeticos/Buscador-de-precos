@@ -28,27 +28,34 @@ app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 
 function summarize(ean, listings, sources = []) {
-  const prices = listings.map((item) => item.price);
+  const prices = listings.map((item) => item.price).filter(Number.isFinite);
   const sum = prices.reduce((total, price) => total + price, 0);
   const grouped = new Map();
   listings.forEach((listing) => {
     const marketplace = listing.marketplace || 'Não informado';
     if (!grouped.has(marketplace)) grouped.set(marketplace, []);
-    grouped.get(marketplace).push(listing.price);
+    grouped.get(marketplace).push(listing);
   });
-  const marketplaceSummary = [...grouped].map(([marketplace, marketplacePrices]) => ({
-    marketplace,
-    minPrice: Math.min(...marketplacePrices),
-    maxPrice: Math.max(...marketplacePrices),
-    averagePrice: marketplacePrices.reduce((total, price) => total + price, 0) / marketplacePrices.length,
-    listingsCount: marketplacePrices.length
-  }));
+  const marketplaceSummary = [...grouped].map(([marketplace, marketplaceListings]) => {
+    const marketplacePrices = marketplaceListings.map((item) => item.price).filter(Number.isFinite);
+    return {
+      marketplace,
+      minPrice: marketplacePrices.length ? Math.min(...marketplacePrices) : null,
+      maxPrice: marketplacePrices.length ? Math.max(...marketplacePrices) : null,
+      averagePrice: marketplacePrices.length
+        ? marketplacePrices.reduce((total, price) => total + price, 0) / marketplacePrices.length
+        : null,
+      listingsCount: marketplaceListings.length,
+      pricedListingsCount: marketplacePrices.length
+    };
+  });
   return {
     ean,
     minPrice: prices.length ? Math.min(...prices) : null,
     maxPrice: prices.length ? Math.max(...prices) : null,
     averagePrice: prices.length ? sum / prices.length : null,
     listingsCount: listings.length,
+    pricedListingsCount: prices.length,
     marketplaces: [...new Set(listings.map((item) => item.marketplace).filter(Boolean))],
     marketplaceSummary,
     sources,
