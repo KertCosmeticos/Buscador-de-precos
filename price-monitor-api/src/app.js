@@ -7,9 +7,7 @@ const { mapWithConcurrency } = require('./utils/limit');
 const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/sites');
-const learningRoutes = require('./routes/learning');
 const productCatalog = require('./services/productCatalog');
-const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
 const { generateSearchTerms } = require('./services/searchTerms');
 const { postalCode, formatPostalCode } = require('./config/search');
@@ -35,7 +33,6 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 app.use('/sites', siteRoutes);
-app.use('/aprendizado', learningRoutes);
 
 function summarize(ean, listings, sources = []) {
   const prices = listings.map((item) => item.price).filter(Number.isFinite);
@@ -75,28 +72,16 @@ function summarize(ean, listings, sources = []) {
 
 async function searchFresh(ean, sites = []) {
   const product = demoMode ? null : await productCatalog.getProductByEan(ean);
-  const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
-  const terms = product ? generateSearchTerms(product, learning || {}) : [];
+  const terms = product ? generateSearchTerms(product) : [];
   const nameTerm = terms.find((term) => term !== ean) || product?.name;
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
     : await searchAllMarketplaces(ean, nameTerm, sites);
   const scoredListings = product
-    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
-      .filter((listing) => !listing.rejectedByLearning)
+    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
   const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
-  if (!demoMode && product?._id && discovery.listings.length) {
-    const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
-    const addToSet = { confirmedAliases: { $each: titles } };
-    if (nameTerm) addToSet.goodTerms = nameTerm;
-    await ProductLearning.updateOne(
-      { productId: product._id },
-      { $setOnInsert: { productId: product._id }, $addToSet: addToSet },
-      { upsert: true }
-    );
-  }
   const result = summarize(ean, discovery.listings, search.sources);
   result.discoveredSites = discovery.discoveredSites;
   if (product) {
@@ -183,22 +168,10 @@ app.post('/avaliar', async (req, res, next) => {
     if (!Array.isArray(listings) || listings.length > 200) return res.status(400).json({ error: 'Envie até 200 ofertas para avaliação.' });
     const product = await productCatalog.getProductByEan(ean);
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
-    const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
     const sites = demoMode ? [] : await Site.find({ active: true }).lean();
-    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
-      .filter((listing) => !listing.rejectedByLearning)
+    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
     const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
-    if (!demoMode && discovery.listings.length) {
-      const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
-      if (titles.length) {
-        await ProductLearning.updateOne(
-          { productId: product._id },
-          { $setOnInsert: { productId: product._id }, $addToSet: { confirmedAliases: { $each: titles } } },
-          { upsert: true }
-        );
-      }
-    }
     return res.json({
       productId: product._id,
       listings: discovery.listings,

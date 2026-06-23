@@ -710,13 +710,6 @@ function renderDetails(results) {
     } else {
       linkCell.textContent = offer.demo ? 'Disponível na busca real' : '—';
     }
-    const feedbackCell = row.insertCell();
-    if (offer.productId) {
-      feedbackCell.append(actionButton('Ignorar produto', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget)));
-    } else {
-      feedbackCell.textContent = 'Resultado sem produto vinculado';
-      feedbackCell.className = 'feedback-hint';
-    }
   });
 
   byId('details-count').textContent = `${offers.length} oferta(s) B2C com preço e link direto`;
@@ -780,38 +773,6 @@ async function registerSiteInline(offer, button) {
   }
 }
 
-async function sendFeedback(offer, action, button) {
-  const cell = button.closest('td');
-  const buttons = [...cell.querySelectorAll('button')];
-  buttons.forEach((item) => { item.disabled = true; });
-  const originalLabel = button.textContent;
-  button.textContent = 'Salvando…';
-  try {
-    await request('/aprendizado/feedback', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm,
-        link: offer.link, price: offer.price, score: offer.score,
-        marketplace: offer.marketplace, seller: offer.seller
-      })
-    });
-    cell.replaceChildren();
-    const status = document.createElement('span');
-    status.className = `feedback-status ${action === 'confirm' ? 'confirmed' : 'ignored'}`;
-    status.textContent = action === 'confirm' ? '✓ Confirmado' : '× Ignorado';
-    cell.append(status);
-    setMessage(byId('search-message'), 'Resultado ignorado. A próxima busca usará esta correção.', 'success');
-  } catch (error) {
-    buttons.forEach((item) => { item.disabled = false; });
-    button.textContent = originalLabel;
-    const previous = cell.querySelector('.feedback-error');
-    if (previous) previous.remove();
-    const message = document.createElement('small');
-    message.className = 'feedback-error';
-    message.textContent = `Não foi possível salvar: ${error.message}`;
-    cell.append(message);
-  }
-}
 
 function resetSiteForm() {
   byId('site-form').reset();
@@ -838,7 +799,6 @@ async function loadSites() {
     appendCell(row, site.name);
     const urlCell = row.insertCell();
     const url = document.createElement('a'); url.href = site.searchUrl; url.target = '_blank'; url.rel = 'noopener noreferrer'; url.textContent = 'Abrir busca'; urlCell.append(url);
-    appendCell(row, ({ pending: 'Pendente', learning: 'Aprendendo', learned: 'Aprendido', failed: 'Revisar' })[site.discoveryStatus] || 'Pendente');
     const actions = row.insertCell();
     actions.append(actionButton('Editar', '', () => fillSiteForm(site)), actionButton('Excluir', 'danger', async () => {
       if (!window.confirm(`Excluir ${site.name}?`)) return;

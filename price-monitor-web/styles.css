@@ -89,11 +89,6 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .table-action { border: 0; background: none; color: var(--blue); cursor: pointer; font: inherit; font-weight: 650; padding: 3px 7px; font-size: .875rem; }
 .table-action.danger { color: var(--danger); }
 .table-action:disabled { cursor: wait; opacity: .55; }
-.feedback-hint { min-width: 150px; color: var(--muted); font-size: .78rem; }
-.feedback-status { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: .78rem; font-weight: 750; white-space: nowrap; }
-.feedback-status.confirmed { color: var(--success); background: #ecfdf3; }
-.feedback-status.ignored { color: var(--danger); background: #fef3f2; }
-.feedback-error { display: block; min-width: 190px; margin-top: 5px; color: var(--danger); line-height: 1.35; font-size: .78rem; }
 .seller-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: .78rem; font-weight: 750; }
 .seller-status.active { color: #475569; background: #eef2f6; }
 .seller-status.new { color: var(--success); background: #dcfae6; }

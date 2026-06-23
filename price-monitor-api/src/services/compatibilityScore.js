@@ -12,7 +12,7 @@ function scoreStatus(score) {
   return 'Ignorar';
 }
 
-function calculateCompatibility(product, listing, learning = {}) {
+function calculateCompatibility(product, listing) {
   const text = normalizeText(`${listing.title || ''} ${listing.link || ''}`);
   const reasons = [];
   let score = 0;
@@ -27,18 +27,10 @@ function calculateCompatibility(product, listing, learning = {}) {
   const requiredMatched = required.filter((word) => includesTerm(text, word));
   if (required.length && requiredMatched.length === required.length) add(25, 'Palavras obrigatórias encontradas');
 
-  const forbidden = learning.excludedWords || [];
-  const foundForbidden = forbidden.find((word) => includesTerm(text, word));
-  if (foundForbidden) add(-50, `Palavra proibida: ${foundForbidden}`);
   if (/\b(?:kit|combo|conjunto)\b/.test(text) && !/\b(?:kit|combo|conjunto)\b/.test(normalizeText(product.name))) add(-40, 'Produto em kit');
-  let listingDomain = '';
-  try { listingDomain = new URL(listing.link).hostname.replace(/^www\./, '').toLowerCase(); } catch { /* link inválido */ }
-  const rejectedForSite = learning.siteRejections?.some((rejection) =>
-    rejection.domain === listingDomain && normalizeText(rejection.title) === normalizeText(listing.title));
-  if (rejectedForSite) add(-100, 'Título ignorado neste site');
 
   const finalScore = Math.max(-100, Math.min(150, score));
-  return { score: finalScore, status: scoreStatus(finalScore), reasons, rejectedByLearning: Boolean(rejectedForSite) };
+  return { score: finalScore, status: scoreStatus(finalScore), reasons };
 }
 
 module.exports = { calculateCompatibility, scoreStatus };
