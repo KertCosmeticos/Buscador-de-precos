@@ -660,10 +660,15 @@ function renderResults(results) {
 function renderDetails(results) {
   const body = byId('details-body');
   body.replaceChildren();
+  const siteNames = new Set(allSites.map((s) => s.name.toLowerCase()));
   const offers = results.flatMap((result) =>
-    (result.listings || []).map((listing) => ({ ean: result.ean, productId: result.productId, searchTerm: result.usedSearchTerm, ...listing }))
+    (result.listings || []).map((listing) => {
+      const o = { ean: result.ean, productId: result.productId, searchTerm: result.usedSearchTerm, ...listing };
+      o.isNew = !!o.seller && !siteNames.has(o.seller.toLowerCase());
+      return o;
+    })
   ).sort((a, b) => a.ean.localeCompare(b.ean)
-    || Number(b.sellerStatus === 'new') - Number(a.sellerStatus === 'new')
+    || Number(b.isNew) - Number(a.isNew)
     || (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity)
     || (Number.isFinite(a.price) ? a.price : Number.POSITIVE_INFINITY)
       - (Number.isFinite(b.price) ? b.price : Number.POSITIVE_INFINITY));
@@ -676,15 +681,15 @@ function renderDetails(results) {
     appendCell(row, offer.seller || '—');
     const sellerStatusCell = row.insertCell();
     const sellerStatus = document.createElement('span');
-    sellerStatus.className = `seller-status ${offer.sellerStatus === 'new' ? 'new' : 'active'}`;
-    sellerStatus.textContent = offer.sellerStatus === 'new' ? 'Novo' : 'Ativo';
+    sellerStatus.className = `seller-status ${offer.isNew ? 'new' : 'active'}`;
+    sellerStatus.textContent = offer.isNew ? 'Novo' : 'Ativo';
     sellerStatusCell.append(sellerStatus);
-    if (offer.sellerStatus === 'new' && offer.siteCandidate) {
+    if (offer.isNew) {
       const register = document.createElement('button');
       register.type = 'button';
       register.className = 'register-site-small';
-      register.textContent = 'Cadastrar site';
-      register.addEventListener('click', () => registerSiteFromOffer(offer, register));
+      register.textContent = 'Cadastrar';
+      register.addEventListener('click', () => openSiteRegistration(offer.seller));
       sellerStatusCell.append(register);
     }
     const linkCell = row.insertCell();
@@ -734,6 +739,14 @@ async function registerSiteFromOffer(offer, button) {
     button.textContent = 'Cadastrar site';
     setMessage(byId('search-message'), error.message, 'error');
   }
+}
+
+function openSiteRegistration(sellerName) {
+  document.querySelector('.tab[data-tab="registrations"]').click();
+  document.querySelector('.sub-tab[data-subtab="sites"]').click();
+  resetSiteForm();
+  byId('site-name').value = sellerName;
+  byId('site-search-url').focus();
 }
 
 async function sendFeedback(offer, action, button) {
