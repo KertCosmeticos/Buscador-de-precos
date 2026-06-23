@@ -13,7 +13,7 @@ function scoreStatus(score) {
 }
 
 function calculateCompatibility(product, listing) {
-  const text = normalizeText(`${listing.title || ''} ${listing.link || ''}`);
+  const text = normalizeText(`${listing.title || ''} ${listing.link || ''} ${listing.seller || ''} ${listing.marketplace || ''}`);
   const reasons = [];
   let score = 0;
   const add = (points, reason) => { score += points; reasons.push({ points, reason }); };
