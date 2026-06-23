@@ -86,6 +86,16 @@ async function searchFresh(ean, sites = []) {
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
   const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
+  if (!demoMode && product?._id && discovery.listings.length) {
+    const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
+    const addToSet = { confirmedAliases: { $each: titles } };
+    if (nameTerm) addToSet.goodTerms = nameTerm;
+    await ProductLearning.updateOne(
+      { productId: product._id },
+      { $setOnInsert: { productId: product._id }, $addToSet: addToSet },
+      { upsert: true }
+    );
+  }
   const result = summarize(ean, discovery.listings, search.sources);
   result.discoveredSites = discovery.discoveredSites;
   if (product) {
@@ -177,6 +187,16 @@ app.post('/avaliar', async (req, res, next) => {
     const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
     const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
+    if (!demoMode && discovery.listings.length) {
+      const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
+      if (titles.length) {
+        await ProductLearning.updateOne(
+          { productId: product._id },
+          { $setOnInsert: { productId: product._id }, $addToSet: { confirmedAliases: { $each: titles } } },
+          { upsert: true }
+        );
+      }
+    }
     return res.json({
       productId: product._id,
       listings: discovery.listings,

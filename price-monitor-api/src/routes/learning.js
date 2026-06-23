@@ -59,7 +59,11 @@ router.post('/feedback', async (req, res, next) => {
       const learning = demoLearnings.get(productId) || { productId, confirmedAliases: [], goodTerms: [], badTerms: [], ignoredTitles: [], excludedWords: [] };
       const add = (field, value) => { if (value && !learning[field].includes(value)) learning[field].push(value); };
       if (action === 'confirm') { add('confirmedAliases', title); add('goodTerms', term); }
-      else { add('ignoredTitles', title); add('badTerms', term); uniqueStrings(req.body.excludedWords).forEach((word) => add('excludedWords', word)); }
+      else {
+        add('ignoredTitles', title);
+        learning.confirmedAliases = learning.confirmedAliases.filter((value) => value !== title);
+        uniqueStrings(req.body.excludedWords).forEach((word) => add('excludedWords', word));
+      }
       demoLearnings.set(productId, learning);
       const siteCandidate = action === 'confirm' ? await candidateFromConfirmedOffer(req.body) : null;
       return res.json({ ...learning, siteCandidate });
@@ -71,7 +75,8 @@ router.post('/feedback', async (req, res, next) => {
       if (term) additions.goodTerms = term;
     } else {
       if (title) additions.ignoredTitles = title;
-      if (term) additions.badTerms = term;
+      update.$pull = {};
+      if (title) update.$pull.confirmedAliases = title;
       const excluded = uniqueStrings(req.body.excludedWords);
       if (excluded.length) update.$addToSet = { excludedWords: { $each: excluded } };
     }
@@ -79,6 +84,7 @@ router.post('/feedback', async (req, res, next) => {
       update.$addToSet ||= {};
       Object.entries(additions).forEach(([field, value]) => { update.$addToSet[field] = value; });
     }
+    if (update.$pull && !Object.keys(update.$pull).length) delete update.$pull;
     const learning = await ProductLearning.findOneAndUpdate({ productId }, update, { upsert: true, new: true, runValidators: true }).lean();
     const siteCandidate = action === 'confirm' ? await candidateFromConfirmedOffer(req.body) : null;
     return res.json({ ...learning, siteCandidate });

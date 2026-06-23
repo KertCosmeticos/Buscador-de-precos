@@ -45,7 +45,7 @@ Cada consulta pesquisa automaticamente todos os sites ativos cadastrados. A API 
 
 A busca ampla também pode identificar um domínio ainda não cadastrado. Ele só é sugerido quando possui oferta com link direto, preço válido e score mínimo de 90; a oferta não entra nos resultados normais antes da aprovação. Qualquer usuário pode validar ofertas e revisar, confirmar ou ignorar uma sugestão realmente detectada pelo motor. O restante dos cadastros continua restrito ao administrador.
 
-Uma confirmação humana de oferta também serve como evidência, mesmo quando o score automático é menor que 90. Se o link confirmado pertencer a um domínio novo, o painel pergunta imediatamente se o usuário deseja cadastrá-lo; a confirmação cria o site para as buscas seguintes.
+Resultados exibidos são considerados corretos por padrão e alimentam automaticamente títulos e termos positivos do produto. O usuário só precisa clicar em **Ignorar** quando encontrar um erro; essa ação remove o aprendizado positivo correspondente e registra o título/termo como rejeitado. A aprovação de novos sites permanece uma decisão separada e explícita.
 
 ## Aprendizado e compatibilidade
 

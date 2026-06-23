@@ -735,10 +735,7 @@ function renderDetails(results) {
     }
     const feedbackCell = row.insertCell();
     if (offer.productId) {
-      feedbackCell.append(
-        actionButton('Confirmar', '', (event) => sendFeedback(offer, 'confirm', event.currentTarget)),
-        actionButton('Ignorar', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget))
-      );
+      feedbackCell.append(actionButton('Ignorar', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget)));
     } else {
       feedbackCell.textContent = 'Resultado sem produto vinculado';
       feedbackCell.className = 'feedback-hint';
@@ -756,7 +753,7 @@ async function sendFeedback(offer, action, button) {
   const originalLabel = button.textContent;
   button.textContent = 'Salvando…';
   try {
-    const result = await request('/aprendizado/feedback', {
+    await request('/aprendizado/feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm,
@@ -769,22 +766,7 @@ async function sendFeedback(offer, action, button) {
     status.className = `feedback-status ${action === 'confirm' ? 'confirmed' : 'ignored'}`;
     status.textContent = action === 'confirm' ? '✓ Confirmado' : '× Ignorado';
     cell.append(status);
-    if (action === 'confirm' && result.siteCandidate) {
-      const candidate = result.siteCandidate;
-      if (window.confirm(`A oferta foi confirmada. O site ${candidate.name} (${candidate.domain}) ainda não está cadastrado. Deseja cadastrá-lo agora?`)) {
-        await request('/sites/descobertos/decisao', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...candidate, action: 'confirm' })
-        });
-        await loadSites();
-        setMessage(byId('search-message'), 'Oferta confirmada e novo site cadastrado para as próximas buscas.', 'success');
-      } else {
-        renderDiscoveredSites([{ discoveredSites: [candidate] }]);
-        setMessage(byId('search-message'), 'Oferta confirmada. O site ficou pendente para você cadastrar ou ignorar abaixo.', 'success');
-      }
-    } else {
-      setMessage(byId('search-message'), 'Feedback salvo. A próxima busca usará este aprendizado.', 'success');
-    }
+    setMessage(byId('search-message'), 'Resultado ignorado. A próxima busca usará esta correção.', 'success');
   } catch (error) {
     buttons.forEach((item) => { item.disabled = false; });
     button.textContent = originalLabel;
