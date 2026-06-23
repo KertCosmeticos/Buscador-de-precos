@@ -347,7 +347,6 @@ async function request(path, options = {}) {
 function setAdminAccess(authenticated) {
   byId('restricted-login').hidden = authenticated;
   byId('admin-content').hidden = !authenticated;
-  byId('logout-button').hidden = !authenticated;
   if (!authenticated) {
     adminToken = '';
     sessionStorage.removeItem('priceMonitorAdminToken');
