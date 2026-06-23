@@ -22,15 +22,16 @@ async function splitDiscoveredListings(listings, sites, demoMode = false) {
   const byDomain = new Map();
   listings.forEach((listing) => {
     const domain = hostname(listing.link);
-    const candidate = listing.discoveryCandidate === true && domain && !registeredDomain(domain, sites)
-      && Number.isFinite(listing.price) && Number(listing.score) >= 90;
+    const isRegistered = domain && registeredDomain(domain, sites);
+    const candidate = listing.discoveryCandidate === true && domain && !isRegistered
+      && Number.isFinite(listing.price) && Number(listing.score) >= 40;
     if (!candidate) {
-      if (!listing.discoveryCandidate) regular.push(listing);
+      if (!listing.discoveryCandidate || isRegistered) regular.push({ ...listing, sellerStatus: 'active' });
       return;
     }
     const current = byDomain.get(domain);
-    if (!current || listing.score > current.score) {
-      byDomain.set(domain, {
+    if (!current || listing.score > current.candidate.score) {
+      const siteCandidate = {
         domain,
         name: listing.marketplace && !/não informada/i.test(listing.marketplace) ? listing.marketplace : domain,
         searchUrl: `https://${domain}/`,
@@ -38,21 +39,24 @@ async function splitDiscoveredListings(listings, sites, demoMode = false) {
         evidenceTitle: listing.title,
         evidencePrice: listing.price,
         score: listing.score
-      });
+      };
+      byDomain.set(domain, { candidate: siteCandidate, listing });
     }
   });
   if (!demoMode && byDomain.size) {
     const existing = await SiteCandidate.find({ domain: { $in: [...byDomain.keys()] } }).lean();
     existing.filter(({ status }) => status !== 'pending').forEach(({ domain }) => byDomain.delete(domain));
     const existingDomains = new Set(existing.map(({ domain }) => domain));
-    const pending = [...byDomain.values()].filter(({ domain }) => !existingDomains.has(domain));
+    const pending = [...byDomain.values()].map(({ candidate }) => candidate).filter(({ domain }) => !existingDomains.has(domain));
     if (pending.length) {
       await SiteCandidate.bulkWrite(pending.map((candidate) => ({
         updateOne: { filter: { domain: candidate.domain }, update: { $setOnInsert: { ...candidate, status: 'pending' } }, upsert: true }
       })), { ordered: false });
     }
   }
-  return { listings: regular, discoveredSites: [...byDomain.values()] };
+  const discovered = [...byDomain.values()];
+  const newListings = discovered.map(({ listing, candidate }) => ({ ...listing, sellerStatus: 'new', siteCandidate: candidate }));
+  return { listings: [...newListings, ...regular], discoveredSites: discovered.map(({ candidate }) => candidate) };
 }
 
 module.exports = { hostname, inferredType, splitDiscoveredListings };

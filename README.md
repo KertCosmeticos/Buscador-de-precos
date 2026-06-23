@@ -43,9 +43,9 @@ Se o Chrome não carregar automaticamente o extrator em uma aba de pesquisa, a e
 
 Cada consulta pesquisa automaticamente todos os sites ativos cadastrados. A API e a extensão direcionam as pesquisas a esses domínios, usam o conector específico do Mercado Livre quando ele faz parte do cadastro e colocam os sites consultados em estado de aprendizado. Domínios incompatíveis com marketplaces conhecidos são ignorados pelo motor.
 
-A busca ampla também pode identificar um domínio ainda não cadastrado. Ele só é sugerido quando possui oferta com link direto, preço válido e score mínimo de 90; a oferta não entra nos resultados normais antes da aprovação. Qualquer usuário pode validar ofertas e revisar, confirmar ou ignorar uma sugestão realmente detectada pelo motor. O restante dos cadastros continua restrito ao administrador.
+A busca ampla também pode identificar um domínio ainda não cadastrado. Ofertas compatíveis aparecem primeiro no detalhamento com status verde **Novo** e o botão discreto **Cadastrar site**; vendedores já cadastrados aparecem como **Ativo**. O restante dos cadastros continua restrito ao administrador.
 
-Resultados exibidos são considerados corretos por padrão e alimentam automaticamente títulos e termos positivos do produto. O usuário só precisa clicar em **Ignorar** quando encontrar um erro; essa ação remove o aprendizado positivo correspondente e registra o título/termo como rejeitado. A aprovação de novos sites permanece uma decisão separada e explícita.
+Resultados exibidos são considerados corretos por padrão e alimentam automaticamente títulos e termos positivos do produto. O usuário só precisa clicar em **Ignorar** quando encontrar um erro; a rejeição vale para a combinação daquele título com aquele domínio, sem eliminar um resultado válido de outra loja.
 
 ## Aprendizado e compatibilidade
 

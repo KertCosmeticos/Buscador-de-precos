@@ -644,66 +644,6 @@ function renderResults(results) {
     (result.sources || []).some((source) => source.name?.includes('Demonstração'))
   );
   renderDetails(results);
-  renderDiscoveredSites(results);
-}
-
-function renderDiscoveredSites(results) {
-  const candidates = new Map();
-  results.flatMap((result) => result.discoveredSites || []).forEach((candidate) => {
-    const current = candidates.get(candidate.domain);
-    if (!current || candidate.score > current.score) candidates.set(candidate.domain, candidate);
-  });
-  const card = byId('discovered-sites-card');
-  const container = byId('discovered-sites-list');
-  container.replaceChildren();
-  if (!candidates.size) { card.hidden = true; return; }
-  candidates.forEach((candidate) => {
-    const item = document.createElement('article'); item.className = 'discovered-site';
-    const head = document.createElement('div'); head.className = 'discovered-site-head';
-    const identity = document.createElement('div');
-    const title = document.createElement('strong'); title.textContent = candidate.name;
-    const domain = document.createElement('small'); domain.textContent = candidate.domain;
-    identity.append(title, domain);
-    const score = document.createElement('span'); score.className = 'discovered-site-score'; score.textContent = `Score ${candidate.score}`;
-    head.append(identity, score);
-    const fields = document.createElement('div'); fields.className = 'discovered-site-fields';
-    const nameField = document.createElement('label'); nameField.textContent = 'Nome do site';
-    const nameInput = document.createElement('input'); nameInput.value = candidate.name; nameField.append(nameInput);
-    const typeField = document.createElement('label'); typeField.textContent = 'Tipo';
-    const typeSelect = document.createElement('select');
-    [['marketplace', 'Marketplace'], ['perfumaria', 'Perfumaria'], ['drogaria', 'Drogaria'], ['loja_propria', 'Loja própria']].forEach(([value, label]) => {
-      const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = candidate.type === value; typeSelect.append(option);
-    });
-    typeField.append(typeSelect); fields.append(nameField, typeField);
-    const evidence = document.createElement('p'); evidence.className = 'discovered-site-evidence';
-    evidence.textContent = `${candidate.evidenceTitle} · ${currency.format(candidate.evidencePrice)}`;
-    const actions = document.createElement('div'); actions.className = 'discovered-site-actions';
-    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'button primary'; confirm.textContent = 'Cadastrar site';
-    const ignore = document.createElement('button'); ignore.type = 'button'; ignore.className = 'button secondary'; ignore.textContent = 'Ignorar';
-    confirm.addEventListener('click', () => decideDiscoveredSite(candidate, 'confirm', item, nameInput.value, typeSelect.value));
-    ignore.addEventListener('click', () => decideDiscoveredSite(candidate, 'ignore', item, nameInput.value, typeSelect.value));
-    actions.append(confirm, ignore);
-    item.append(head, fields, evidence, actions); container.append(item);
-  });
-  card.hidden = false;
-}
-
-async function decideDiscoveredSite(candidate, action, item, name, type) {
-  if (action === 'confirm' && !window.confirm(`Cadastrar ${name} (${candidate.domain}) para as próximas buscas?`)) return;
-  const buttons = [...item.querySelectorAll('button')]; buttons.forEach((button) => { button.disabled = true; });
-  try {
-    await request('/sites/descobertos/decisao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...candidate, name: name.trim(), type, action })
-    });
-    item.remove();
-    if (!byId('discovered-sites-list').children.length) byId('discovered-sites-card').hidden = true;
-    if (action === 'confirm') await loadSites();
-    setMessage(byId('search-message'), action === 'confirm' ? 'Novo site cadastrado. Ele será usado na próxima busca.' : 'Site ignorado e removido das próximas sugestões.', 'success');
-  } catch (error) {
-    buttons.forEach((button) => { button.disabled = false; });
-    setMessage(byId('search-message'), error.message, 'error');
-  }
 }
 
 function renderDetails(results) {
@@ -712,6 +652,7 @@ function renderDetails(results) {
   const offers = results.flatMap((result) =>
     (result.listings || []).map((listing) => ({ ean: result.ean, productId: result.productId, searchTerm: result.usedSearchTerm, ...listing }))
   ).sort((a, b) => a.ean.localeCompare(b.ean)
+    || Number(b.sellerStatus === 'new') - Number(a.sellerStatus === 'new')
     || (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity)
     || (Number.isFinite(a.price) ? a.price : Number.POSITIVE_INFINITY)
       - (Number.isFinite(b.price) ? b.price : Number.POSITIVE_INFINITY));
@@ -722,6 +663,19 @@ function renderDetails(results) {
     appendCell(row, offer.title || '—');
     appendCell(row, Number.isFinite(offer.price) ? currency.format(offer.price) : '—');
     appendCell(row, offer.seller || '—');
+    const sellerStatusCell = row.insertCell();
+    const sellerStatus = document.createElement('span');
+    sellerStatus.className = `seller-status ${offer.sellerStatus === 'new' ? 'new' : 'active'}`;
+    sellerStatus.textContent = offer.sellerStatus === 'new' ? 'Novo' : 'Ativo';
+    sellerStatusCell.append(sellerStatus);
+    if (offer.sellerStatus === 'new' && offer.siteCandidate) {
+      const register = document.createElement('button');
+      register.type = 'button';
+      register.className = 'register-site-small';
+      register.textContent = 'Cadastrar site';
+      register.addEventListener('click', () => registerSiteFromOffer(offer, register));
+      sellerStatusCell.append(register);
+    }
     const linkCell = row.insertCell();
     if (offer.link) {
       const link = document.createElement('a');
@@ -744,6 +698,31 @@ function renderDetails(results) {
 
   byId('details-count').textContent = `${offers.length} oferta(s) B2C com preço e link direto`;
   byId('details-card').hidden = offers.length === 0;
+}
+
+async function registerSiteFromOffer(offer, button) {
+  const candidate = offer.siteCandidate;
+  if (!window.confirm(`Cadastrar ${candidate.name} (${candidate.domain}) para as próximas buscas?`)) return;
+  button.disabled = true;
+  button.textContent = 'Salvando…';
+  try {
+    await request('/sites/descobertos/decisao', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...candidate, action: 'confirm' })
+    });
+    const cell = button.closest('td');
+    cell.replaceChildren();
+    const status = document.createElement('span');
+    status.className = 'seller-status active';
+    status.textContent = 'Ativo';
+    cell.append(status);
+    await loadSites();
+    setMessage(byId('search-message'), 'Site cadastrado e ativado para as próximas buscas.', 'success');
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Cadastrar site';
+    setMessage(byId('search-message'), error.message, 'error');
+  }
 }
 
 async function sendFeedback(offer, action, button) {

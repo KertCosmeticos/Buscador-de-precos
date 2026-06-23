@@ -56,12 +56,12 @@ router.post('/feedback', async (req, res, next) => {
     const title = String(req.body.title || '').trim();
     const term = String(req.body.searchTerm || '').trim();
     if (isDemo()) {
-      const learning = demoLearnings.get(productId) || { productId, confirmedAliases: [], goodTerms: [], badTerms: [], ignoredTitles: [], excludedWords: [] };
+      const learning = demoLearnings.get(productId) || { productId, confirmedAliases: [], goodTerms: [], badTerms: [], ignoredTitles: [], siteRejections: [], excludedWords: [] };
       const add = (field, value) => { if (value && !learning[field].includes(value)) learning[field].push(value); };
       if (action === 'confirm') { add('confirmedAliases', title); add('goodTerms', term); }
       else {
-        add('ignoredTitles', title);
-        learning.confirmedAliases = learning.confirmedAliases.filter((value) => value !== title);
+        const domain = hostname(req.body.link);
+        if (domain && title && !learning.siteRejections.some((item) => item.domain === domain && item.title === title)) learning.siteRejections.push({ domain, title });
         uniqueStrings(req.body.excludedWords).forEach((word) => add('excludedWords', word));
       }
       demoLearnings.set(productId, learning);
@@ -74,9 +74,8 @@ router.post('/feedback', async (req, res, next) => {
       if (title) additions.confirmedAliases = title;
       if (term) additions.goodTerms = term;
     } else {
-      if (title) additions.ignoredTitles = title;
-      update.$pull = {};
-      if (title) update.$pull.confirmedAliases = title;
+      const domain = hostname(req.body.link);
+      if (domain && title) additions.siteRejections = { domain, title };
       const excluded = uniqueStrings(req.body.excludedWords);
       if (excluded.length) update.$addToSet = { excludedWords: { $each: excluded } };
     }
@@ -84,7 +83,6 @@ router.post('/feedback', async (req, res, next) => {
       update.$addToSet ||= {};
       Object.entries(additions).forEach(([field, value]) => { update.$addToSet[field] = value; });
     }
-    if (update.$pull && !Object.keys(update.$pull).length) delete update.$pull;
     const learning = await ProductLearning.findOneAndUpdate({ productId }, update, { upsert: true, new: true, runValidators: true }).lean();
     const siteCandidate = action === 'confirm' ? await candidateFromConfirmedOffer(req.body) : null;
     return res.json({ ...learning, siteCandidate });

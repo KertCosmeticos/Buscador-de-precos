@@ -31,10 +31,14 @@ function calculateCompatibility(product, listing, learning = {}) {
   const foundForbidden = forbidden.find((word) => includesTerm(text, word));
   if (foundForbidden) add(-50, `Palavra proibida: ${foundForbidden}`);
   if (/\b(?:kit|combo|conjunto)\b/.test(text) && !/\b(?:kit|combo|conjunto)\b/.test(normalizeText(product.name))) add(-40, 'Produto em kit');
-  if (learning.ignoredTitles?.some((title) => normalizeText(title) === normalizeText(listing.title))) add(-100, 'Título já ignorado');
+  let listingDomain = '';
+  try { listingDomain = new URL(listing.link).hostname.replace(/^www\./, '').toLowerCase(); } catch { /* link inválido */ }
+  const rejectedForSite = learning.siteRejections?.some((rejection) =>
+    rejection.domain === listingDomain && normalizeText(rejection.title) === normalizeText(listing.title));
+  if (rejectedForSite) add(-100, 'Título ignorado neste site');
 
   const finalScore = Math.max(-100, Math.min(150, score));
-  return { score: finalScore, status: scoreStatus(finalScore), reasons };
+  return { score: finalScore, status: scoreStatus(finalScore), reasons, rejectedByLearning: Boolean(rejectedForSite) };
 }
 
 module.exports = { calculateCompatibility, scoreStatus };
