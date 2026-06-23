@@ -39,6 +39,8 @@ A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Go
 
 A extensão combina EAN, nome oficial e uma consulta semântica por tipo, linha e variante. O resultado só é aceito quando nome compatível, preço em reais e link direto pertencem ao mesmo anúncio B2C. Cor/nuance e tipo compatível são obrigatórios.
 
+Se o Chrome não carregar automaticamente o extrator em uma aba de pesquisa, a extensão o injeta novamente e repete a leitura, evitando falhas transitórias de conexão com as abas do Google ou Mercado Livre.
+
 Cada consulta pesquisa automaticamente todos os sites ativos cadastrados. A API e a extensão direcionam as pesquisas a esses domínios, usam o conector específico do Mercado Livre quando ele faz parte do cadastro e colocam os sites consultados em estado de aprendizado. Domínios incompatíveis com marketplaces conhecidos são ignorados pelo motor.
 
 A busca ampla também pode identificar um domínio ainda não cadastrado. Ele só é sugerido quando possui oferta com link direto, preço válido e score mínimo de 90; a oferta não entra nos resultados normais antes da aprovação. Qualquer usuário pode validar ofertas e revisar, confirmar ou ignorar uma sugestão realmente detectada pelo motor. O restante dos cadastros continua restrito ao administrador.
