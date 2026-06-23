@@ -25,7 +25,7 @@ function validateSite(body) {
 router.get('/', async (_req, res, next) => {
   try { res.json({ sites: isDemo() ? demoSites : await Site.find().sort({ name: 1 }).lean() }); } catch (error) { next(error); }
 });
-router.post('/descobertos/decisao', requireAdmin, async (req, res, next) => {
+router.post('/descobertos/decisao', async (req, res, next) => {
   try {
     const action = String(req.body.action || '');
     const domain = String(req.body.domain || '').replace(/^www\./, '').toLowerCase().trim();
@@ -38,13 +38,6 @@ router.post('/descobertos/decisao', requireAdmin, async (req, res, next) => {
       return res.status(400).json({ error: 'Decisão ou domínio inválido.' });
     }
     if (action === 'confirm' && !validTypes.has(type)) return res.status(400).json({ error: 'Selecione um tipo válido.' });
-    const candidate = {
-      domain, name, searchUrl: `https://${domain}/`, type,
-      status: action === 'confirm' ? 'approved' : 'ignored',
-      evidenceTitle: String(req.body.evidenceTitle || '').trim(),
-      evidencePrice: Number.isFinite(Number(req.body.evidencePrice)) ? Number(req.body.evidencePrice) : null,
-      score: Number.isFinite(Number(req.body.score)) ? Number(req.body.score) : null
-    };
     if (isDemo()) {
       if (action === 'ignore') return res.json({ status: 'ignored' });
       const existing = demoSites.find((site) => site.baseUrl === parsed.origin || site.name === name);
@@ -53,7 +46,11 @@ router.post('/descobertos/decisao', requireAdmin, async (req, res, next) => {
       demoSites.push(site);
       return res.json({ status: 'approved', site });
     }
-    await SiteCandidate.findOneAndUpdate({ domain }, { $set: candidate }, { upsert: true, new: true, runValidators: true });
+    const pending = await SiteCandidate.findOne({ domain, status: 'pending' }).lean();
+    if (!pending || Number(pending.score) < 90 || !Number.isFinite(pending.evidencePrice)) {
+      return res.status(404).json({ error: 'Esta sugestão não está mais pendente ou não possui evidência válida.' });
+    }
+    await SiteCandidate.updateOne({ _id: pending._id }, { $set: { name, type, status: action === 'confirm' ? 'approved' : 'ignored' } });
     if (action === 'ignore') return res.json({ status: 'ignored' });
     let site = await Site.findOne({ $or: [{ baseUrl: parsed.origin }, { name }] }).lean();
     if (!site) site = (await Site.create(validateSite({ name, searchUrl, type }))).toObject();

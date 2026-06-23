@@ -1,13 +1,11 @@
 const express = require('express');
 const Product = require('../models/Product');
 const ProductLearning = require('../models/ProductLearning');
-const { requireAdmin } = require('../middleware/auth');
 const { uniqueStrings } = require('../utils/text');
 
 const router = express.Router();
 const demoLearnings = new Map();
 const isDemo = () => process.env.DEMO_MODE === 'true';
-router.use(requireAdmin);
 
 router.get('/:productId', async (req, res, next) => {
   try {

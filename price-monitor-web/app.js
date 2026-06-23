@@ -678,13 +678,11 @@ function renderDiscoveredSites(results) {
     const evidence = document.createElement('p'); evidence.className = 'discovered-site-evidence';
     evidence.textContent = `${candidate.evidenceTitle} · ${currency.format(candidate.evidencePrice)}`;
     const actions = document.createElement('div'); actions.className = 'discovered-site-actions';
-    if (adminToken) {
-      const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'button primary'; confirm.textContent = 'Cadastrar site';
-      const ignore = document.createElement('button'); ignore.type = 'button'; ignore.className = 'button secondary'; ignore.textContent = 'Ignorar';
-      confirm.addEventListener('click', () => decideDiscoveredSite(candidate, 'confirm', item, nameInput.value, typeSelect.value));
-      ignore.addEventListener('click', () => decideDiscoveredSite(candidate, 'ignore', item, nameInput.value, typeSelect.value));
-      actions.append(confirm, ignore);
-    } else actions.textContent = 'Entre em Cadastros para decidir sobre este site.';
+    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'button primary'; confirm.textContent = 'Cadastrar site';
+    const ignore = document.createElement('button'); ignore.type = 'button'; ignore.className = 'button secondary'; ignore.textContent = 'Ignorar';
+    confirm.addEventListener('click', () => decideDiscoveredSite(candidate, 'confirm', item, nameInput.value, typeSelect.value));
+    ignore.addEventListener('click', () => decideDiscoveredSite(candidate, 'ignore', item, nameInput.value, typeSelect.value));
+    actions.append(confirm, ignore);
     item.append(head, fields, evidence, actions); container.append(item);
   });
   card.hidden = false;
@@ -747,13 +745,13 @@ function renderDetails(results) {
       linkCell.textContent = offer.demo ? 'Disponível na busca real' : '—';
     }
     const feedbackCell = row.insertCell();
-    if (offer.productId && adminToken) {
+    if (offer.productId) {
       feedbackCell.append(
         actionButton('Confirmar', '', (event) => sendFeedback(offer, 'confirm', event.currentTarget)),
         actionButton('Ignorar', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget))
       );
     } else {
-      feedbackCell.textContent = adminToken ? 'Resultado sem produto vinculado' : 'Entre em Cadastros para validar';
+      feedbackCell.textContent = 'Resultado sem produto vinculado';
       feedbackCell.className = 'feedback-hint';
     }
   });
@@ -786,7 +784,7 @@ async function sendFeedback(offer, action, button) {
     if (previous) previous.remove();
     const message = document.createElement('small');
     message.className = 'feedback-error';
-    message.textContent = error.status === 401 ? 'Sessão expirada. Entre novamente em Cadastros.' : `Não foi possível salvar: ${error.message}`;
+    message.textContent = `Não foi possível salvar: ${error.message}`;
     cell.append(message);
   }
 }

@@ -42,8 +42,15 @@ async function splitDiscoveredListings(listings, sites, demoMode = false) {
     }
   });
   if (!demoMode && byDomain.size) {
-    const blocked = await SiteCandidate.find({ domain: { $in: [...byDomain.keys()] }, status: { $in: ['ignored', 'approved'] } }).select('domain').lean();
-    blocked.forEach(({ domain }) => byDomain.delete(domain));
+    const existing = await SiteCandidate.find({ domain: { $in: [...byDomain.keys()] } }).lean();
+    existing.filter(({ status }) => status !== 'pending').forEach(({ domain }) => byDomain.delete(domain));
+    const existingDomains = new Set(existing.map(({ domain }) => domain));
+    const pending = [...byDomain.values()].filter(({ domain }) => !existingDomains.has(domain));
+    if (pending.length) {
+      await SiteCandidate.bulkWrite(pending.map((candidate) => ({
+        updateOne: { filter: { domain: candidate.domain }, update: { $setOnInsert: { ...candidate, status: 'pending' } }, upsert: true }
+      })), { ordered: false });
+    }
   }
   return { listings: regular, discoveredSites: [...byDomain.values()] };
 }
