@@ -489,6 +489,7 @@ function renderProductPicker() {
 async function loadPickerProducts() {
   if (!hasActiveProductFilter()) {
     catalogProducts = [];
+    selectedProductEans.clear();
     renderProductPicker();
     return;
   }
@@ -497,6 +498,10 @@ async function loadPickerProducts() {
     && (!selectedCategories.size || selectedCategories.has(product.category))
     && (!selectedFamilies.size || selectedFamilies.has(product.family))
   );
+  const visibleEans = new Set(catalogProducts.map((p) => p.ean));
+  for (const ean of selectedProductEans) {
+    if (!visibleEans.has(ean)) selectedProductEans.delete(ean);
+  }
   renderProductPicker();
 }
 
