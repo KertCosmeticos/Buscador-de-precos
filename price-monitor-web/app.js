@@ -683,24 +683,46 @@ function renderDetails(results) {
     const feedbackCell = row.insertCell();
     if (offer.productId && adminToken) {
       feedbackCell.append(
-        actionButton('Confirmar', '', () => sendFeedback(offer, 'confirm')),
-        actionButton('Ignorar', 'danger', () => sendFeedback(offer, 'ignore'))
+        actionButton('Confirmar', '', (event) => sendFeedback(offer, 'confirm', event.currentTarget)),
+        actionButton('Ignorar', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget))
       );
-    } else feedbackCell.textContent = '—';
+    } else {
+      feedbackCell.textContent = adminToken ? 'Resultado sem produto vinculado' : 'Entre em Cadastros para validar';
+      feedbackCell.className = 'feedback-hint';
+    }
   });
 
   byId('details-count').textContent = `${offers.length} oferta(s) B2C com preço e link direto`;
   byId('details-card').hidden = offers.length === 0;
 }
 
-async function sendFeedback(offer, action) {
+async function sendFeedback(offer, action, button) {
+  const cell = button.closest('td');
+  const buttons = [...cell.querySelectorAll('button')];
+  buttons.forEach((item) => { item.disabled = true; });
+  const originalLabel = button.textContent;
+  button.textContent = 'Salvando…';
   try {
     await request('/aprendizado/feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm })
     });
-    setMessage(byId('search-message'), action === 'confirm' ? 'Resultado confirmado e aprendizado salvo.' : 'Resultado ignorado e aprendizado salvo.', 'success');
-  } catch (error) { setMessage(byId('search-message'), error.message, 'error'); }
+    cell.replaceChildren();
+    const status = document.createElement('span');
+    status.className = `feedback-status ${action === 'confirm' ? 'confirmed' : 'ignored'}`;
+    status.textContent = action === 'confirm' ? '✓ Confirmado' : '× Ignorado';
+    cell.append(status);
+    setMessage(byId('search-message'), 'Feedback salvo. A próxima busca usará este aprendizado.', 'success');
+  } catch (error) {
+    buttons.forEach((item) => { item.disabled = false; });
+    button.textContent = originalLabel;
+    const previous = cell.querySelector('.feedback-error');
+    if (previous) previous.remove();
+    const message = document.createElement('small');
+    message.className = 'feedback-error';
+    message.textContent = error.status === 401 ? 'Sessão expirada. Entre novamente em Cadastros.' : `Não foi possível salvar: ${error.message}`;
+    cell.append(message);
+  }
 }
 
 function resetSiteForm() {
