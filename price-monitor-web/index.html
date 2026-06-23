@@ -114,7 +114,6 @@
     </section>
 
     <section id="registrations-panel" class="panel" aria-labelledby="Cadastros" hidden>
-      <div class="page-intro"><h2>Área restrita</h2><p>O gerenciamento do catálogo exige autenticação.</p></div>
       <div id="restricted-login" class="card login-card">
         <h2>Entrar em Cadastros</h2>
         <form id="login-form">
@@ -126,7 +125,12 @@
         <div id="login-message" class="message" role="status" aria-live="polite"></div>
       </div>
       <div id="admin-content" hidden>
-      <div class="admin-heading"><div><h2>Cadastros</h2><p>Cadastre, edite ou exclua produtos da base.</p></div><button id="logout-button" class="button secondary" type="button">Sair</button></div>
+      <div class="admin-heading"><button id="logout-button" class="button secondary" type="button">Sair</button></div>
+      <nav class="sub-tabs" aria-label="Seções de cadastro">
+        <button class="sub-tab active" type="button" data-subtab="products" aria-selected="true">Gerenciar produtos</button>
+        <button class="sub-tab" type="button" data-subtab="sites" aria-selected="false">Gerenciar sites</button>
+      </nav>
+      <div id="products-subtab" class="sub-panel">
       <div class="card registration-guide">
         <h2>Como cadastrar produtos</h2>
         <div class="instruction-grid">
@@ -183,6 +187,15 @@
           <div id="import-message" class="message" role="status" aria-live="polite"></div>
         </section>
       </div>
+      <div class="card results-card">
+        <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th><th>Ações</th></tr></thead>
+          <tbody id="catalog-body"></tbody>
+        </table></div>
+      </div>
+      </div>
+      <div id="sites-subtab" class="sub-panel" hidden>
       <div class="card">
         <h2 id="site-form-title">Cadastrar site monitorado</h2>
         <form id="site-form" class="product-form">
@@ -200,7 +213,6 @@
           </div>
           <label class="file-picker" for="site-import-file">
             <span class="file-picker-action">Escolher arquivo</span>
-            <small>Excel .xls ou .xlsx · NOME, URL DE BUSCA e TIPO</small>
             <input id="site-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </label>
           <p id="site-import-summary" class="file-summary">Nenhum arquivo selecionado.</p>
@@ -212,12 +224,6 @@
         <div class="card-heading"><div><h2>Gerenciar sites</h2><p id="sites-count"></p></div></div>
         <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>URL de busca</th><th>Aprendizado</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
       </div>
-      <div class="card results-card">
-        <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th><th>Ações</th></tr></thead>
-          <tbody id="catalog-body"></tbody>
-        </table></div>
       </div>
       </div>
     </section>

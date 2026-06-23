@@ -36,6 +36,19 @@ document.querySelectorAll('.tab').forEach((tab) => {
   });
 });
 
+document.querySelectorAll('.sub-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.sub-tab').forEach((item) => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
+    document.querySelectorAll('.sub-panel').forEach((panel) => {
+      panel.hidden = panel.id !== `${tab.dataset.subtab}-subtab`;
+    });
+  });
+});
+
 async function loadApiMode() {
   const badge = byId('data-mode');
   try {
