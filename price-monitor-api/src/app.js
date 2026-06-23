@@ -14,6 +14,7 @@ const { calculateCompatibility } = require('./services/compatibilityScore');
 const { generateSearchTerms } = require('./services/searchTerms');
 const { postalCode, formatPostalCode } = require('./config/search');
 const Site = require('./models/Site');
+const { splitDiscoveredListings } = require('./services/siteDiscovery');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -80,11 +81,13 @@ async function searchFresh(ean, sites = []) {
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
     : await searchAllMarketplaces(ean, nameTerm, sites);
-  const listings = product
+  const scoredListings = product
     ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
-  const result = summarize(ean, listings, search.sources);
+  const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
+  const result = summarize(ean, discovery.listings, search.sources);
+  result.discoveredSites = discovery.discoveredSites;
   if (product) {
     result.productId = product._id;
     result.searchTerms = terms;
@@ -170,10 +173,14 @@ app.post('/avaliar', async (req, res, next) => {
     const product = await productCatalog.getProductByEan(ean);
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
     const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
+    const sites = demoMode ? [] : await Site.find({ active: true }).lean();
+    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
+      .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
+    const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
     return res.json({
       productId: product._id,
-      listings: listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
-        .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
+      listings: discovery.listings,
+      discoveredSites: discovery.discoveredSites
     });
   } catch (error) { return next(error); }
 });

@@ -404,7 +404,10 @@ async function searchGoogleShopping(ean, productName = '', options = {}) {
     const successful = searches.filter((result) => result.status === 'fulfilled');
     if (!successful.length) throw searches[0].reason;
     const offers = successful.flatMap((result) => result.value);
-    return (options.domains || []).length ? offers.filter((offer) => domainMatches(offer.link, options.domains)) : offers;
+    if (!(options.domains || []).length) return offers;
+    return offers.map((offer) => domainMatches(offer.link, options.domains)
+      ? offer
+      : { ...offer, discoveryCandidate: true });
   } catch (error) {
     const message = error.code === 'ECONNABORTED'
       ? 'O Google Shopping demorou demais para responder.'

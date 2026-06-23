@@ -129,7 +129,7 @@ async function runSearch(port, message) {
   const sites = Array.isArray(message.sites) ? message.sites.slice(0, 20) : [];
   if (!products.length) throw new Error('Nenhum produto válido foi enviado à extensão.');
 
-  const totalSteps = products.length * (sites.length ? 4 : 5);
+  const totalSteps = products.length * 5;
   let completedSteps = 0;
   const results = [];
 
@@ -143,7 +143,8 @@ async function runSearch(port, message) {
     const steps = sites.length ? [
       { name: 'Sites por EAN', query: `${product.ean} ${siteClause}`, mode: 'web', exactEan: true },
       { name: 'Sites por nome', query: `"${product.name || product.ean}" ${siteClause}`, mode: 'web' },
-      { name: 'Sites por semântica', query: `${semantic || product.name || product.ean} ${siteClause}`, mode: 'web' }
+      { name: 'Sites por semântica', query: `${semantic || product.name || product.ean} ${siteClause}`, mode: 'web' },
+      { name: 'Descoberta Google Shopping', query: product.name || product.ean, mode: 'shopping', discovery: true }
     ] : [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
@@ -161,7 +162,10 @@ async function runSearch(port, message) {
         const found = step.query
           ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
           : [];
-        const selected = sites.length ? found.filter((listing) => listingMatchesSites(listing, sites)) : found;
+        const selected = sites.length
+          ? found.filter((listing) => step.discovery || listingMatchesSites(listing, sites))
+            .map((listing) => step.discovery && !listingMatchesSites(listing, sites) ? { ...listing, discoveryCandidate: true } : listing)
+          : found;
         listings.push(...selected);
         sources.push({ name: step.name, status: 'ok', count: selected.length });
       } catch (error) {
