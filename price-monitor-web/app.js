@@ -689,7 +689,7 @@ function renderDetails(results) {
       register.type = 'button';
       register.className = 'register-site-small';
       register.textContent = 'Cadastrar';
-      register.addEventListener('click', () => openSiteRegistration(offer.seller));
+      register.addEventListener('click', () => registerSiteInline(offer, register));
       sellerStatusCell.append(register);
     }
     const linkCell = row.insertCell();
@@ -741,12 +741,36 @@ async function registerSiteFromOffer(offer, button) {
   }
 }
 
-function openSiteRegistration(sellerName) {
-  document.querySelector('.tab[data-tab="registrations"]').click();
-  document.querySelector('.sub-tab[data-subtab="sites"]').click();
-  resetSiteForm();
-  byId('site-name').value = sellerName;
-  byId('site-search-url').focus();
+async function registerSiteInline(offer, button) {
+  if (!offer.link) {
+    setMessage(byId('search-message'), 'Não foi possível determinar o site deste vendedor.', 'error');
+    return;
+  }
+  let origin;
+  try { origin = new URL(offer.link).origin; } catch {
+    setMessage(byId('search-message'), 'Link do produto inválido.', 'error');
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Salvando…';
+  try {
+    await request('/sites', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: offer.seller, searchUrl: `${origin}/busca?q={termo}` })
+    });
+    const cell = button.closest('td');
+    cell.replaceChildren();
+    const status = document.createElement('span');
+    status.className = 'seller-status active';
+    status.textContent = 'Ativo';
+    cell.append(status);
+    await loadSites();
+    setMessage(byId('search-message'), `"${offer.seller}" cadastrado. Ajuste a URL de busca em Gerenciar sites se necessário.`, 'success');
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Cadastrar';
+    setMessage(byId('search-message'), error.message, 'error');
+  }
 }
 
 async function sendFeedback(offer, action, button) {
