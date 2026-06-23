@@ -59,6 +59,9 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .check-row input { width: auto; }
 .select-all { margin: 14px 0 8px; font-size: .88rem; }
 .product-picker-list { max-height: 245px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
+.site-picker-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.site-choice { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+.site-choice small { display: block; margin-left: 25px; color: var(--muted); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .product-picker-list.awaiting-filter { min-height: 58px; display: grid; place-items: center; color: var(--muted); }
 .picker-product { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .picker-product:last-child { border-bottom: 0; }
@@ -144,6 +147,7 @@ footer { text-align: center; color: var(--muted); font-size: .82rem; padding: 18
   .actions, .inline-form { flex-direction: column; align-items: stretch; }
   .search-source-options { flex-direction: column; }
   .filter-grid, .product-form, .instruction-grid { grid-template-columns: 1fr; }
+  .site-picker-list { grid-template-columns: 1fr; }
   .import-heading { flex-direction: column; }
   .file-picker { align-items: flex-start; flex-direction: column; }
   .span-2 { grid-column: auto; }

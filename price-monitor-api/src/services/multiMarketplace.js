@@ -34,10 +34,26 @@ function deduplicate(listings) {
   return results;
 }
 
-async function searchAllMarketplaces(ean, productName = '') {
+function siteDomain(site) {
+  try { return new URL(site.searchUrl || site.baseUrl).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; }
+}
+
+function searchableSiteDomain(site) {
+  const domain = siteDomain(site);
+  const expected = [
+    { name: /mercado\s*livre/i, domain: 'mercadolivre.com.br' },
+    { name: /amazon/i, domain: 'amazon.com.br' },
+    { name: /shopee/i, domain: 'shopee.com.br' }
+  ].find((rule) => rule.name.test(site.name || ''));
+  return expected && !domain.endsWith(expected.domain) ? '' : domain;
+}
+
+async function searchAllMarketplaces(ean, productName = '', sites = []) {
+  const domains = [...new Set(sites.map(searchableSiteDomain).filter(Boolean))];
+  const mercadoLivreSelected = !sites.length || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
   const connectors = [
-    { name: 'Mercado Livre', enabled: true, search: () => searchByEan(ean) },
-    { name: 'Google Shopping e Web', enabled: Boolean(process.env.SERPAPI_KEY), search: () => searchGoogleShopping(ean, productName) }
+    { name: 'Mercado Livre', enabled: mercadoLivreSelected, search: () => searchByEan(ean) },
+    { name: sites.length ? 'Sites selecionados via Google' : 'Google Shopping e Web', enabled: Boolean(process.env.SERPAPI_KEY) && (!sites.length || domains.length > 0), search: () => searchGoogleShopping(ean, productName, { domains }) }
   ].filter((connector) => connector.enabled);
 
   const settled = await Promise.allSettled(connectors.map((connector) => connector.search()));
@@ -58,4 +74,4 @@ async function searchAllMarketplaces(ean, productName = '') {
   return { listings, sources };
 }
 
-module.exports = { searchAllMarketplaces, deduplicate };
+module.exports = { searchAllMarketplaces, deduplicate, siteDomain, searchableSiteDomain };

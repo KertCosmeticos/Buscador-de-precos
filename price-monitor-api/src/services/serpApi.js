@@ -353,22 +353,38 @@ async function findGoogleWebResults(query) {
   return data;
 }
 
-async function searchGoogleWeb(ean, productName) {
+function domainMatches(link, domains = []) {
+  if (!domains.length) return true;
+  try {
+    const hostname = new URL(link).hostname.replace(/^www\./, '').toLowerCase();
+    return domains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+  } catch { return false; }
+}
+
+function domainGroups(domains, size = 4) {
+  const groups = [];
+  for (let index = 0; index < domains.length; index += size) groups.push(domains.slice(index, index + size));
+  return groups;
+}
+
+async function searchGoogleWeb(ean, productName, domains = []) {
   const baseQuery = productName || ean;
+  const selectedGroups = domains.length ? domainGroups(domains) : priorityDomainGroups;
   const domainQueries = productName
-    ? priorityDomainGroups.map((domains) => `"${productName}" (${domains.map((domain) => `site:${domain}`).join(' OR ')})`)
+    ? selectedGroups.map((group) => `"${productName}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`)
     : [];
   const searches = await Promise.allSettled([
-    findGoogleWebResults(baseQuery),
+    ...(domains.length ? [] : [findGoogleWebResults(baseQuery)]),
     ...domainQueries.map(findGoogleWebResults)
   ]);
   const offers = searches.flatMap((result) => result.status === 'fulfilled'
     ? googleWebOffersFromData(result.value, productName)
     : []);
-  return resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
+  const resolved = await resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
+  return resolved.filter((offer) => domainMatches(offer.link, domains));
 }
 
-async function searchGoogleShopping(ean, productName = '') {
+async function searchGoogleShopping(ean, productName = '', options = {}) {
   if (!process.env.SERPAPI_KEY) return [];
 
   try {
@@ -384,10 +400,11 @@ async function searchGoogleShopping(ean, productName = '') {
       const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
       return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
     })();
-    const searches = await Promise.allSettled([shoppingPromise, searchGoogleWeb(ean, productName)]);
+    const searches = await Promise.allSettled([shoppingPromise, searchGoogleWeb(ean, productName, options.domains || [])]);
     const successful = searches.filter((result) => result.status === 'fulfilled');
     if (!successful.length) throw searches[0].reason;
-    return successful.flatMap((result) => result.value);
+    const offers = successful.flatMap((result) => result.value);
+    return (options.domains || []).length ? offers.filter((offer) => domainMatches(offer.link, options.domains)) : offers;
   } catch (error) {
     const message = error.code === 'ECONNABORTED'
       ? 'O Google Shopping demorou demais para responder.'
@@ -398,4 +415,4 @@ async function searchGoogleShopping(ean, productName = '') {
   }
 }
 
-module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml };
+module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml, domainMatches };

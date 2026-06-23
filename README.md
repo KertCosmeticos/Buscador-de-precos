@@ -39,6 +39,8 @@ A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Go
 
 A extensão combina EAN, nome oficial e uma consulta semântica por tipo, linha e variante. O resultado só é aceito quando nome compatível, preço em reais e link direto pertencem ao mesmo anúncio B2C. Cor/nuance e tipo compatível são obrigatórios.
 
+Na consulta, o usuário seleciona os sites ativos. A API e a extensão direcionam as pesquisas aos domínios escolhidos, mantêm o conector específico do Mercado Livre somente quando ele está selecionado e colocam os sites consultados em estado de aprendizado. O painel alerta quando um nome conhecido aponta para um domínio incompatível.
+
 ## Aprendizado e compatibilidade
 
 O catálogo aceita volume e gera tokens automaticamente. A API cria os termos de consulta usando os dados do produto e o aprendizado salvo, atribui score e status às ofertas e oferece feedback de confirmação ou descarte. Termos bons, aliases e palavras de exclusão são aprendidos pelo sistema, sem exigir cadastro manual.

@@ -13,6 +13,7 @@ const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
 const { generateSearchTerms } = require('./services/searchTerms');
 const { postalCode, formatPostalCode } = require('./config/search');
+const Site = require('./models/Site');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -71,14 +72,14 @@ function summarize(ean, listings, sources = []) {
   };
 }
 
-async function searchFresh(ean) {
+async function searchFresh(ean, sites = []) {
   const product = demoMode ? null : await productCatalog.getProductByEan(ean);
   const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
   const terms = product ? generateSearchTerms(product, learning || {}) : [];
   const nameTerm = terms.find((term) => term !== ean) || product?.name;
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean, nameTerm);
+    : await searchAllMarketplaces(ean, nameTerm, sites);
   const listings = product
     ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
@@ -89,7 +90,16 @@ async function searchFresh(ean) {
     result.searchTerms = terms;
     result.usedSearchTerm = nameTerm;
   }
+  if (sites.length && !demoMode) {
+    await Site.updateMany({ _id: { $in: sites.map((site) => site._id) } }, { $set: { discoveryStatus: 'learning', lastDiscoveryAt: new Date() } });
+  }
   return result;
+}
+
+async function selectedSites(input) {
+  if (demoMode || !Array.isArray(input) || !input.length) return [];
+  const ids = [...new Set(input.map(String).filter((id) => /^[a-f\d]{24}$/i.test(id)))].slice(0, 20);
+  return ids.length ? Site.find({ _id: { $in: ids }, active: true }).lean() : [];
 }
 
 app.get('/health', (_req, res) => res.json({
@@ -130,12 +140,13 @@ app.post('/buscar/lote', async (req, res, next) => {
     }
 
     const eans = [...new Set(input.map(normalizeEan))];
+    const sites = await selectedSites(req.body?.siteIds);
     const results = await mapWithConcurrency(eans, 5, async (ean) => {
       if (!isValidEan(ean)) {
         return { ean, error: 'EAN inválido. Informe somente de 8 a 14 dígitos.' };
       }
       try {
-        const result = await searchFresh(ean);
+        const result = await searchFresh(ean, sites);
         return result.listingsCount
           ? result
           : { ...result, error: 'Nenhum anúncio foi encontrado para este EAN.' };
