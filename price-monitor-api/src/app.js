@@ -6,7 +6,12 @@ const { assertValidEan, normalizeEan, isValidEan } = require('./utils/validation
 const { mapWithConcurrency } = require('./utils/limit');
 const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
+const siteRoutes = require('./routes/sites');
+const learningRoutes = require('./routes/learning');
 const productCatalog = require('./services/productCatalog');
+const ProductLearning = require('./models/ProductLearning');
+const { calculateCompatibility } = require('./services/compatibilityScore');
+const { generateSearchTerms } = require('./services/searchTerms');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -26,6 +31,8 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
+app.use('/sites', siteRoutes);
+app.use('/aprendizado', learningRoutes);
 
 function summarize(ean, listings, sources = []) {
   const prices = listings.map((item) => item.price).filter(Number.isFinite);
@@ -65,10 +72,22 @@ function summarize(ean, listings, sources = []) {
 
 async function searchFresh(ean) {
   const product = demoMode ? null : await productCatalog.getProductByEan(ean);
+  const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
+  const terms = product ? generateSearchTerms(product, learning || {}) : [];
+  const nameTerm = terms.find((term) => term !== ean) || product?.name;
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean, product?.name);
-  const result = summarize(ean, search.listings, search.sources);
+    : await searchAllMarketplaces(ean, nameTerm);
+  const listings = product
+    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
+      .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
+    : search.listings;
+  const result = summarize(ean, listings, search.sources);
+  if (product) {
+    result.productId = product._id;
+    result.searchTerms = terms;
+    result.usedSearchTerm = nameTerm;
+  }
   return result;
 }
 
@@ -129,12 +148,29 @@ app.post('/buscar/lote', async (req, res, next) => {
   }
 });
 
+app.post('/avaliar', async (req, res, next) => {
+  try {
+    const ean = assertValidEan(req.body?.ean);
+    const listings = req.body?.listings;
+    if (!Array.isArray(listings) || listings.length > 200) return res.status(400).json({ error: 'Envie até 200 ofertas para avaliação.' });
+    const product = await productCatalog.getProductByEan(ean);
+    if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
+    const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
+    return res.json({
+      productId: product._id,
+      listings: listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
+        .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
+    });
+  } catch (error) { return next(error); }
+});
+
 app.use((_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
 
 app.use((error, _req, res, _next) => {
   console.error(error);
   if (error?.code === 11000) {
-    return res.status(409).json({ error: 'Este EAN já está cadastrado.' });
+    const field = Object.keys(error.keyPattern || {})[0];
+    return res.status(409).json({ error: field === 'name' ? 'Já existe um site com este nome.' : 'Este EAN já está cadastrado.' });
   }
   const status = error.status || (error.message?.includes('CORS') ? 403 : 500);
   const message = status === 500

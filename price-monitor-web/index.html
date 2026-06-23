@@ -104,7 +104,7 @@
           <table>
             <thead><tr>
               <th>EAN</th><th>Marketplace</th><th>Produto</th><th>Preço</th><th>Vendedor</th>
-              <th>Vendidos</th><th>Condição</th><th>Frete grátis</th><th>Anúncio</th>
+              <th>Score</th><th>Status</th><th>Vendidos</th><th>Condição</th><th>Frete grátis</th><th>Anúncio</th><th>Feedback</th>
             </tr></thead>
             <tbody id="details-body"></tbody>
           </table>
@@ -168,12 +168,37 @@
           <div class="field span-2"><label for="catalog-name">Nome do produto *</label><input id="catalog-name" required></div>
           <div class="field"><label for="catalog-category">Categoria *</label><input id="catalog-category" required></div>
           <div class="field"><label for="catalog-family">Família *</label><input id="catalog-family" required></div>
+          <div class="field"><label for="catalog-volume">Volume/gramatura</label><input id="catalog-volume" placeholder="Ex.: 140ml"></div>
+          <div class="field"><label for="catalog-ncm">NCM</label><input id="catalog-ncm" inputmode="numeric"></div>
+          <div class="field span-2"><label for="catalog-search-term">Termo de busca</label><input id="catalog-search-term" placeholder="Ex.: keraton queratina líquida"></div>
+          <div class="field span-2"><label for="catalog-required-words">Palavras obrigatórias</label><input id="catalog-required-words" placeholder="Separadas por vírgula"></div>
+          <div class="field span-2"><label for="catalog-forbidden-words">Palavras proibidas</label><input id="catalog-forbidden-words" placeholder="Separadas por vírgula"></div>
           <div class="form-actions span-2">
             <button class="button primary" type="submit">Salvar produto</button>
             <button id="cancel-edit" class="button secondary" type="button" hidden>Cancelar edição</button>
           </div>
         </form>
         <div id="catalog-message" class="message" role="status" aria-live="polite"></div>
+      </div>
+      <div class="card">
+        <h2 id="site-form-title">Cadastrar site monitorado</h2>
+        <form id="site-form" class="product-form">
+          <input id="site-id" type="hidden">
+          <div class="field"><label for="site-name">Nome *</label><input id="site-name" required></div>
+          <div class="field"><label for="site-type">Tipo *</label><select id="site-type" required><option value="marketplace">Marketplace</option><option value="perfumaria">Perfumaria</option><option value="drogaria">Drogaria</option><option value="loja_propria">Loja própria</option></select></div>
+          <div class="field span-2"><label for="site-base-url">URL base *</label><input id="site-base-url" type="url" required></div>
+          <div class="field span-2"><label for="site-search-url">URL de busca *</label><input id="site-search-url" type="url" required placeholder="https://loja.com.br/busca?q={termo}"></div>
+          <label class="check-row"><input id="site-accepts-ean" type="checkbox" checked> Aceita EAN</label>
+          <label class="check-row"><input id="site-accepts-name" type="checkbox" checked> Aceita nome</label>
+          <label class="check-row"><input id="site-playwright" type="checkbox"> Precisa Playwright</label>
+          <label class="check-row"><input id="site-active" type="checkbox" checked> Ativo</label>
+          <div class="form-actions span-2"><button class="button primary" type="submit">Salvar site</button><button id="cancel-site-edit" class="button secondary" type="button" hidden>Cancelar edição</button></div>
+        </form>
+        <div id="site-message" class="message" role="status"></div>
+      </div>
+      <div class="card results-card">
+        <div class="card-heading"><div><h2>Sites monitorados</h2><p id="sites-count"></p></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>EAN</th><th>Nome</th><th>Playwright</th><th>Status</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
       </div>
       <div class="card import-card">
         <div class="card-heading import-heading">

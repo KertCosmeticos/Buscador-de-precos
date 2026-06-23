@@ -38,3 +38,9 @@ As colunas aceitas são `COD SFA`, `NOME`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`.
 A pasta `price-monitor-chrome` contém uma extensão Manifest V3 que pesquisa Google Web, Google Shopping e Mercado Livre usando a sessão local do navegador, sem consumir SerpApi. O workflow do Pages publica também `price-monitor-chrome.zip`, disponível no próprio painel.
 
 A extensão combina EAN, nome oficial e uma consulta semântica por tipo, linha e variante. O resultado só é aceito quando nome compatível, preço em reais e link direto pertencem ao mesmo anúncio B2C. Cor/nuance e tipo compatível são obrigatórios.
+
+## Aprendizado e compatibilidade
+
+O catálogo aceita termo de busca, volume, NCM, tokens e palavras obrigatórias/proibidas. A API gera consultas usando o cadastro e o aprendizado salvo, atribui score e status às ofertas e oferece feedback de confirmação ou descarte.
+
+As collections `sites` e `productlearnings` guardam, respectivamente, os sites monitorados e o aprendizado por produto. Nesta etapa, o cadastro de sites é a base de configuração; conectores específicos para executar a URL de busca de cada site serão adicionados separadamente.

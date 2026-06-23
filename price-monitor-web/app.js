@@ -220,6 +220,19 @@ function searchWithBrowser(products) {
   });
 }
 
+async function scoreBrowserResults(results) {
+  return Promise.all(results.map(async (result) => {
+    if (!result.listings?.length) return result;
+    try {
+      const scored = await request('/avaliar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ean: result.ean, listings: result.listings })
+      });
+      return { ...result, productId: scored.productId, listings: scored.listings };
+    } catch { return result; }
+  }));
+}
+
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;
   const message = event.data;
@@ -285,6 +298,7 @@ async function restoreAdminSession() {
   try {
     await request('/auth/me');
     setAdminAccess(true);
+    await loadSites();
   } catch {
     setAdminAccess(false);
   }
@@ -443,6 +457,11 @@ function fillProductForm(product) {
   byId('catalog-name').value = product.name;
   byId('catalog-category').value = product.category;
   byId('catalog-family').value = product.family;
+  byId('catalog-volume').value = product.volume || '';
+  byId('catalog-ncm').value = product.ncm || '';
+  byId('catalog-search-term').value = product.searchTerm || '';
+  byId('catalog-required-words').value = (product.requiredWords || []).join(', ');
+  byId('catalog-forbidden-words').value = (product.forbiddenWords || []).join(', ');
   byId('product-form-title').textContent = 'Editar produto';
   byId('cancel-edit').hidden = false;
   byId('catalog-ean').focus();
@@ -592,8 +611,9 @@ function renderDetails(results) {
   const body = byId('details-body');
   body.replaceChildren();
   const offers = results.flatMap((result) =>
-    (result.listings || []).map((listing) => ({ ean: result.ean, ...listing }))
+    (result.listings || []).map((listing) => ({ ean: result.ean, productId: result.productId, searchTerm: result.usedSearchTerm, ...listing }))
   ).sort((a, b) => a.ean.localeCompare(b.ean)
+    || (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity)
     || (Number.isFinite(a.price) ? a.price : Number.POSITIVE_INFINITY)
       - (Number.isFinite(b.price) ? b.price : Number.POSITIVE_INFINITY));
 
@@ -604,6 +624,8 @@ function renderDetails(results) {
     appendCell(row, offer.title || '—');
     appendCell(row, Number.isFinite(offer.price) ? currency.format(offer.price) : '—');
     appendCell(row, offer.seller || '—');
+    appendCell(row, Number.isFinite(offer.score) ? String(offer.score) : '—');
+    appendCell(row, offer.status || '—');
     appendCell(row, offer.soldQuantity == null ? 'Não informado' : String(offer.soldQuantity));
     appendCell(row, conditionLabel(offer.condition));
     appendCell(row, offer.freeShipping ? 'Sim' : 'Não');
@@ -618,10 +640,70 @@ function renderDetails(results) {
     } else {
       linkCell.textContent = offer.demo ? 'Disponível na busca real' : '—';
     }
+    const feedbackCell = row.insertCell();
+    if (offer.productId && adminToken) {
+      feedbackCell.append(
+        actionButton('Confirmar', '', () => sendFeedback(offer, 'confirm')),
+        actionButton('Ignorar', 'danger', () => sendFeedback(offer, 'ignore'))
+      );
+    } else feedbackCell.textContent = '—';
   });
 
   byId('details-count').textContent = `${offers.length} oferta(s) B2C com preço e link direto`;
   byId('details-card').hidden = offers.length === 0;
+}
+
+async function sendFeedback(offer, action) {
+  try {
+    await request('/aprendizado/feedback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm })
+    });
+    setMessage(byId('search-message'), action === 'confirm' ? 'Resultado confirmado e aprendizado salvo.' : 'Resultado ignorado e aprendizado salvo.', 'success');
+  } catch (error) { setMessage(byId('search-message'), error.message, 'error'); }
+}
+
+function resetSiteForm() {
+  byId('site-form').reset();
+  byId('site-id').value = '';
+  byId('site-accepts-ean').checked = true;
+  byId('site-accepts-name').checked = true;
+  byId('site-active').checked = true;
+  byId('site-form-title').textContent = 'Cadastrar site monitorado';
+  byId('cancel-site-edit').hidden = true;
+}
+
+function fillSiteForm(site) {
+  byId('site-id').value = site._id;
+  byId('site-name').value = site.name;
+  byId('site-type').value = site.type;
+  byId('site-base-url').value = site.baseUrl;
+  byId('site-search-url').value = site.searchUrl;
+  byId('site-accepts-ean').checked = site.acceptsEan;
+  byId('site-accepts-name').checked = site.acceptsName;
+  byId('site-playwright').checked = site.requiresPlaywright;
+  byId('site-active').checked = site.active;
+  byId('site-form-title').textContent = 'Editar site monitorado';
+  byId('cancel-site-edit').hidden = false;
+}
+
+async function loadSites() {
+  const { sites = [] } = await request('/sites');
+  const body = byId('sites-body');
+  body.replaceChildren();
+  sites.forEach((site) => {
+    const row = body.insertRow();
+    appendCell(row, site.name); appendCell(row, site.type.replace('_', ' '));
+    appendCell(row, site.acceptsEan ? 'Sim' : 'Não'); appendCell(row, site.acceptsName ? 'Sim' : 'Não');
+    appendCell(row, site.requiresPlaywright ? 'Sim' : 'Não'); appendCell(row, site.active ? 'Ativo' : 'Inativo');
+    const actions = row.insertCell();
+    actions.append(actionButton('Editar', '', () => fillSiteForm(site)), actionButton('Excluir', 'danger', async () => {
+      if (!window.confirm(`Excluir ${site.name}?`)) return;
+      await request(`/sites/${encodeURIComponent(site._id)}`, { method: 'DELETE' });
+      await loadSites();
+    }));
+  });
+  byId('sites-count').textContent = `${sites.length} site(s)`;
 }
 
 byId('search-button').addEventListener('click', async () => {
@@ -653,7 +735,7 @@ byId('search-button').addEventListener('click', async () => {
   );
   try {
     if (searchSource === 'browser') {
-      currentResults = await searchWithBrowser(products);
+      currentResults = await scoreBrowserResults(await searchWithBrowser(products));
     } else {
       const data = await request('/buscar/lote', {
         method: 'POST',
@@ -839,7 +921,12 @@ byId('product-form').addEventListener('submit', async (event) => {
     sku: byId('catalog-sku').value.trim(),
     name: byId('catalog-name').value.trim(),
     category: byId('catalog-category').value.trim(),
-    family: byId('catalog-family').value.trim()
+    family: byId('catalog-family').value.trim(),
+    volume: byId('catalog-volume').value.trim(),
+    ncm: byId('catalog-ncm').value.trim(),
+    searchTerm: byId('catalog-search-term').value.trim(),
+    requiredWords: byId('catalog-required-words').value.split(',').map((item) => item.trim()).filter(Boolean),
+    forbiddenWords: byId('catalog-forbidden-words').value.split(',').map((item) => item.trim()).filter(Boolean)
   };
   try {
     await request(id ? `/produtos/${encodeURIComponent(id)}` : '/produtos', {
@@ -853,6 +940,25 @@ byId('product-form').addEventListener('submit', async (event) => {
   } catch (error) {
     setMessage(byId('catalog-message'), error.message, 'error');
   }
+});
+
+byId('cancel-site-edit').addEventListener('click', resetSiteForm);
+byId('site-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const id = byId('site-id').value;
+  const site = {
+    name: byId('site-name').value.trim(), type: byId('site-type').value,
+    baseUrl: byId('site-base-url').value.trim(), searchUrl: byId('site-search-url').value.trim(),
+    acceptsEan: byId('site-accepts-ean').checked, acceptsName: byId('site-accepts-name').checked,
+    requiresPlaywright: byId('site-playwright').checked, active: byId('site-active').checked
+  };
+  try {
+    await request(id ? `/sites/${encodeURIComponent(id)}` : '/sites', {
+      method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(site)
+    });
+    resetSiteForm(); await loadSites();
+    setMessage(byId('site-message'), id ? 'Site atualizado.' : 'Site cadastrado.', 'success');
+  } catch (error) { setMessage(byId('site-message'), error.message, 'error'); }
 });
 
 byId('login-form').addEventListener('submit', async (event) => {
@@ -874,7 +980,7 @@ byId('login-form').addEventListener('submit', async (event) => {
     byId('login-form').reset();
     setMessage(byId('login-message'));
     setAdminAccess(true);
-    await loadCatalogTable();
+    await Promise.all([loadCatalogTable(), loadSites()]);
   } catch (error) {
     setMessage(byId('login-message'), error.message, 'error');
   } finally {

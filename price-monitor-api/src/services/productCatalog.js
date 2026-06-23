@@ -57,13 +57,22 @@ function cleanProduct(input) {
     name: String(input.name || '').trim(),
     category: String(input.category || '').trim(),
     family: String(input.family || '').trim(),
+    volume: String(input.volume || '').trim(),
+    ncm: String(input.ncm || '').trim(),
+    netPrice: input.netPrice == null ? null : Number(input.netPrice),
+    searchTerm: String(input.searchTerm || '').trim(),
+    tokens: input.tokens || [],
+    aliases: input.aliases || [],
+    requiredWords: input.requiredWords || [],
+    forbiddenWords: input.forbiddenWords || [],
     active: input.active !== false
   };
 }
 
 function sameProduct(left, right) {
-  return ['ean', 'sku', 'name', 'category', 'family', 'active']
-    .every((field) => left[field] === right[field]);
+  const fields = ['ean', 'sku', 'name', 'category', 'family', 'volume', 'ncm', 'netPrice', 'searchTerm', 'active'];
+  return fields.every((field) => left[field] === right[field])
+    && ['tokens', 'aliases', 'requiredWords', 'forbiddenWords'].every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field]));
 }
 
 async function createProduct(input) {
