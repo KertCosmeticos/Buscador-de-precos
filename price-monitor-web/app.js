@@ -458,10 +458,6 @@ function fillProductForm(product) {
   byId('catalog-category').value = product.category;
   byId('catalog-family').value = product.family;
   byId('catalog-volume').value = product.volume || '';
-  byId('catalog-ncm').value = product.ncm || '';
-  byId('catalog-search-term').value = product.searchTerm || '';
-  byId('catalog-required-words').value = (product.requiredWords || []).join(', ');
-  byId('catalog-forbidden-words').value = (product.forbiddenWords || []).join(', ');
   byId('product-form-title').textContent = 'Editar produto';
   byId('cancel-edit').hidden = false;
   byId('catalog-ean').focus();
@@ -922,11 +918,7 @@ byId('product-form').addEventListener('submit', async (event) => {
     name: byId('catalog-name').value.trim(),
     category: byId('catalog-category').value.trim(),
     family: byId('catalog-family').value.trim(),
-    volume: byId('catalog-volume').value.trim(),
-    ncm: byId('catalog-ncm').value.trim(),
-    searchTerm: byId('catalog-search-term').value.trim(),
-    requiredWords: byId('catalog-required-words').value.split(',').map((item) => item.trim()).filter(Boolean),
-    forbiddenWords: byId('catalog-forbidden-words').value.split(',').map((item) => item.trim()).filter(Boolean)
+    volume: byId('catalog-volume').value.trim()
   };
   try {
     await request(id ? `/produtos/${encodeURIComponent(id)}` : '/produtos', {

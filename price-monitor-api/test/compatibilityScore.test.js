@@ -4,7 +4,7 @@ const { calculateCompatibility, scoreStatus } = require('../src/services/compati
 
 const product = {
   ean: '7896380660735', name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml',
-  searchTerm: 'keraton antiqueda', requiredWords: ['keraton', 'antiqueda'], forbiddenWords: ['shampoo']
+  tokens: ['keraton', 'antiqueda']
 };
 
 test('pontua marca, linha, volume e palavras obrigatórias', () => {
@@ -15,7 +15,7 @@ test('pontua marca, linha, volume e palavras obrigatórias', () => {
 
 test('penaliza kit, palavra proibida e título já rejeitado', () => {
   const listing = { title: 'Kit Shampoo Keraton Antiqueda 140ml' };
-  const result = calculateCompatibility(product, listing, { ignoredTitles: [listing.title] });
+  const result = calculateCompatibility(product, listing, { ignoredTitles: [listing.title], excludedWords: ['shampoo'] });
   assert.equal(result.status, 'Ignorar');
   assert.ok(result.reasons.some(({ reason }) => reason === 'Produto em kit'));
 });

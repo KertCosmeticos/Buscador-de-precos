@@ -14,13 +14,8 @@ function validateProduct(body) {
     category: String(body.category || '').trim(),
     family: String(body.family || '').trim(),
     volume: String(body.volume || '').trim(),
-    ncm: String(body.ncm || '').trim(),
     netPrice: body.netPrice === '' || body.netPrice == null ? null : Number(body.netPrice),
-    searchTerm: String(body.searchTerm || '').trim(),
-    tokens: uniqueStrings(body.tokens?.length ? body.tokens : tokenize(body.searchTerm || body.name)),
-    aliases: uniqueStrings(body.aliases),
-    requiredWords: uniqueStrings(body.requiredWords),
-    forbiddenWords: uniqueStrings(body.forbiddenWords),
+    tokens: uniqueStrings(body.tokens?.length ? body.tokens : tokenize(body.name)),
     active: body.active !== false
   };
   if (!product.name || !product.category || !product.family) {

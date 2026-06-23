@@ -23,11 +23,11 @@ function calculateCompatibility(product, listing, learning = {}) {
   if (product.family && includesTerm(text, product.family)) add(25, 'Linha correta');
   if (product.volume && includesTerm(text, product.volume)) add(10, 'Volume correto');
 
-  const required = product.requiredWords?.length ? product.requiredWords : tokenize(product.searchTerm || product.name).slice(0, 3);
+  const required = product.tokens?.length ? product.tokens.slice(0, 3) : tokenize(product.name).slice(0, 3);
   const requiredMatched = required.filter((word) => includesTerm(text, word));
   if (required.length && requiredMatched.length === required.length) add(25, 'Palavras obrigatórias encontradas');
 
-  const forbidden = [...(product.forbiddenWords || []), ...(learning.excludedWords || [])];
+  const forbidden = learning.excludedWords || [];
   const foundForbidden = forbidden.find((word) => includesTerm(text, word));
   if (foundForbidden) add(-50, `Palavra proibida: ${foundForbidden}`);
   if (/\b(?:kit|combo|conjunto)\b/.test(text) && !/\b(?:kit|combo|conjunto)\b/.test(normalizeText(product.name))) add(-40, 'Produto em kit');

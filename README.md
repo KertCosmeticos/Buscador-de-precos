@@ -41,6 +41,6 @@ A extensão combina EAN, nome oficial e uma consulta semântica por tipo, linha 
 
 ## Aprendizado e compatibilidade
 
-O catálogo aceita termo de busca, volume, NCM, tokens e palavras obrigatórias/proibidas. A API gera consultas usando o cadastro e o aprendizado salvo, atribui score e status às ofertas e oferece feedback de confirmação ou descarte.
+O catálogo aceita volume e gera tokens automaticamente. A API cria os termos de consulta usando os dados do produto e o aprendizado salvo, atribui score e status às ofertas e oferece feedback de confirmação ou descarte. Termos bons, aliases e palavras de exclusão são aprendidos pelo sistema, sem exigir cadastro manual.
 
 As collections `sites` e `productlearnings` guardam, respectivamente, os sites monitorados e o aprendizado por produto. Nesta etapa, o cadastro de sites é a base de configuração; conectores específicos para executar a URL de busca de cada site serão adicionados separadamente.
