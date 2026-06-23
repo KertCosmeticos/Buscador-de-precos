@@ -475,7 +475,7 @@ function renderProductPicker() {
       updateSelectedCount();
     });
     const description = document.createElement('span');
-    const name = document.createElement('strong');
+    const name = document.createElement('span');
     name.textContent = product.name;
     const details = document.createElement('small');
     details.textContent = `${product.ean} · ${product.category} · ${product.family}`;
@@ -581,6 +581,14 @@ function cheapestListing(result) {
   ) || listings[0] || null;
 }
 
+function mostExpensiveListing(result) {
+  const listings = result.listings || [];
+  return listings.filter((listing) => Number.isFinite(listing.price)).reduce(
+    (priciest, listing) => !priciest || listing.price > priciest.price ? listing : priciest,
+    null
+  ) || null;
+}
+
 function appendCell(row, value) {
   const cell = row.insertCell();
   cell.textContent = value;
@@ -607,45 +615,39 @@ function renderResults(results) {
     if (result.error && !result.listingsCount) {
       row.className = 'error-row';
       const cell = row.insertCell();
-      cell.colSpan = 8;
+      cell.colSpan = 7;
       cell.textContent = result.error;
       return;
     }
 
     const cheapest = cheapestListing(result);
+    const priciest = mostExpensiveListing(result);
     appendCell(row, cheapest?.title || '—');
-    appendCell(row, (result.marketplaces || []).join(', ') || cheapest?.marketplace || '—');
     appendCell(row, result.minPrice == null ? '—' : currency.format(result.minPrice));
     appendCell(row, result.maxPrice == null ? '—' : currency.format(result.maxPrice));
     appendCell(row, result.averagePrice == null ? '—' : currency.format(result.averagePrice));
     appendCell(row, String(result.listingsCount ?? 0));
-    const sellerCell = row.insertCell();
+    const cheapestCell = row.insertCell();
     if (cheapest?.link) {
       const link = document.createElement('a');
       link.href = cheapest.link;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = cheapest.seller;
-      sellerCell.append(link);
+      cheapestCell.append(link);
     } else {
-      sellerCell.textContent = cheapest?.seller || '—';
+      cheapestCell.textContent = cheapest?.seller || '—';
     }
-    const linksCell = row.insertCell();
-    const links = marketplaceLinks(result.listings);
-    if (!links.size) {
-      linksCell.textContent = result.listings?.some((listing) => listing.demo)
-        ? 'Disponível na busca real'
-        : '—';
+    const priesiestCell = row.insertCell();
+    if (priciest?.link) {
+      const link = document.createElement('a');
+      link.href = priciest.link;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = priciest.seller;
+      priesiestCell.append(link);
     } else {
-      [...links].forEach(([marketplace, url], index) => {
-        if (index) linksCell.append(document.createTextNode(' · '));
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = marketplace;
-        linksCell.append(link);
-      });
+      priesiestCell.textContent = priciest?.seller || '—';
     }
   });
 
@@ -705,7 +707,7 @@ function renderDetails(results) {
     }
     const feedbackCell = row.insertCell();
     if (offer.productId) {
-      feedbackCell.append(actionButton('Ignorar', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget)));
+      feedbackCell.append(actionButton('Ignorar produto', 'danger', (event) => sendFeedback(offer, 'ignore', event.currentTarget)));
     } else {
       feedbackCell.textContent = 'Resultado sem produto vinculado';
       feedbackCell.className = 'feedback-hint';

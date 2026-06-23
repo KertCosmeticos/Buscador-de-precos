@@ -64,7 +64,8 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .check-row > span { flex: 1; min-width: 0; word-break: break-word; }
 .select-all { margin: 14px 0 8px; font-size: .88rem; }
 .product-picker-list { max-height: 245px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
-.picker-product { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: .82rem; }
+.picker-product { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: .82rem; font-weight: normal; }
+.select-all { font-weight: normal; }
 .picker-product:last-child { border-bottom: 0; }
 .picker-product small { color: var(--muted); font-size: .76rem; }
 .search-source-card { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: white; }
