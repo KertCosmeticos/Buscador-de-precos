@@ -146,7 +146,6 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 table { width: 100%; border-collapse: collapse; font-size: .875rem; }
 th { color: #475569; background: #f8fafc; text-align: left; white-space: nowrap; font-size: .875rem; font-weight: 700; }
 th, td { padding: 13px 16px; border-top: 1px solid var(--border); vertical-align: top; }
-td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 td a { color: var(--blue); text-decoration: none; font-weight: 650; }
 .error-row td { color: var(--danger); }
 .inline-form { display: flex; gap: 12px; align-items: end; max-width: 600px; }
