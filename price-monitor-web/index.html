@@ -199,19 +199,27 @@
           <input id="site-id" type="hidden">
           <div class="field"><label for="site-name">Nome *</label><input id="site-name" required></div>
           <div class="field"><label for="site-type">Tipo *</label><select id="site-type" required><option value="marketplace">Marketplace</option><option value="perfumaria">Perfumaria</option><option value="drogaria">Drogaria</option><option value="loja_propria">Loja própria</option></select></div>
-          <div class="field span-2"><label for="site-base-url">URL base *</label><input id="site-base-url" type="url" required></div>
           <div class="field span-2"><label for="site-search-url">URL de busca *</label><input id="site-search-url" type="url" required placeholder="https://loja.com.br/busca?q={termo}"></div>
-          <label class="check-row"><input id="site-accepts-ean" type="checkbox" checked> Aceita EAN</label>
-          <label class="check-row"><input id="site-accepts-name" type="checkbox" checked> Aceita nome</label>
-          <label class="check-row"><input id="site-playwright" type="checkbox"> Precisa Playwright</label>
-          <label class="check-row"><input id="site-active" type="checkbox" checked> Ativo</label>
           <div class="form-actions span-2"><button class="button primary" type="submit">Salvar site</button><button id="cancel-site-edit" class="button secondary" type="button" hidden>Cancelar edição</button></div>
         </form>
         <div id="site-message" class="message" role="status"></div>
+        <section class="embedded-import">
+          <div class="import-heading">
+            <div><h3>Importar sites por planilha</h3><p>Use as colunas NOME, URL DE BUSCA e TIPO.</p></div>
+            <button id="download-site-template" class="button secondary" type="button">Baixar modelo</button>
+          </div>
+          <div class="field">
+            <label for="site-import-file">Arquivo Excel (.xls ou .xlsx)</label>
+            <input id="site-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </div>
+          <p id="site-import-summary" class="file-summary">Nenhum arquivo selecionado.</p>
+          <button id="import-sites-button" class="button primary" type="button" disabled>Importar sites</button>
+          <div id="site-import-message" class="message" role="status" aria-live="polite"></div>
+        </section>
       </div>
       <div class="card results-card">
         <div class="card-heading"><div><h2>Sites monitorados</h2><p id="sites-count"></p></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>EAN</th><th>Nome</th><th>Playwright</th><th>Status</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>URL de busca</th><th>Aprendizado</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
       </div>
       <div class="card results-card">
         <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>

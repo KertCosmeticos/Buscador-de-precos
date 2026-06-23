@@ -5,9 +5,11 @@ const siteSchema = new mongoose.Schema({
   baseUrl: { type: String, required: true, trim: true },
   searchUrl: { type: String, required: true, trim: true },
   type: { type: String, required: true, enum: ['marketplace', 'perfumaria', 'drogaria', 'loja_propria'] },
-  acceptsEan: { type: Boolean, default: true },
-  acceptsName: { type: Boolean, default: true },
-  requiresPlaywright: { type: Boolean, default: false },
+  acceptsEan: { type: Boolean, default: null },
+  acceptsName: { type: Boolean, default: null },
+  requiresPlaywright: { type: Boolean, default: null },
+  discoveryStatus: { type: String, enum: ['pending', 'learning', 'learned', 'failed'], default: 'pending', index: true },
+  lastDiscoveryAt: { type: Date, default: null },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 

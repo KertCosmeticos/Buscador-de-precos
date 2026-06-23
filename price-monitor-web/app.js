@@ -8,6 +8,7 @@ let adminToken = sessionStorage.getItem('priceMonitorAdminToken') || '';
 let allCatalogProducts = [];
 let catalogProducts = [];
 let pendingImportProducts = [];
+let pendingImportSites = [];
 let browserExtensionAvailable = false;
 const browserSearchRequests = new Map();
 const selectedProductEans = new Set();
@@ -132,6 +133,45 @@ function readImportSpreadsheet(file) {
     }
     if (!products.length) throw new Error('Nenhum produto válido foi encontrado na planilha.');
     return products;
+  });
+}
+
+function readSiteSpreadsheet(file) {
+  if (!globalThis.XLSX) throw new Error('O leitor de Excel não foi carregado. Atualize a página e tente novamente.');
+  return file.arrayBuffer().then((buffer) => {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: true });
+    if (rows.length < 2) throw new Error('A planilha não contém sites.');
+    const headers = rows[0].map(normalizeSpreadsheetHeader);
+    const positions = {
+      name: headers.findIndex((header) => ['NOME', 'SITE', 'NOME DO SITE'].includes(header)),
+      searchUrl: headers.findIndex((header) => ['URL DE BUSCA', 'URL BUSCA', 'URL'].includes(header)),
+      type: headers.findIndex((header) => ['TIPO', 'TIPO DO SITE'].includes(header))
+    };
+    if (Object.values(positions).some((index) => index < 0)) throw new Error('Use os cabeçalhos NOME, URL DE BUSCA e TIPO.');
+    const typeAliases = { marketplace: 'marketplace', perfumaria: 'perfumaria', drogaria: 'drogaria', 'loja propria': 'loja_propria' };
+    const sites = [];
+    const errors = [];
+    const names = new Set();
+    rows.slice(1).forEach((row, offset) => {
+      if (!row.some((value) => spreadsheetCell(value))) return;
+      const line = offset + 2;
+      const name = spreadsheetCell(row[positions.name]);
+      const searchUrl = spreadsheetCell(row[positions.searchUrl]);
+      const rawType = normalizeSpreadsheetHeader(row[positions.type]).toLocaleLowerCase('pt-BR');
+      const type = typeAliases[rawType];
+      if (!name || !searchUrl || !type) errors.push(`Linha ${line}: nome, URL e tipo válido são obrigatórios.`);
+      else {
+        try { new URL(searchUrl); } catch { errors.push(`Linha ${line}: URL de busca inválida.`); return; }
+        const key = name.toLocaleLowerCase('pt-BR');
+        if (names.has(key)) errors.push(`Linha ${line}: site duplicado (${name}).`);
+        else { names.add(key); sites.push({ name, searchUrl, type }); }
+      }
+    });
+    if (errors.length) throw new Error(`${errors.slice(0, 5).join(' ')}${errors.length > 5 ? ` Mais ${errors.length - 5} erro(s).` : ''}`);
+    if (!sites.length) throw new Error('Nenhum site válido foi encontrado na planilha.');
+    return sites;
   });
 }
 
@@ -664,9 +704,6 @@ async function sendFeedback(offer, action) {
 function resetSiteForm() {
   byId('site-form').reset();
   byId('site-id').value = '';
-  byId('site-accepts-ean').checked = true;
-  byId('site-accepts-name').checked = true;
-  byId('site-active').checked = true;
   byId('site-form-title').textContent = 'Cadastrar site monitorado';
   byId('cancel-site-edit').hidden = true;
 }
@@ -675,12 +712,7 @@ function fillSiteForm(site) {
   byId('site-id').value = site._id;
   byId('site-name').value = site.name;
   byId('site-type').value = site.type;
-  byId('site-base-url').value = site.baseUrl;
   byId('site-search-url').value = site.searchUrl;
-  byId('site-accepts-ean').checked = site.acceptsEan;
-  byId('site-accepts-name').checked = site.acceptsName;
-  byId('site-playwright').checked = site.requiresPlaywright;
-  byId('site-active').checked = site.active;
   byId('site-form-title').textContent = 'Editar site monitorado';
   byId('cancel-site-edit').hidden = false;
 }
@@ -692,8 +724,9 @@ async function loadSites() {
   sites.forEach((site) => {
     const row = body.insertRow();
     appendCell(row, site.name); appendCell(row, site.type.replace('_', ' '));
-    appendCell(row, site.acceptsEan ? 'Sim' : 'Não'); appendCell(row, site.acceptsName ? 'Sim' : 'Não');
-    appendCell(row, site.requiresPlaywright ? 'Sim' : 'Não'); appendCell(row, site.active ? 'Ativo' : 'Inativo');
+    const urlCell = row.insertCell();
+    const url = document.createElement('a'); url.href = site.searchUrl; url.target = '_blank'; url.rel = 'noopener noreferrer'; url.textContent = 'Abrir busca'; urlCell.append(url);
+    appendCell(row, ({ pending: 'Pendente', learning: 'Aprendendo', learned: 'Aprendido', failed: 'Revisar' })[site.discoveryStatus] || 'Pendente');
     const actions = row.insertCell();
     actions.append(actionButton('Editar', '', () => fillSiteForm(site)), actionButton('Excluir', 'danger', async () => {
       if (!window.confirm(`Excluir ${site.name}?`)) return;
@@ -925,14 +958,56 @@ byId('product-form').addEventListener('submit', async (event) => {
 });
 
 byId('cancel-site-edit').addEventListener('click', resetSiteForm);
+byId('download-site-template').addEventListener('click', () => {
+  if (!globalThis.XLSX) {
+    setMessage(byId('site-import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
+    return;
+  }
+  const worksheet = XLSX.utils.aoa_to_sheet([['NOME', 'URL DE BUSCA', 'TIPO']]);
+  worksheet['!cols'] = [{ wch: 28 }, { wch: 62 }, { wch: 20 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sites');
+  XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_SITES.xlsx');
+});
+byId('site-import-file').addEventListener('change', async (event) => {
+  pendingImportSites = [];
+  byId('import-sites-button').disabled = true;
+  setMessage(byId('site-import-message'));
+  const [file] = event.target.files;
+  if (!file) { byId('site-import-summary').textContent = 'Nenhum arquivo selecionado.'; return; }
+  byId('site-import-summary').textContent = `Lendo ${file.name}…`;
+  try {
+    pendingImportSites = await readSiteSpreadsheet(file);
+    byId('site-import-summary').textContent = `${file.name}: ${pendingImportSites.length} site(s) pronto(s) para importar.`;
+    byId('import-sites-button').disabled = false;
+    setMessage(byId('site-import-message'), 'Arquivo validado. Sites existentes serão atualizados pelo nome.', 'success');
+  } catch (error) {
+    byId('site-import-summary').textContent = `${file.name}: arquivo com erro.`;
+    setMessage(byId('site-import-message'), error.message, 'error');
+  }
+});
+byId('import-sites-button').addEventListener('click', async () => {
+  if (!pendingImportSites.length) return;
+  const button = byId('import-sites-button');
+  setLoading(button, true);
+  try {
+    const result = await request('/sites/importar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sites: pendingImportSites })
+    });
+    await loadSites();
+    pendingImportSites = [];
+    byId('site-import-file').value = '';
+    byId('site-import-summary').textContent = 'Nenhum arquivo selecionado.';
+    setMessage(byId('site-import-message'), `Importação concluída: ${result.created} criado(s) e ${result.updated} atualizado(s).`, 'success');
+  } catch (error) { setMessage(byId('site-import-message'), error.message, 'error'); }
+  finally { setLoading(button, false); button.disabled = pendingImportSites.length === 0; }
+});
 byId('site-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const id = byId('site-id').value;
   const site = {
     name: byId('site-name').value.trim(), type: byId('site-type').value,
-    baseUrl: byId('site-base-url').value.trim(), searchUrl: byId('site-search-url').value.trim(),
-    acceptsEan: byId('site-accepts-ean').checked, acceptsName: byId('site-accepts-name').checked,
-    requiresPlaywright: byId('site-playwright').checked, active: byId('site-active').checked
+    searchUrl: byId('site-search-url').value.trim()
   };
   try {
     await request(id ? `/sites/${encodeURIComponent(id)}` : '/sites', {
