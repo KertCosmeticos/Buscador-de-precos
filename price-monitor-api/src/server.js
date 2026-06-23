@@ -14,6 +14,10 @@ async function start() {
     await mongoose.connect(process.env.MONGODB_URI);
     const Site = require('./models/Site');
     await Site.updateMany({}, { $unset: { type: '' } });
+    const SearchConfig = require('./models/SearchConfig');
+    const { SEED } = require('./routes/config');
+    const configCount = await SearchConfig.countDocuments();
+    if (configCount === 0) await SearchConfig.create(SEED);
   }
   app.listen(port, () => console.log(`API disponível na porta ${port}${demoMode ? ' (modo demonstração)' : ''}`));
 }

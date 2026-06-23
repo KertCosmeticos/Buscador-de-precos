@@ -151,6 +151,8 @@ async function runSearch(port, message) {
   const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
   const sites = Array.isArray(message.sites) ? message.sites.slice(0, 20) : [];
   if (!products.length) throw new Error('Nenhum produto válido foi enviado à extensão.');
+  const ownBrands = message.config?.ownBrands;
+  if (Array.isArray(ownBrands) && ownBrands.length) ProductMatcher.addOwnBrands(ownBrands);
 
   const totalSteps = products.length * 5;
   let completedSteps = 0;

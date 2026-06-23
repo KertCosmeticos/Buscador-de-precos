@@ -179,5 +179,9 @@
     return [...decisive.map((term) => `"${term}"`), typeQuery].filter(Boolean).join(' ');
   }
 
-  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
+  function addOwnBrands(brands) {
+    brands.forEach((b) => { const n = normalize(b); if (n) ownBrands.add(n); });
+  }
+
+  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize, addOwnBrands };
 }));

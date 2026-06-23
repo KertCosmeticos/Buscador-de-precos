@@ -7,6 +7,7 @@ let currentResults = [];
 let adminToken = sessionStorage.getItem('priceMonitorAdminToken') || '';
 let allCatalogProducts = [];
 let allSites = [];
+let searchConfig = { ownBrands: [] };
 let catalogProducts = [];
 let pendingImportProducts = [];
 let pendingImportSites = [];
@@ -272,7 +273,8 @@ function searchWithBrowser(products, sites = []) {
       type: 'BROWSER_SEARCH_REQUEST',
       requestId,
       products,
-      sites
+      sites,
+      config: { ownBrands: searchConfig.ownBrands || [] }
     }, window.location.origin);
   });
 }
@@ -789,6 +791,76 @@ function fillSiteForm(site) {
   byId('cancel-site-edit').hidden = false;
 }
 
+async function loadSearchConfig() {
+  try { searchConfig = await request('/config'); } catch { /* mantém default */ }
+}
+
+function showCriteriaModal(analysis, productName) {
+  return new Promise((resolve) => {
+    byId('criteria-modal-product').textContent = `Produto: ${productName}`;
+    const body = byId('criteria-modal-body');
+    body.replaceChildren();
+    const items = [];
+
+    if (analysis.newBrands.length) {
+      const section = document.createElement('div');
+      section.className = 'modal-section';
+      const h = document.createElement('h3');
+      h.textContent = 'Nova marca identificada';
+      section.append(h);
+      analysis.newBrands.forEach((brand) => {
+        const label = document.createElement('label');
+        label.className = 'modal-check-row';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        const span = document.createElement('span');
+        span.textContent = brand.charAt(0).toUpperCase() + brand.slice(1);
+        label.append(cb, span);
+        section.append(label);
+        items.push({ cb, type: 'brand', value: brand });
+      });
+      body.append(section);
+    }
+
+    if (analysis.newLines.length) {
+      const section = document.createElement('div');
+      section.className = 'modal-section';
+      const h = document.createElement('h3');
+      h.textContent = 'Nova linha identificada';
+      section.append(h);
+      analysis.newLines.forEach((line) => {
+        const label = document.createElement('label');
+        label.className = 'modal-check-row';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        const span = document.createElement('span');
+        span.textContent = line.label;
+        label.append(cb, span);
+        section.append(label);
+        items.push({ cb, type: 'line', value: line });
+      });
+      body.append(section);
+    }
+
+    byId('criteria-modal').hidden = false;
+
+    function cleanup() {
+      byId('criteria-modal').hidden = true;
+      byId('criteria-modal-ignore').removeEventListener('click', onIgnore);
+      byId('criteria-modal-confirm').removeEventListener('click', onConfirm);
+    }
+    function onIgnore() { cleanup(); resolve({ brands: [], lines: [] }); }
+    function onConfirm() {
+      const brands = items.filter((i) => i.type === 'brand' && i.cb.checked).map((i) => i.value);
+      const lines = items.filter((i) => i.type === 'line' && i.cb.checked).map((i) => i.value);
+      cleanup();
+      resolve({ brands, lines });
+    }
+    byId('criteria-modal-ignore').addEventListener('click', onIgnore);
+    byId('criteria-modal-confirm').addEventListener('click', onConfirm);
+  });
+}
+
 async function loadSites() {
   const { sites = [] } = await request('/sites');
   allSites = sites.filter((site) => site.active !== false);
@@ -996,6 +1068,26 @@ byId('product-form').addEventListener('submit', async (event) => {
     family: byId('catalog-family').value.trim(),
     volume: byId('catalog-volume').value.trim()
   };
+
+  if (!id && product.name) {
+    try {
+      const analysis = await request('/config/analisar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: product.name, category: product.category, family: product.family })
+      });
+      if (analysis.hasNew) {
+        const selections = await showCriteriaModal(analysis, product.name);
+        if (selections.brands.length || selections.lines.length) {
+          await request('/config/adicionar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(selections)
+          });
+          await loadSearchConfig();
+        }
+      }
+    } catch { /* análise falhou silenciosamente */ }
+  }
+
   try {
     await request(id ? `/produtos/${encodeURIComponent(id)}` : '/produtos', {
       method: id ? 'PUT' : 'POST',
@@ -1105,7 +1197,7 @@ byId('logout-button').addEventListener('click', () => {
 
 loadApiMode();
 restoreAdminSession();
-Promise.all([refreshCatalog(), loadSites()]).catch((error) => {
+Promise.all([refreshCatalog(), loadSites(), loadSearchConfig()]).catch((error) => {
   byId('product-picker-list').textContent = error.message;
   setMessage(byId('catalog-message'), error.message, 'error');
 });

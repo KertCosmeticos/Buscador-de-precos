@@ -12,14 +12,20 @@ function scoreStatus(score) {
   return 'Ignorar';
 }
 
-function calculateCompatibility(product, listing) {
+function buildBrandPattern(ownBrands = []) {
+  const base = ['keraton', 'kert', 'phytogen', 'keragen', 'reduton'];
+  const all = [...new Set([...base, ...ownBrands.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))])];
+  return new RegExp(`\\b(?:${all.join('|')})\\b`);
+}
+
+function calculateCompatibility(product, listing, ownBrands = []) {
   const text = normalizeText(`${listing.title || ''} ${listing.link || ''} ${listing.seller || ''} ${listing.marketplace || ''}`);
   const reasons = [];
   let score = 0;
   const add = (points, reason) => { score += points; reasons.push({ points, reason }); };
 
   if (product.ean && text.includes(product.ean)) add(100, 'EAN encontrado');
-  if (/\b(?:keraton|kert|phytogen|keragen|reduton)\b/.test(text)) add(30, 'Marca própria');
+  if (buildBrandPattern(ownBrands).test(text)) add(30, 'Marca própria');
   if (product.family && includesTerm(text, product.family)) add(25, 'Linha correta');
   if (product.volume && includesTerm(text, product.volume)) add(10, 'Volume correto');
 

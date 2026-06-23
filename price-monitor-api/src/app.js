@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/sites');
 const productCatalog = require('./services/productCatalog');
 const { calculateCompatibility } = require('./services/compatibilityScore');
+const { router: configRouter, getSearchConfig } = require('./routes/config');
 const { generateSearchTerms } = require('./services/searchTerms');
 const { postalCode, formatPostalCode } = require('./config/search');
 const Site = require('./models/Site');
@@ -33,6 +34,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 app.use('/sites', siteRoutes);
+app.use('/config', configRouter);
 
 function summarize(ean, listings, sources = []) {
   const prices = listings.map((item) => item.price).filter(Number.isFinite);
@@ -77,8 +79,9 @@ async function searchFresh(ean, sites = []) {
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
     : await searchAllMarketplaces(ean, nameTerm, sites);
+  const { ownBrands: dynamicBrands = [] } = demoMode ? {} : await getSearchConfig();
   const scoredListings = product
-    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing) }))
+    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, dynamicBrands) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
   const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
@@ -169,7 +172,8 @@ app.post('/avaliar', async (req, res, next) => {
     const product = await productCatalog.getProductByEan(ean);
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
     const sites = demoMode ? [] : await Site.find({ active: true }).lean();
-    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing) }))
+    const { ownBrands: dynamicBrands = [] } = demoMode ? {} : await getSearchConfig();
+    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, dynamicBrands) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
     const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
     return res.json({
