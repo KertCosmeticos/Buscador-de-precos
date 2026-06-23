@@ -97,7 +97,8 @@ async function searchFresh(ean, sites = []) {
 }
 
 async function selectedSites(input) {
-  if (demoMode || !Array.isArray(input) || !input.length) return [];
+  if (demoMode) return [];
+  if (!Array.isArray(input) || !input.length) return Site.find({ active: true }).sort({ name: 1 }).lean();
   const ids = [...new Set(input.map(String).filter((id) => /^[a-f\d]{24}$/i.test(id)))].slice(0, 20);
   return ids.length ? Site.find({ _id: { $in: ids }, active: true }).lean() : [];
 }
@@ -116,7 +117,7 @@ app.get('/health', (_req, res) => res.json({
 app.get('/buscar', async (req, res, next) => {
   try {
     const ean = assertValidEan(req.query.ean);
-    const result = await searchFresh(ean);
+    const result = await searchFresh(ean, await selectedSites());
     if (result.listingsCount === 0) {
       return res.status(404).json({
         error: 'Nenhum anúncio foi encontrado para este EAN.',

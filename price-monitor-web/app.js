@@ -16,8 +16,6 @@ const selectedProductEans = new Set();
 const selectedNames = new Set();
 const selectedCategories = new Set();
 const selectedFamilies = new Set();
-const selectedSiteIds = new Set();
-let sitesInitialized = false;
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -724,13 +722,6 @@ function fillSiteForm(site) {
 async function loadSites() {
   const { sites = [] } = await request('/sites');
   allSites = sites.filter((site) => site.active !== false);
-  if (!sitesInitialized) {
-    allSites.forEach((site) => selectedSiteIds.add(site._id));
-    sitesInitialized = true;
-  } else {
-    [...selectedSiteIds].forEach((id) => { if (!allSites.some((site) => site._id === id)) selectedSiteIds.delete(id); });
-  }
-  renderSearchSites();
   const body = byId('sites-body');
   body.replaceChildren();
   sites.forEach((site) => {
@@ -749,38 +740,6 @@ async function loadSites() {
   byId('sites-count').textContent = `${sites.length} site(s)`;
 }
 
-function siteHostname(site) {
-  try { return new URL(site.searchUrl).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; }
-}
-
-function siteDomainWarning(site) {
-  const expected = [
-    { name: /mercado\s*livre/i, domain: 'mercadolivre.com.br' },
-    { name: /amazon/i, domain: 'amazon.com.br' },
-    { name: /shopee/i, domain: 'shopee.com.br' }
-  ].find((rule) => rule.name.test(site.name));
-  return expected && !siteHostname(site).endsWith(expected.domain) ? `${site.name} aponta para ${siteHostname(site) || 'uma URL inválida'}` : '';
-}
-
-function renderSearchSites() {
-  const container = byId('search-sites-list');
-  container.replaceChildren();
-  allSites.forEach((site) => {
-    const label = document.createElement('label'); label.className = 'check-row site-choice';
-    const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selectedSiteIds.has(site._id);
-    input.addEventListener('change', () => { input.checked ? selectedSiteIds.add(site._id) : selectedSiteIds.delete(site._id); renderSearchSites(); });
-    const text = document.createElement('span'); text.textContent = site.name;
-    const domain = document.createElement('small'); domain.textContent = siteHostname(site);
-    label.append(input, text, domain); container.append(label);
-  });
-  if (!allSites.length) container.textContent = 'Nenhum site ativo cadastrado.';
-  byId('selected-sites-count').textContent = `${selectedSiteIds.size} selecionado(s)`;
-  byId('select-all-sites').checked = allSites.length > 0 && selectedSiteIds.size === allSites.length;
-  byId('select-all-sites').indeterminate = selectedSiteIds.size > 0 && selectedSiteIds.size < allSites.length;
-  const warnings = allSites.map(siteDomainWarning).filter(Boolean);
-  setMessage(byId('site-data-warning'), warnings.length ? `Revise o cadastro: ${warnings.join('; ')}.` : '', warnings.length ? 'error' : '');
-}
-
 byId('search-button').addEventListener('click', async () => {
   const typedValue = byId('quick-product-search').value.trim();
   const typedEans = /^\d{8,14}$/.test(typedValue) ? [typedValue] : [];
@@ -789,8 +748,8 @@ byId('search-button').addEventListener('click', async () => {
     setMessage(byId('search-message'), 'Selecione pelo menos um produto ou digite um EAN válido.', 'error');
     return;
   }
-  if (!selectedSiteIds.size) {
-    setMessage(byId('search-message'), 'Selecione pelo menos um site para consultar.', 'error');
+  if (!allSites.length) {
+    setMessage(byId('search-message'), 'Cadastre pelo menos um site ativo antes de consultar.', 'error');
     return;
   }
 
@@ -806,7 +765,7 @@ byId('search-button').addEventListener('click', async () => {
       family: catalogProduct?.family || ''
     };
   });
-  const sites = allSites.filter((site) => selectedSiteIds.has(site._id));
+  const sites = allSites;
   setLoading(button, true);
   byId('search-progress').hidden = true;
   setMessage(
@@ -820,7 +779,7 @@ byId('search-button').addEventListener('click', async () => {
       const data = await request('/buscar/lote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eans, siteIds: sites.map((site) => site._id) })
+        body: JSON.stringify({ eans })
       });
       currentResults = data.results || [];
     }
@@ -907,11 +866,6 @@ byId('select-all-products').addEventListener('change', (event) => {
     event.target.checked ? selectedProductEans.add(product.ean) : selectedProductEans.delete(product.ean);
   });
   renderProductPicker();
-});
-byId('select-all-sites').addEventListener('change', (event) => {
-  selectedSiteIds.clear();
-  if (event.target.checked) allSites.forEach((site) => selectedSiteIds.add(site._id));
-  renderSearchSites();
 });
 
 byId('product-import-file').addEventListener('change', async (event) => {
