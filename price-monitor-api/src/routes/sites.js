@@ -4,7 +4,6 @@ const SiteCandidate = require('../models/SiteCandidate');
 const { requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
-const validTypes = new Set(['marketplace', 'perfumaria', 'drogaria', 'loja_propria']);
 const demoSites = [];
 const isDemo = () => process.env.DEMO_MODE === 'true';
 
@@ -15,10 +14,9 @@ function validateSite(body) {
   const site = {
     name: String(body.name || '').trim(),
     baseUrl: parsedUrl.origin,
-    searchUrl,
-    type: String(body.type || '').trim()
+    searchUrl
   };
-  if (!site.name || !validTypes.has(site.type)) throw Object.assign(new Error('Nome, URL de busca e tipo válido são obrigatórios.'), { status: 400 });
+  if (!site.name) throw Object.assign(new Error('Nome e URL de busca são obrigatórios.'), { status: 400 });
   return site;
 }
 
@@ -30,19 +28,17 @@ router.post('/descobertos/decisao', async (req, res, next) => {
     const action = String(req.body.action || '');
     const domain = String(req.body.domain || '').replace(/^www\./, '').toLowerCase().trim();
     const name = String(req.body.name || domain).trim();
-    const type = String(req.body.type || 'perfumaria');
     const searchUrl = String(req.body.searchUrl || `https://${domain}/`).trim();
     let parsed;
     try { parsed = new URL(searchUrl); } catch { return res.status(400).json({ error: 'URL do site descoberto é inválida.' }); }
     if (!domain || parsed.hostname.replace(/^www\./, '').toLowerCase() !== domain || !['confirm', 'ignore'].includes(action)) {
       return res.status(400).json({ error: 'Decisão ou domínio inválido.' });
     }
-    if (action === 'confirm' && !validTypes.has(type)) return res.status(400).json({ error: 'Selecione um tipo válido.' });
     if (isDemo()) {
       if (action === 'ignore') return res.json({ status: 'ignored' });
       const existing = demoSites.find((site) => site.baseUrl === parsed.origin || site.name === name);
       if (existing) return res.json({ status: 'approved', site: existing });
-      const site = { _id: `demo-site-${Date.now()}`, ...validateSite({ name, searchUrl, type }), active: true, discoveryStatus: 'pending' };
+      const site = { _id: `demo-site-${Date.now()}`, ...validateSite({ name, searchUrl }), active: true, discoveryStatus: 'pending' };
       demoSites.push(site);
       return res.json({ status: 'approved', site });
     }
@@ -50,10 +46,10 @@ router.post('/descobertos/decisao', async (req, res, next) => {
     if (!pending || (!pending.humanConfirmed && Number(pending.score) < 90) || !Number.isFinite(pending.evidencePrice)) {
       return res.status(404).json({ error: 'Esta sugestão não está mais pendente ou não possui evidência válida.' });
     }
-    await SiteCandidate.updateOne({ _id: pending._id }, { $set: { name, type, status: action === 'confirm' ? 'approved' : 'ignored' } });
+    await SiteCandidate.updateOne({ _id: pending._id }, { $set: { name, status: action === 'confirm' ? 'approved' : 'ignored' } });
     if (action === 'ignore') return res.json({ status: 'ignored' });
     let site = await Site.findOne({ $or: [{ baseUrl: parsed.origin }, { name }] }).lean();
-    if (!site) site = (await Site.create(validateSite({ name, searchUrl, type }))).toObject();
+    if (!site) site = (await Site.create(validateSite({ name, searchUrl }))).toObject();
     return res.json({ status: 'approved', site });
   } catch (error) { return next(error); }
 });

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
@@ -222,8 +222,7 @@
         <h2 id="site-form-title">Cadastrar site monitorado</h2>
         <form id="site-form" class="product-form">
           <input id="site-id" type="hidden">
-          <div class="field"><label for="site-name">Nome *</label><input id="site-name" required></div>
-          <div class="field"><label for="site-type">Tipo *</label><select id="site-type" required><option value="marketplace">Marketplace</option><option value="perfumaria">Perfumaria</option><option value="drogaria">Drogaria</option><option value="loja_propria">Loja própria</option></select></div>
+          <div class="field span-2"><label for="site-name">Nome *</label><input id="site-name" required></div>
           <div class="field span-2"><label for="site-search-url">URL de busca *</label><input id="site-search-url" type="url" required placeholder="https://loja.com.br/busca?q={termo}"></div>
           <div class="form-actions span-2"><button class="button primary" type="submit">Salvar site</button><button id="cancel-site-edit" class="button secondary" type="button" hidden>Cancelar edição</button></div>
         </form>
@@ -244,7 +243,7 @@
       </div>
       <div class="card results-card">
         <div class="card-heading"><div><h2>Gerenciar sites</h2><p id="sites-count"></p></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>URL de busca</th><th>Aprendizado</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Nome</th><th>URL de busca</th><th>Aprendizado</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
       </div>
       </div>
       </div>

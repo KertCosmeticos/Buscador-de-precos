@@ -792,7 +792,6 @@ function resetSiteForm() {
 function fillSiteForm(site) {
   byId('site-id').value = site._id;
   byId('site-name').value = site.name;
-  byId('site-type').value = site.type;
   byId('site-search-url').value = site.searchUrl;
   byId('site-form-title').textContent = 'Editar site monitorado';
   byId('cancel-site-edit').hidden = false;
@@ -805,7 +804,7 @@ async function loadSites() {
   body.replaceChildren();
   sites.forEach((site) => {
     const row = body.insertRow();
-    appendCell(row, site.name); appendCell(row, site.type.replace('_', ' '));
+    appendCell(row, site.name);
     const urlCell = row.insertCell();
     const url = document.createElement('a'); url.href = site.searchUrl; url.target = '_blank'; url.rel = 'noopener noreferrer'; url.textContent = 'Abrir busca'; urlCell.append(url);
     appendCell(row, ({ pending: 'Pendente', learning: 'Aprendendo', learned: 'Aprendido', failed: 'Revisar' })[site.discoveryStatus] || 'Pendente');
@@ -1069,7 +1068,7 @@ byId('site-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const id = byId('site-id').value;
   const site = {
-    name: byId('site-name').value.trim(), type: byId('site-type').value,
+    name: byId('site-name').value.trim(),
     searchUrl: byId('site-search-url').value.trim()
   };
   try {

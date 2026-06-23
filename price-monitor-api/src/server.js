@@ -12,6 +12,8 @@ async function start() {
       throw new Error('Configure ADMIN_USERNAME, ADMIN_PASSWORD e JWT_SECRET.');
     }
     await mongoose.connect(process.env.MONGODB_URI);
+    const Site = require('./models/Site');
+    await Site.updateMany({}, { $unset: { type: '' } });
   }
   app.listen(port, () => console.log(`API disponível na porta ${port}${demoMode ? ' (modo demonstração)' : ''}`));
 }
