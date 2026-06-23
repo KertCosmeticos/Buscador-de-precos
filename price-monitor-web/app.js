@@ -443,14 +443,12 @@ function renderProductPicker() {
   const list = byId('product-picker-list');
   list.replaceChildren();
   const hasFilter = hasActiveProductFilter();
-  list.classList.toggle('awaiting-filter', !hasFilter);
+  list.hidden = !hasFilter;
   byId('filtered-select-all').hidden = !hasFilter || catalogProducts.length === 0;
-  if (!catalogProducts.length) {
+  if (!catalogProducts.length && hasFilter) {
     const empty = document.createElement('p');
     empty.className = 'picker-product';
-    empty.textContent = hasFilter
-      ? 'Nenhum produto encontrado com estes filtros.'
-      : 'Digite ou selecione um filtro para visualizar os produtos.';
+    empty.textContent = 'Nenhum produto encontrado com estes filtros.';
     list.append(empty);
   }
   catalogProducts.forEach((product) => {
@@ -807,7 +805,6 @@ byId('search-button').addEventListener('click', async () => {
   }
 
   const button = byId('search-button');
-  const searchSource = document.querySelector('input[name="search-source"]:checked')?.value || 'browser';
   const products = eans.map((ean) => {
     const catalogProduct = allCatalogProducts.find((product) => product.ean === ean);
     return {
@@ -821,21 +818,9 @@ byId('search-button').addEventListener('click', async () => {
   const sites = allSites;
   setLoading(button, true);
   byId('search-progress').hidden = true;
-  setMessage(
-    byId('search-message'),
-    searchSource === 'browser' ? 'Preparando pesquisa no Chrome…' : 'Consultando a API online…'
-  );
+  setMessage(byId('search-message'), 'Preparando pesquisa no Chrome…');
   try {
-    if (searchSource === 'browser') {
-      currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
-    } else {
-      const data = await request('/buscar/lote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eans })
-      });
-      currentResults = data.results || [];
-    }
+    currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
     renderResults(currentResults);
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
@@ -849,14 +834,14 @@ byId('search-button').addEventListener('click', async () => {
     });
     const mainErrors = [...errorGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
       .map(([reason, count]) => `${count}× ${reason}`).join(' | ');
-    const diagnosticText = searchSource === 'browser' && sourceDiagnostics.length
+    const diagnosticText = sourceDiagnostics.length
       ? ` ${sourcesWithOffers} fonte(s) com oferta e ${failedSources} com erro técnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
       : '';
     setMessage(
       byId('search-message'),
       errors
         ? `Busca concluída com ${errors} item(ns) sem resultado.${diagnosticText}`
-        : `Busca concluída com sucesso pelo ${searchSource === 'browser' ? 'Chrome' : 'servidor'}.${diagnosticText}`,
+        : `Busca concluída com sucesso pelo Chrome.${diagnosticText}`,
       errors ? 'error' : 'success'
     );
   } catch (error) {

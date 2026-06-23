@@ -47,22 +47,22 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .subheading span { color: var(--muted); font-size: .84rem; }
 .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
 .filter-field { position: relative; }
-.filter-field > input { cursor: pointer; padding-right: 34px; }
+.filter-field > input { cursor: pointer; padding-right: 34px; font-size: .8rem; }
 .filter-field::after { content: "⌄"; position: absolute; right: 13px; top: 36px; color: var(--muted); pointer-events: none; transition: transform .15s ease; }
 .filter-field.open::after { transform: rotate(180deg); }
 .filter-options { display: none; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 5px); max-height: 210px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 8px; background: white; box-shadow: 0 12px 28px #0f172a24; }
 .filter-field.open .filter-options { display: block; }
-.filter-option { padding: 7px 9px; border-bottom: 1px solid var(--border); font-size: .84rem; }
+.filter-option { padding: 7px 9px; border-bottom: 1px solid var(--border); font-size: .8rem; }
 .filter-option:last-child { border-bottom: 0; }
 .filter-empty { margin: 0; padding: 9px; color: var(--muted); font-size: .84rem; }
 .check-row { display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .check-row input { width: auto; }
+.check-row > span { flex: 1; min-width: 0; word-break: break-word; }
 .select-all { margin: 14px 0 8px; font-size: .88rem; }
 .product-picker-list { max-height: 245px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
-.product-picker-list.awaiting-filter { min-height: 58px; display: grid; place-items: center; color: var(--muted); }
-.picker-product { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.picker-product { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .picker-product:last-child { border-bottom: 0; }
-.picker-product small { color: var(--muted); }
+.picker-product small { color: var(--muted); font-size: .76rem; }
 .search-source-card { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: white; }
 .search-source-card > div:first-child { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
 .search-source-card p { margin: 0; font-size: .86rem; }
