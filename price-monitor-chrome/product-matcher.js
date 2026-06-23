@@ -112,8 +112,12 @@
     return { name, category, family, brands, type, line, shadeCode, volume, isColorProduct, variants, identity };
   }
 
+  const competitorPhrases = [/\bmeu\s+liso\b/i];
+
   function hasCompetingBrand(received) {
-    return received.some((token) => competitorBrands.has(token));
+    if (received.some((token) => competitorBrands.has(token))) return true;
+    const joined = received.join(' ');
+    return competitorPhrases.some((re) => re.test(joined));
   }
 
   function matchesOffer(text, link, product = {}) {
