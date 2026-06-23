@@ -767,16 +767,35 @@ async function sendFeedback(offer, action, button) {
   const originalLabel = button.textContent;
   button.textContent = 'Salvando…';
   try {
-    await request('/aprendizado/feedback', {
+    const result = await request('/aprendizado/feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm })
+      body: JSON.stringify({
+        productId: offer.productId, action, title: offer.title, searchTerm: offer.searchTerm,
+        link: offer.link, price: offer.price, score: offer.score,
+        marketplace: offer.marketplace, seller: offer.seller
+      })
     });
     cell.replaceChildren();
     const status = document.createElement('span');
     status.className = `feedback-status ${action === 'confirm' ? 'confirmed' : 'ignored'}`;
     status.textContent = action === 'confirm' ? '✓ Confirmado' : '× Ignorado';
     cell.append(status);
-    setMessage(byId('search-message'), 'Feedback salvo. A próxima busca usará este aprendizado.', 'success');
+    if (action === 'confirm' && result.siteCandidate) {
+      const candidate = result.siteCandidate;
+      if (window.confirm(`A oferta foi confirmada. O site ${candidate.name} (${candidate.domain}) ainda não está cadastrado. Deseja cadastrá-lo agora?`)) {
+        await request('/sites/descobertos/decisao', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...candidate, action: 'confirm' })
+        });
+        await loadSites();
+        setMessage(byId('search-message'), 'Oferta confirmada e novo site cadastrado para as próximas buscas.', 'success');
+      } else {
+        renderDiscoveredSites([{ discoveredSites: [candidate] }]);
+        setMessage(byId('search-message'), 'Oferta confirmada. O site ficou pendente para você cadastrar ou ignorar abaixo.', 'success');
+      }
+    } else {
+      setMessage(byId('search-message'), 'Feedback salvo. A próxima busca usará este aprendizado.', 'success');
+    }
   } catch (error) {
     buttons.forEach((item) => { item.disabled = false; });
     button.textContent = originalLabel;

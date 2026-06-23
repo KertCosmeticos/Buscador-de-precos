@@ -43,6 +43,8 @@ Cada consulta pesquisa automaticamente todos os sites ativos cadastrados. A API 
 
 A busca ampla também pode identificar um domínio ainda não cadastrado. Ele só é sugerido quando possui oferta com link direto, preço válido e score mínimo de 90; a oferta não entra nos resultados normais antes da aprovação. Qualquer usuário pode validar ofertas e revisar, confirmar ou ignorar uma sugestão realmente detectada pelo motor. O restante dos cadastros continua restrito ao administrador.
 
+Uma confirmação humana de oferta também serve como evidência, mesmo quando o score automático é menor que 90. Se o link confirmado pertencer a um domínio novo, o painel pergunta imediatamente se o usuário deseja cadastrá-lo; a confirmação cria o site para as buscas seguintes.
+
 ## Aprendizado e compatibilidade
 
 O catálogo aceita volume e gera tokens automaticamente. A API cria os termos de consulta usando os dados do produto e o aprendizado salvo, atribui score e status às ofertas e oferece feedback de confirmação ou descarte. Termos bons, aliases e palavras de exclusão são aprendidos pelo sistema, sem exigir cadastro manual.

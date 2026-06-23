@@ -8,7 +8,8 @@ const siteCandidateSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'ignored', 'approved'], required: true, default: 'pending', index: true },
   evidenceTitle: { type: String, trim: true, default: '' },
   evidencePrice: { type: Number, default: null },
-  score: { type: Number, default: null }
+  score: { type: Number, default: null },
+  humanConfirmed: { type: Boolean, default: false }
 }, { timestamps: true, versionKey: false });
 
 module.exports = mongoose.model('SiteCandidate', siteCandidateSchema);

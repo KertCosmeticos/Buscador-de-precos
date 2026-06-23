@@ -47,7 +47,7 @@ router.post('/descobertos/decisao', async (req, res, next) => {
       return res.json({ status: 'approved', site });
     }
     const pending = await SiteCandidate.findOne({ domain, status: 'pending' }).lean();
-    if (!pending || Number(pending.score) < 90 || !Number.isFinite(pending.evidencePrice)) {
+    if (!pending || (!pending.humanConfirmed && Number(pending.score) < 90) || !Number.isFinite(pending.evidencePrice)) {
       return res.status(404).json({ error: 'Esta sugestão não está mais pendente ou não possui evidência válida.' });
     }
     await SiteCandidate.updateOne({ _id: pending._id }, { $set: { name, type, status: action === 'confirm' ? 'approved' : 'ignored' } });
