@@ -8,6 +8,7 @@ const siteSchema = new mongoose.Schema({
   acceptsEan: { type: Boolean, default: null },
   acceptsName: { type: Boolean, default: null },
   requiresPlaywright: { type: Boolean, default: null },
+  requiresPostalCode: { type: Boolean, default: null },
   discoveryStatus: { type: String, enum: ['pending', 'learning', 'learned', 'failed'], default: 'pending', index: true },
   lastDiscoveryAt: { type: Date, default: null },
   active: { type: Boolean, default: true, index: true }

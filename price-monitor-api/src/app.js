@@ -12,6 +12,7 @@ const productCatalog = require('./services/productCatalog');
 const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
 const { generateSearchTerms } = require('./services/searchTerms');
+const { postalCode, formatPostalCode } = require('./config/search');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -98,7 +99,8 @@ app.get('/health', (_req, res) => res.json({
     mercadoLivre: !demoMode,
     googleShopping: !demoMode && Boolean(process.env.SERPAPI_KEY),
     productCatalog: true
-  }
+  },
+  searchDefaults: { postalCode: formatPostalCode(postalCode) }
 }));
 
 app.get('/buscar', async (req, res, next) => {

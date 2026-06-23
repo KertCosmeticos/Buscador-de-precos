@@ -46,3 +46,5 @@ O catálogo aceita volume e gera tokens automaticamente. A API cria os termos de
 As collections `sites` e `productlearnings` guardam, respectivamente, os sites monitorados e o aprendizado por produto. Nesta etapa, o cadastro de sites é a base de configuração; conectores específicos para executar a URL de busca de cada site serão adicionados separadamente.
 
 No cadastro de sites, o usuário informa apenas `NOME`, `URL DE BUSCA` e `TIPO`. A URL base é derivada automaticamente, enquanto suporte a EAN/nome e necessidade de navegador automatizado permanecem como capacidades internas a serem descobertas pelo motor. O painel também oferece modelo e importação Excel de até 500 sites por arquivo.
+
+As buscas regionalizadas usam o CEP padrão `06795-000`. A necessidade de preencher CEP é aprendida individualmente para cada site; o valor global pode ser alterado pela variável `SEARCH_POSTAL_CODE` sem editar os cadastros.
