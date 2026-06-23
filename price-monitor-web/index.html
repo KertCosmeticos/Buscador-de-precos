@@ -177,13 +177,14 @@
         <div id="catalog-message" class="message" role="status" aria-live="polite"></div>
         <section class="embedded-import">
           <div class="import-heading">
-            <div><h3>Importar planilha de produtos</h3><p>Formato atualizado: COD SFA, NOME, GRAMATURA, CODBARRAS, CATEGORIA e FAMILIA.</p></div>
+            <div><h3>Importar planilha de produtos</h3></div>
             <a id="download-template" class="button secondary" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download>Baixar modelo atualizado</a>
           </div>
-          <div class="field">
-            <label for="product-import-file">Arquivo Excel (.xls ou .xlsx)</label>
+          <label class="file-picker" for="product-import-file">
+            <span class="file-picker-action">Escolher arquivo</span>
+            <small>Excel .xls ou .xlsx · COD SFA, NOME, GRAMATURA, CODBARRAS, CATEGORIA e FAMILIA</small>
             <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-          </div>
+          </label>
           <p id="import-file-summary" class="file-summary">Nenhum arquivo selecionado.</p>
           <div id="import-progress" class="import-progress" hidden>
             <div class="progress-label"><span id="import-progress-text">Preparando importação…</span><strong id="import-progress-percent">0%</strong></div>
@@ -205,13 +206,14 @@
         <div id="site-message" class="message" role="status"></div>
         <section class="embedded-import">
           <div class="import-heading">
-            <div><h3>Importar sites por planilha</h3><p>Use as colunas NOME, URL DE BUSCA e TIPO.</p></div>
+            <div><h3>Importar sites por planilha</h3></div>
             <button id="download-site-template" class="button secondary" type="button">Baixar modelo</button>
           </div>
-          <div class="field">
-            <label for="site-import-file">Arquivo Excel (.xls ou .xlsx)</label>
+          <label class="file-picker" for="site-import-file">
+            <span class="file-picker-action">Escolher arquivo</span>
+            <small>Excel .xls ou .xlsx · NOME, URL DE BUSCA e TIPO</small>
             <input id="site-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-          </div>
+          </label>
           <p id="site-import-summary" class="file-summary">Nenhum arquivo selecionado.</p>
           <button id="import-sites-button" class="button primary" type="button" disabled>Importar sites</button>
           <div id="site-import-message" class="message" role="status" aria-live="polite"></div>
