@@ -706,11 +706,6 @@ async function decideDiscoveredSite(candidate, action, item, name, type) {
   }
 }
 
-function conditionLabel(condition) {
-  const labels = { new: 'Novo', used: 'Usado', not_specified: 'Não informada' };
-  return labels[condition] || condition || 'Não informada';
-}
-
 function renderDetails(results) {
   const body = byId('details-body');
   body.replaceChildren();
@@ -724,15 +719,9 @@ function renderDetails(results) {
   offers.forEach((offer) => {
     const row = body.insertRow();
     appendCell(row, offer.ean);
-    appendCell(row, offer.marketplace || '—');
     appendCell(row, offer.title || '—');
     appendCell(row, Number.isFinite(offer.price) ? currency.format(offer.price) : '—');
     appendCell(row, offer.seller || '—');
-    appendCell(row, Number.isFinite(offer.score) ? String(offer.score) : '—');
-    appendCell(row, offer.status || '—');
-    appendCell(row, offer.soldQuantity == null ? 'Não informado' : String(offer.soldQuantity));
-    appendCell(row, conditionLabel(offer.condition));
-    appendCell(row, offer.freeShipping ? 'Sim' : 'Não');
     const linkCell = row.insertCell();
     if (offer.link) {
       const link = document.createElement('a');
@@ -923,11 +912,9 @@ function csvCell(value) {
 }
 
 byId('export-button').addEventListener('click', () => {
-  const header = ['EAN', 'Marketplace', 'Produto', 'Preço', 'Vendedor', 'Quantidade vendida', 'Condição', 'Frete grátis', 'Link', 'Preço mínimo do EAN', 'Preço máximo do EAN', 'Preço médio do EAN'];
+  const header = ['EAN', 'Produto', 'Preço', 'Vendedor', 'Link', 'Preço mínimo do EAN', 'Preço máximo do EAN', 'Preço médio do EAN'];
   const rows = currentResults.flatMap((result) => (result.listings || []).map((listing) => [
-    result.ean, listing.marketplace, listing.title, listing.price, listing.seller,
-    listing.soldQuantity ?? 'Não informado', conditionLabel(listing.condition),
-    listing.freeShipping ? 'Sim' : 'Não', listing.link,
+    result.ean, listing.title, listing.price, listing.seller, listing.link,
     result.minPrice, result.maxPrice, result.averagePrice
   ].map(csvCell).join(';')));
   const blob = new Blob([`\ufeff${header.map(csvCell).join(';')}\r\n${rows.join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
