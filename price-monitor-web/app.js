@@ -353,16 +353,16 @@ async function restoreAdminSession() {
 }
 
 const filterDefinitions = {
-  name: { property: 'name', input: 'name-filter-search', options: 'name-filter-options', selected: selectedNames },
-  category: { property: 'category', input: 'category-filter-search', options: 'category-filter-options', selected: selectedCategories },
-  family: { property: 'family', input: 'family-filter-search', options: 'family-filter-options', selected: selectedFamilies }
+  name: { property: 'name', input: 'name-filter-search', options: 'name-filter-options', selected: selectedNames, placeholder: 'Digite EAN ou Nome do produto para selecionar' },
+  category: { property: 'category', input: 'category-filter-search', options: 'category-filter-options', selected: selectedCategories, placeholder: 'Clique para selecionar' },
+  family: { property: 'family', input: 'family-filter-search', options: 'family-filter-options', selected: selectedFamilies, placeholder: 'Clique para selecionar' }
 };
 
 function updateFilterPlaceholder(definition) {
   const input = byId(definition.input);
   input.placeholder = definition.selected.size
     ? `${definition.selected.size} opção(ões) selecionada(s)`
-    : 'Clique para selecionar';
+    : (definition.placeholder || 'Clique para selecionar');
 }
 
 function closeFilterMenus(except = null) {
@@ -381,9 +381,14 @@ function renderFilterOptions(type) {
   const definition = filterDefinitions[type];
   const container = byId(definition.options);
   const term = byId(definition.input).value.trim().toLocaleLowerCase('pt-BR');
-  const values = [...new Set(allCatalogProducts.map((product) => product[definition.property]))]
-    .filter((value) => !term || value.toLocaleLowerCase('pt-BR').includes(term))
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const values = type === 'name' && term
+    ? [...new Set(allCatalogProducts
+        .filter((p) => p.name.toLocaleLowerCase('pt-BR').includes(term) || p.ean.toLocaleLowerCase('pt-BR').includes(term))
+        .map((p) => p.name))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    : [...new Set(allCatalogProducts.map((product) => product[definition.property]))]
+        .filter((value) => !term || value.toLocaleLowerCase('pt-BR').includes(term))
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'));
   container.replaceChildren();
   if (!values.length) {
     const empty = document.createElement('p');
@@ -429,8 +434,7 @@ function updateSelectedCount() {
 }
 
 function hasActiveProductFilter() {
-  return Boolean(byId('quick-product-search').value.trim())
-    || selectedNames.size > 0
+  return selectedNames.size > 0
     || selectedCategories.size > 0
     || selectedFamilies.size > 0;
 }
@@ -472,20 +476,16 @@ function renderProductPicker() {
 }
 
 async function loadPickerProducts() {
-  const search = byId('quick-product-search').value.trim().toLocaleLowerCase('pt-BR');
   if (!hasActiveProductFilter()) {
     catalogProducts = [];
     renderProductPicker();
     return;
   }
-  catalogProducts = allCatalogProducts.filter((product) => {
-    const matchesSearch = !search || [product.ean, product.sku, product.name, product.category, product.family]
-      .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(search));
-    return matchesSearch
-      && (!selectedNames.size || selectedNames.has(product.name))
-      && (!selectedCategories.size || selectedCategories.has(product.category))
-      && (!selectedFamilies.size || selectedFamilies.has(product.family));
-  });
+  catalogProducts = allCatalogProducts.filter((product) =>
+    (!selectedNames.size || selectedNames.has(product.name))
+    && (!selectedCategories.size || selectedCategories.has(product.category))
+    && (!selectedFamilies.size || selectedFamilies.has(product.family))
+  );
   renderProductPicker();
 }
 
@@ -796,11 +796,9 @@ async function loadSites() {
 }
 
 byId('search-button').addEventListener('click', async () => {
-  const typedValue = byId('quick-product-search').value.trim();
-  const typedEans = /^\d{8,14}$/.test(typedValue) ? [typedValue] : [];
-  const eans = [...new Set([...typedEans, ...selectedProductEans])];
+  const eans = [...selectedProductEans];
   if (!eans.length) {
-    setMessage(byId('search-message'), 'Selecione pelo menos um produto ou digite um EAN válido.', 'error');
+    setMessage(byId('search-message'), 'Selecione pelo menos um produto para consultar.', 'error');
     return;
   }
   if (!allSites.length) {
@@ -886,13 +884,6 @@ byId('export-button').addEventListener('click', () => {
   URL.revokeObjectURL(link.href);
 });
 
-let catalogSearchTimer;
-byId('quick-product-search').addEventListener('input', () => {
-  clearTimeout(catalogSearchTimer);
-  catalogSearchTimer = setTimeout(() => loadPickerProducts().catch((error) => {
-    byId('product-picker-list').textContent = error.message;
-  }), 250);
-});
 Object.entries(filterDefinitions).forEach(([type, definition]) => {
   const input = byId(definition.input);
   input.addEventListener('focus', () => {
