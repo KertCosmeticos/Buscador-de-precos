@@ -19,7 +19,7 @@ function calculateCompatibility(product, listing) {
   const add = (points, reason) => { score += points; reasons.push({ points, reason }); };
 
   if (product.ean && text.includes(product.ean)) add(100, 'EAN encontrado');
-  if (/\b(?:keraton|kert)\b/.test(text)) add(30, 'Marca Keraton/Kert');
+  if (/\b(?:keraton|kert|phytogen|keragen|reduton)\b/.test(text)) add(30, 'Marca própria');
   if (product.family && includesTerm(text, product.family)) add(25, 'Linha correta');
   if (product.volume && includesTerm(text, product.volume)) add(10, 'Volume correto');
 
