@@ -102,11 +102,11 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .login-card .field { margin-bottom: 14px; }
 .login-hint { margin: 16px 0 0 !important; padding: 10px; border-radius: 8px; background: #f8fafc; font-size: .84rem; }
 .logout-btn { margin-left: auto; padding: 6px 14px; font-size: .86rem; align-self: center; }
-.registration-guide h2 { font-size: 1rem; margin-bottom: 12px; }
-.instruction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.instruction-grid h3 { margin: 0 0 8px; font-size: .86rem; }
-.instruction-grid ol { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.5; font-size: .82rem; }
-.instruction-grid li + li { margin-top: 5px; }
+.registration-guide h2 { font-size: .88rem; margin-bottom: 10px; }
+.instruction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.instruction-grid h3 { margin: 0 0 6px; font-size: .78rem; }
+.instruction-grid ol { margin: 0; padding-left: 16px; color: var(--muted); line-height: 1.45; font-size: .74rem; }
+.instruction-grid li + li { margin-top: 4px; }
 .import-heading { display: flex; justify-content: space-between; align-items: start; gap: 18px; }
 .import-heading p { margin-bottom: 18px; }
 .embedded-import { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
