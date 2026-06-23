@@ -34,6 +34,7 @@ jobs:
         run: |
           mkdir -p dist
           cp -R price-monitor-web/. dist/
+          cp "PRODUTOS EM LINHA 2026 - BASE LARISSA.xlsx" dist/MODELO_IMPORTACAO_PRODUTOS.xlsx
           (cd price-monitor-chrome && zip -r ../dist/price-monitor-chrome.zip .)
           if [ -n "$API_URL" ]; then
             sed -i "s|https://sua-api.koyeb.app|$API_URL|g" dist/app.js

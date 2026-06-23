@@ -95,6 +95,11 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .instruction-grid li + li { margin-top: 6px; }
 .import-heading { display: flex; justify-content: space-between; align-items: start; gap: 18px; }
 .import-heading p { margin-bottom: 18px; }
+.embedded-import { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
+.embedded-import h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.embedded-import .import-heading { margin-bottom: 16px; }
+.embedded-import .import-heading p { margin: 0; }
+.embedded-import .button.secondary { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
 .file-summary { margin: 10px 0 14px !important; font-size: .9rem; }
 .import-progress { margin: 16px 0; padding: 14px; border-radius: 10px; background: #f8fafc; border: 1px solid var(--border); }
 .progress-label { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-size: .86rem; }

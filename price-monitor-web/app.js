@@ -84,6 +84,7 @@ function readImportSpreadsheet(file) {
     const aliases = {
       sku: ['COD SFA', 'COD DO SFA', 'SKU', 'CODIGO INTERNO'],
       name: ['NOME', 'PRODUTO', 'NOME DO PRODUTO'],
+      volume: ['GRAMATURA', 'VOLUME', 'VOLUME GRAMATURA'],
       ean: ['CODBARRAS', 'COD BARRAS', 'EAN', 'CODIGO DE BARRAS'],
       category: ['CATEGORIA'],
       family: ['FAMILIA']
@@ -106,12 +107,13 @@ function readImportSpreadsheet(file) {
       const product = {
         sku: spreadsheetCell(row[positions.sku]),
         name: spreadsheetCell(row[positions.name]),
+        volume: spreadsheetCell(row[positions.volume]),
         ean: spreadsheetCell(row[positions.ean]),
         category: spreadsheetCell(row[positions.category]),
         family: spreadsheetCell(row[positions.family]),
         active: true
       };
-      const emptyFields = ['sku', 'name', 'ean', 'category', 'family'].filter((field) => !product[field]);
+      const emptyFields = ['sku', 'name', 'volume', 'ean', 'category', 'family'].filter((field) => !product[field]);
       if (emptyFields.length) {
         errors.push(`Linha ${line}: existem campos obrigatórios vazios.`);
       } else if (!/^\d{8,14}$/.test(product.ean)) {
@@ -823,18 +825,6 @@ byId('select-all-products').addEventListener('change', (event) => {
     event.target.checked ? selectedProductEans.add(product.ean) : selectedProductEans.delete(product.ean);
   });
   renderProductPicker();
-});
-
-byId('download-template').addEventListener('click', () => {
-  if (!globalThis.XLSX) {
-    setMessage(byId('import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
-    return;
-  }
-  const worksheet = XLSX.utils.aoa_to_sheet([['COD SFA', 'NOME', 'CODBARRAS', 'CATEGORIA', 'FAMILIA']]);
-  worksheet['!cols'] = [{ wch: 14 }, { wch: 42 }, { wch: 18 }, { wch: 28 }, { wch: 24 }];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
-  XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_PRODUTOS.xlsx');
 });
 
 byId('product-import-file').addEventListener('change', async (event) => {

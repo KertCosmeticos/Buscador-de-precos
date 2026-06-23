@@ -31,7 +31,7 @@ Instruções detalhadas também estão nos READMEs de cada pasta.
 
 A aba **Cadastros** permite incluir produtos individualmente ou importar até 2.000 itens por arquivo Excel (`.xls` ou `.xlsx`). A própria tela oferece uma planilha-modelo e mostra o progresso da importação por lotes.
 
-As colunas aceitas são `COD SFA`, `NOME`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`. O EAN identifica cada produto: um EAN novo é cadastrado e um EAN existente é atualizado, sem criar duplicidades.
+As colunas aceitas são `COD SFA`, `NOME`, `GRAMATURA`, `CODBARRAS`, `CATEGORIA` e `FAMILIA`. O painel publica como modelo a base atualizada `PRODUTOS EM LINHA 2026 - BASE LARISSA.xlsx`. O EAN identifica cada produto: um EAN novo é cadastrado e um EAN existente é atualizado, sem criar duplicidades.
 
 ## Pesquisa pelo Chrome
 

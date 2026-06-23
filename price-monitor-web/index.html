@@ -143,7 +143,7 @@
           <section>
             <h3>Cadastro pelo painel</h3>
             <ol>
-              <li>Preencha EAN, código interno, nome, categoria e família.</li>
+              <li>Preencha EAN, código interno, nome, gramatura, categoria e família.</li>
               <li>Clique em <strong>Salvar produto</strong>.</li>
               <li>Use a lista de produtos para editar ou excluir um cadastro.</li>
             </ol>
@@ -151,7 +151,7 @@
           <section>
             <h3>Importação por arquivo</h3>
             <ol>
-              <li>Baixe o modelo e preencha uma linha por produto, sem alterar os cabeçalhos.</li>
+              <li>Baixe a base-modelo atualizada e mantenha os seis cabeçalhos existentes.</li>
               <li>Selecione o arquivo Excel nos formatos <strong>.xls</strong> ou <strong>.xlsx</strong>.</li>
               <li>Confira a validação e clique em <strong>Importar produtos</strong>.</li>
               <li>EANs existentes serão atualizados; novos EANs serão cadastrados.</li>
@@ -175,6 +175,23 @@
           </div>
         </form>
         <div id="catalog-message" class="message" role="status" aria-live="polite"></div>
+        <section class="embedded-import">
+          <div class="import-heading">
+            <div><h3>Importar planilha de produtos</h3><p>Formato atualizado: COD SFA, NOME, GRAMATURA, CODBARRAS, CATEGORIA e FAMILIA.</p></div>
+            <a id="download-template" class="button secondary" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download>Baixar modelo atualizado</a>
+          </div>
+          <div class="field">
+            <label for="product-import-file">Arquivo Excel (.xls ou .xlsx)</label>
+            <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </div>
+          <p id="import-file-summary" class="file-summary">Nenhum arquivo selecionado.</p>
+          <div id="import-progress" class="import-progress" hidden>
+            <div class="progress-label"><span id="import-progress-text">Preparando importação…</span><strong id="import-progress-percent">0%</strong></div>
+            <progress id="import-progress-bar" max="100" value="0">0%</progress>
+          </div>
+          <button id="import-products-button" class="button primary" type="button" disabled>Importar produtos</button>
+          <div id="import-message" class="message" role="status" aria-live="polite"></div>
+        </section>
       </div>
       <div class="card">
         <h2 id="site-form-title">Cadastrar site monitorado</h2>
@@ -195,23 +212,6 @@
       <div class="card results-card">
         <div class="card-heading"><div><h2>Sites monitorados</h2><p id="sites-count"></p></div></div>
         <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>EAN</th><th>Nome</th><th>Playwright</th><th>Status</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
-      </div>
-      <div class="card import-card">
-        <div class="card-heading import-heading">
-          <div><h2>Importar planilha de produtos</h2><p>Use o mesmo formato da base oficial: COD SFA, NOME, CODBARRAS, CATEGORIA e FAMILIA.</p></div>
-          <button id="download-template" class="button secondary" type="button">Baixar modelo</button>
-        </div>
-        <div class="field">
-          <label for="product-import-file">Arquivo Excel (.xls ou .xlsx)</label>
-          <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-        </div>
-        <p id="import-file-summary" class="file-summary">Nenhum arquivo selecionado.</p>
-        <div id="import-progress" class="import-progress" hidden>
-          <div class="progress-label"><span id="import-progress-text">Preparando importação…</span><strong id="import-progress-percent">0%</strong></div>
-          <progress id="import-progress-bar" max="100" value="0">0%</progress>
-        </div>
-        <button id="import-products-button" class="button primary" type="button" disabled>Importar produtos</button>
-        <div id="import-message" class="message" role="status" aria-live="polite"></div>
       </div>
       <div class="card results-card">
         <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>

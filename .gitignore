@@ -2,5 +2,6 @@
 **/.env
 *.log
 *.xlsx
+!PRODUTOS EM LINHA 2026 - BASE LARISSA.xlsx
 .DS_Store
 Thumbs.db
