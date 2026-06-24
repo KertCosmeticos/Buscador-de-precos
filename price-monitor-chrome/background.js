@@ -30,36 +30,13 @@ async function navigateTab(tabId, url) {
   await loaded;
 }
 
-async function injectExtractor(tabId) {
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    const url = new URL(tab.url || '');
-    let files = [];
-    if (/(^|\.)google\.com(?:\.br)?$/.test(url.hostname) && url.pathname.startsWith('/search')) {
-      files = ['product-matcher.js', 'google-extractor.js'];
-    } else if (/(^|\.)mercadolivre\.com\.br$/.test(url.hostname)) {
-      files = ['product-matcher.js', 'mercadolivre-extractor.js'];
-    }
-    if (!files.length) return false;
-    await chrome.scripting.executeScript({ target: { tabId }, files });
-    await delay(300);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function sendToTab(tabId, type, payload = {}) {
   let lastError;
-  let injected = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       return await chrome.tabs.sendMessage(tabId, { type, ...payload });
     } catch (error) {
       lastError = error;
-      if (!injected && /Receiving end does not exist|Could not establish connection/i.test(error.message || '')) {
-        injected = await injectExtractor(tabId);
-      }
       await delay(700);
     }
   }
