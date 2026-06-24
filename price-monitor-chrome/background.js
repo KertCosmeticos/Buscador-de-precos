@@ -140,7 +140,7 @@ async function searchMercadoLivre(product) {
     }
   }
 
-  const descriptiveQuery = ProductMatcher.buildMarketplaceQuery(product) || product.name;
+  const descriptiveQuery = product.name || ProductMatcher.buildMarketplaceQuery(product);
   const queries = [...new Set([descriptiveQuery, product.ean].filter(Boolean))];
   const groups = await Promise.all(queries.map(searchQuery));
   return deduplicate(groups.flat());
@@ -225,7 +225,7 @@ function listingMatchesSites(listing, sites) {
 }
 
 function googleSteps(product, sites) {
-  const descriptive = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
+  const descriptive = product.name || ProductMatcher.buildMarketplaceQuery(product) || product.ean;
   const semantic = ProductMatcher.buildSemanticQuery(product);
   if (!sites.length) return [
     { name: 'Google por EAN', query: product.ean, mode: 'web', exactEan: true },
