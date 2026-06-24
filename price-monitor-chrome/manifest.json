@@ -1,15 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Buscador de Preços Kert",
-  "version": "4.5.0",
-  "description": "Pesquisa preços nos sites selecionados, Google e Mercado Livre usando a sessão local do Chrome.",
-  "permissions": ["tabs", "scripting"],
+  "version": "4.0.0",
+  "description": "Pesquisa preços no Google Web, Google Shopping e Mercado Livre usando a sessão local do Chrome.",
+  "permissions": ["tabs"],
   "host_permissions": [
     "https://www.google.com/*",
     "https://www.google.com.br/*",
     "https://lista.mercadolivre.com.br/*",
-    "https://*.mercadolivre.com.br/*",
-    "https://*/*"
+    "https://*.mercadolivre.com.br/*"
   ],
   "background": { "service_worker": "background.js" },
   "action": {

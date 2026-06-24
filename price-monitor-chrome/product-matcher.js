@@ -9,10 +9,9 @@
     'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
     'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
     'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
-    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'natura', 'nature',
-    'naturе', 'niely', 'nivea', 'novex', 'nutriex', 'pantene', 'redken', 'revlon',
-    'salon', 'salonline', 'schwarzkopf', 'seda', 'skala', 'softcolor', 'truss',
-    'tresemme', 'wella', 'yama'
+    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
+    'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
+    'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama'
   ]);
   const fillerWords = new Set([
     'a', 'as', 'com', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os',
@@ -47,8 +46,8 @@
     { id: 'hard-color', detect: /hard\s+colors?/i, anchors: ['hard'] },
     { id: 'shine-mask', detect: /shine\s+mask/i, anchors: ['shine'] },
     { id: 'men', detect: /\bkeraton\s+men\b/i, anchors: ['men'] },
-    { id: 'muito-liso', detect: /muito\s*(?:\+|mais\s*\+?)?\s*liso/i, anchors: ['muito', 'liso'] },
-    { id: 'muito-cachos', detect: /muito\s*(?:\+|mais\s*\+?)?\s*cachos/i, anchors: ['muito', 'cachos'] },
+    { id: 'muito-liso', detect: /muito\s*\+?\s*liso/i, anchors: ['muito', 'liso'] },
+    { id: 'muito-cachos', detect: /muito\s*\+?\s*cachos/i, anchors: ['muito', 'cachos'] },
     { id: 'uso-essencial', detect: /uso\s+essencial/i, anchors: ['essencial'] },
     { id: 'desmaia-fio', detect: /desmaia\s+fio/i, anchors: ['desmaia', 'fio'] },
     { id: 'keragen-evolution', detect: /keragen\s+evolution/i, anchors: ['keragen', 'evolution'] },
@@ -106,8 +105,6 @@
       'color', 'colors', 'keraton', 'kert', 'phytogen', 'keragen', 'n',
       volume, shadeCode
     ]);
-    // "mais" é conector nas linhas "muito-*" (ex: "Muito+Liso" = "Muito Mais Liso")
-    if (line?.id?.startsWith('muito-')) excluded.add('mais');
     const remaining = nameTokens.filter((token) => !excluded.has(token) && !volumePattern.test(token));
     const variants = isColorProduct && !shadeCode ? [...new Set(remaining)] : [];
     const identity = isColorProduct ? [] : [...new Set(remaining.filter((token) => token.length >= 3))];
@@ -115,12 +112,8 @@
     return { name, category, family, brands, type, line, shadeCode, volume, isColorProduct, variants, identity };
   }
 
-  const competitorPhrases = [/\bmeu\s+liso\b/i];
-
   function hasCompetingBrand(received) {
-    if (received.some((token) => competitorBrands.has(token))) return true;
-    const joined = received.join(' ');
-    return competitorPhrases.some((re) => re.test(joined));
+    return received.some((token) => competitorBrands.has(token));
   }
 
   function matchesOffer(text, link, product = {}) {
@@ -186,24 +179,5 @@
     return [...decisive.map((term) => `"${term}"`), typeQuery].filter(Boolean).join(' ');
   }
 
-  function buildMarketplaceQuery(product) {
-    const profile = buildProfile(product);
-    const canonicalType = profile.type?.alternatives?.[0]?.join(' ') || '';
-    const volume = profile.volume || normalize(product.volume || product.grammage || '');
-    const identity = profile.isColorProduct ? profile.variants : profile.identity.slice(0, 4);
-    return [...new Set([
-      ...profile.brands,
-      canonicalType,
-      ...(profile.line?.anchors || []),
-      profile.shadeCode,
-      ...identity,
-      volume
-    ].filter(Boolean))].join(' ');
-  }
-
-  function addOwnBrands(brands) {
-    brands.forEach((b) => { const n = normalize(b); if (n) ownBrands.add(n); });
-  }
-
-  return { buildProfile, buildSemanticQuery, buildMarketplaceQuery, matchesOffer, linkMatchesProduct, normalize, tokenize, addOwnBrands };
+  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
 }));
