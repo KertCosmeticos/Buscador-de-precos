@@ -140,8 +140,11 @@
     if (profile.type && !profile.type.alternatives.some((alternative) => containsSequence(received, alternative))) {
       return { relevant: false, reason: `Tipo incompatível com ${profile.type.id}.` };
     }
-    if (profile.line && !profile.line.anchors.some((anchor) => received.some((token) => tokenMatches(anchor, token)))) {
+    if (profile.line && !containsSequence(received, profile.line.anchors)) {
       return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
+    }
+    if (profile.brands.length && !received.some((token) => ownBrands.has(token))) {
+      return { relevant: false, reason: 'Marca própria ausente no título do anúncio.' };
     }
 
     if (profile.identity.length) {
