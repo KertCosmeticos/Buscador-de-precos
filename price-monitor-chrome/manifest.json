@@ -11,7 +11,7 @@
     "https://*.mercadolivre.com.br/*",
     "https://*/*"
   ],
-  "background": { "service_worker": "background.js", "type": "module" },
+  "background": { "service_worker": "background.js" },
   "action": {
     "default_title": "Buscador de Preços Kert",
     "default_popup": "popup.html"
