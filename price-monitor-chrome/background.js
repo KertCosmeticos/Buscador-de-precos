@@ -226,9 +226,11 @@ function listingMatchesSites(listing, sites) {
 
 function googleSteps(product, sites) {
   const descriptive = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
+  const semantic = ProductMatcher.buildSemanticQuery(product);
   if (!sites.length) return [
     { name: 'Google por EAN', query: product.ean, mode: 'web', exactEan: true },
-    { name: 'Google por produto', query: descriptive, mode: 'web' },
+    { name: 'Google por nome', query: product.name || product.ean, mode: 'web' },
+    { name: 'Google semântico', query: semantic || descriptive, mode: 'web' },
     { name: 'Google Shopping', query: descriptive, mode: 'shopping', discovery: true }
   ];
   const registered = [];
