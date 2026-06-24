@@ -347,7 +347,8 @@ async function runSearch(port, message) {
     // Extensao nao habilitada em modo anonimo — usa abas normais
   }
 
-  const totalSteps = products.length * 5;
+  const stepsPerProduct = sites.length ? 3 : 2;
+  const totalSteps = products.length * (stepsPerProduct + 1);
   let completedSteps = 0;
   const results = [];
 
@@ -355,18 +356,14 @@ async function runSearch(port, message) {
     const listings = [];
     const sources = [];
     const label = product.name || product.ean;
-    const semantic = ProductMatcher.buildSemanticQuery(product);
     const domains = [...new Set(sites.map(siteDomain).filter(Boolean))];
     const siteClause = domains.length ? `(${domains.slice(0, 8).map((domain) => `site:${domain}`).join(' OR ')})` : '';
     const steps = sites.length ? [
       { name: 'Sites por EAN', query: `${product.ean} ${siteClause}`, mode: 'web', exactEan: true },
       { name: 'Sites por nome', query: `"${product.name || product.ean}" ${siteClause}`, mode: 'web' },
-      { name: 'Sites por semantica', query: `${semantic || product.name || product.ean} ${siteClause}`, mode: 'web' },
       { name: 'Descoberta Google Shopping', query: product.name || product.ean, mode: 'shopping', discovery: true }
     ] : [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
-      { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
-      { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
     ];
 
