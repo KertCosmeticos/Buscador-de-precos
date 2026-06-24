@@ -143,9 +143,6 @@
     if (profile.line && !containsSequence(received, profile.line.anchors)) {
       return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
     }
-    if (profile.brands.length && !received.some((token) => ownBrands.has(token))) {
-      return { relevant: false, reason: 'Marca própria ausente no título do anúncio.' };
-    }
 
     if (profile.identity.length) {
       const matched = profile.identity.filter((expected) => received.some((token) => tokenMatches(expected, token)));
