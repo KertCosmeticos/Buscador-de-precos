@@ -247,16 +247,25 @@ function mercadoLivreUrl(query) {
   return `https://lista.mercadolivre.com.br/${slug}`;
 }
 
-async function searchMercadoLivre(product) {
+async function searchMercadoLivre(product, query) {
   const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
   try {
-    await navigateTab(tab.id, mercadoLivreUrl(product.name || product.ean));
+    await navigateTab(tab.id, mercadoLivreUrl(query || product.name || product.ean));
     await delay(2200);
     const result = await sendToTab(tab.id, 'EXTRACT_ML_RESULTS', { product });
     return result?.listings || [];
   } finally {
     await chrome.tabs.remove(tab.id).catch(() => {});
   }
+}
+
+function nameWithoutBrand(product) {
+  const brand = new Set(['kert', 'keraton', 'phytogen', 'keragen', 'reduton']);
+  return (product.name || '')
+    .split(/\s+/)
+    .filter((t) => !brand.has(t.toLowerCase()))
+    .join(' ')
+    .trim();
 }
 
 function normalizeLink(value) {
@@ -294,11 +303,11 @@ async function runSearch(port, message) {
     const listings = [];
     const sources = [];
     const label = product.name || product.ean;
-    const semantic = ProductMatcher.buildSemanticQuery(product);
+    const semMarca = nameWithoutBrand(product);
     const steps = [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
-      { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
+      { name: 'Google Sem Marca', query: semMarca || product.name || product.ean, mode: 'web' },
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
     ];
 
@@ -327,7 +336,9 @@ async function runSearch(port, message) {
       message: `Pesquisando ${label} no Mercado Livre...`
     });
     try {
-      const found = await searchMercadoLivre(product);
+      const mlQuery = product.ean || product.name;
+      const mlProduct = product.ean ? { ...product, searchMode: 'ean' } : product;
+      const found = await searchMercadoLivre(mlProduct, mlQuery);
       listings.push(...found);
       sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
     } catch (error) {
