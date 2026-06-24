@@ -142,8 +142,13 @@
     if (profile.type && !profile.type.alternatives.some((alternative) => containsSequence(received, alternative))) {
       return { relevant: false, reason: `Tipo incompatível com ${profile.type.id}.` };
     }
-    if (profile.line && !containsSequence(received, profile.line.anchors)) {
-      return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
+    if (profile.line) {
+      const allAnchors = containsSequence(received, profile.line.anchors);
+      const ownBrandInListing = received.some((t) => ownBrands.has(t));
+      const anyAnchor = profile.line.anchors.some((a) => received.some((t) => tokenMatches(a, t)));
+      if (!allAnchors && !(ownBrandInListing && anyAnchor)) {
+        return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
+      }
     }
 
     if (profile.identity.length) {
