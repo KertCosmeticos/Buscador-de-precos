@@ -183,9 +183,24 @@
     return [...decisive.map((term) => `"${term}"`), typeQuery].filter(Boolean).join(' ');
   }
 
+  function buildMarketplaceQuery(product) {
+    const profile = buildProfile(product);
+    const canonicalType = profile.type?.alternatives?.[0]?.join(' ') || '';
+    const volume = profile.volume || normalize(product.volume || product.grammage || '');
+    const identity = profile.isColorProduct ? profile.variants : profile.identity.slice(0, 4);
+    return [...new Set([
+      ...profile.brands,
+      canonicalType,
+      ...(profile.line?.anchors || []),
+      profile.shadeCode,
+      ...identity,
+      volume
+    ].filter(Boolean))].join(' ');
+  }
+
   function addOwnBrands(brands) {
     brands.forEach((b) => { const n = normalize(b); if (n) ownBrands.add(n); });
   }
 
-  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize, addOwnBrands };
+  return { buildProfile, buildSemanticQuery, buildMarketplaceQuery, matchesOffer, linkMatchesProduct, normalize, tokenize, addOwnBrands };
 }));

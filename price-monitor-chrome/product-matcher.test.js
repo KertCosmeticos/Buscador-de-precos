@@ -48,3 +48,11 @@ test('gera consulta semântica para o estudo de caso', () => {
   assert.match(query, /canela/i);
   assert.match(query, /tonalizante/i);
 });
+
+test('expande abreviação e inclui volume na consulta de marketplace', () => {
+  const product = {
+    ean: '7896380660971', name: 'Keraton Sh Muito + Liso',
+    volume: '300ml', category: 'Tratamento', family: 'Tratamento'
+  };
+  assert.equal(matcher.buildMarketplaceQuery(product), 'keraton shampoo muito liso 300ml');
+});

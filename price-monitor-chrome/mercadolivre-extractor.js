@@ -81,8 +81,10 @@ function extractSeller(item) {
   const selectors = [
     '.ui-search-official-store-label',
     '.ui-search-item__store-label',
+    '.poly-component__seller',
     '[class*="store-label"]',
     '[class*="official-store"]',
+    '[class*="component__seller"]',
   ];
   for (const sel of selectors) {
     const el = item.querySelector(sel);
@@ -98,10 +100,10 @@ function extractMLListings(product) {
   const seen = new Set();
 
   document.querySelectorAll(
-    '.ui-search-result, .andes-card[class*="search"], li[class*="search-layout__item"]'
+    '.ui-search-result, .andes-card[class*="search"], .ui-search-layout__item, .poly-card, [class*="poly-card"]'
   ).forEach((item) => {
     const linkEl = item.querySelector(
-      'a.ui-search-link, a[href*="mercadolivre.com.br"], a[href*="mercadoshops.com.br"]'
+      'a.poly-component__title, a.ui-search-link, a[href*="mercadolivre.com.br"], a[href*="mercadoshops.com.br"]'
     );
     if (!linkEl) return;
 
@@ -112,7 +114,7 @@ function extractMLListings(product) {
     if (!Number.isFinite(price) || price <= 0) return;
 
     const titleEl = item.querySelector(
-      '.ui-search-item__title, h2[class*="title"], [class*="item__title"]'
+      '.poly-component__title, .ui-search-item__title, h2[class*="title"], [class*="item__title"], [class*="component__title"]'
     );
     const title = cleanText(titleEl?.textContent || linkEl.getAttribute('aria-label') || '');
     if (!title) return;

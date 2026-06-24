@@ -202,10 +202,10 @@ function buildListing(link, text, container, product) {
   if (!title || !isConsumerRetailOffer(link, title, text)) return null;
   if (!linkPathMatchesProduct(link, product)) return null;
   const price = priceFromText(text);
-  if (!Number.isFinite(price)) return null;
   if (!relevant(`${title} ${text}`, product, link)) return null;
   const seller = sellerFromLink(link);
-  return { title, price, seller, marketplace: seller, link, soldQuantity: null, condition: 'new',
+  return { title, price: Number.isFinite(price) ? price : null, seller, marketplace: seller, link,
+           needsPriceInspection: !Number.isFinite(price), soldQuantity: null, condition: 'new',
            freeShipping: /frete\s+gr[aá]tis/i.test(text) };
 }
 
