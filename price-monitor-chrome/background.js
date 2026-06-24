@@ -232,10 +232,12 @@ async function sendToTab(tabId, type, payload = {}) {
   throw lastError || new Error('Nao foi possivel ler a pagina de pesquisa.');
 }
 
-async function searchGoogle(query, product, mode = 'web') {
+async function searchGoogle(query, product, mode = 'web', windowId = null) {
   const parameters = new URLSearchParams({ q: query, hl: 'pt-BR', gl: 'br', num: '30' });
   if (mode === 'shopping') parameters.set('tbm', 'shop');
-  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+  const tabOptions = { url: 'about:blank', active: false };
+  if (windowId) tabOptions.windowId = windowId;
+  const tab = await chrome.tabs.create(tabOptions);
   let keepOpen = false;
   try {
     await navigateTab(tab.id, `https://www.google.com/search?${parameters}`);
@@ -249,6 +251,7 @@ async function searchGoogle(query, product, mode = 'web') {
       if (/\/sorry\/|consent\.google|\/recaptcha/i.test(currentUrl)) {
         keepOpen = true;
         await chrome.tabs.update(tab.id, { active: true });
+        if (windowId) await chrome.windows.update(windowId, { state: 'normal', focused: true }).catch(() => {});
         throw new Error('O Google solicitou verificacao. Resolva o CAPTCHA na aba aberta e repita a busca.');
       }
       throw sendError;
@@ -256,6 +259,7 @@ async function searchGoogle(query, product, mode = 'web') {
     if (result?.captcha) {
       keepOpen = true;
       await chrome.tabs.update(tab.id, { active: true });
+      if (windowId) await chrome.windows.update(windowId, { state: 'normal', focused: true }).catch(() => {});
       throw new Error('O Google solicitou verificacao. Resolva o CAPTCHA na aba aberta e repita a busca.');
     }
     return result?.listings || [];
@@ -270,8 +274,10 @@ function mercadoLivreUrl(query) {
   return `https://lista.mercadolivre.com.br/${slug}`;
 }
 
-async function searchMercadoLivre(product) {
-  const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+async function searchMercadoLivre(product, windowId = null) {
+  const tabOptions = { url: 'about:blank', active: false };
+  if (windowId) tabOptions.windowId = windowId;
+  const tab = await chrome.tabs.create(tabOptions);
   try {
     await navigateTab(tab.id, mercadoLivreUrl(product.name || product.ean));
     await delay(2200);
@@ -332,6 +338,15 @@ async function runSearch(port, message) {
   const ownBrands = message.config?.ownBrands;
   if (Array.isArray(ownBrands) && ownBrands.length) ProductMatcher.addOwnBrands(ownBrands);
 
+  let incognitoWindowId = null;
+  let captchaEncountered = false;
+  try {
+    const win = await chrome.windows.create({ url: 'about:blank', incognito: true, state: 'minimized', focused: false });
+    incognitoWindowId = win.id;
+  } catch {
+    // Extensao nao habilitada em modo anonimo — usa abas normais
+  }
+
   const totalSteps = products.length * 5;
   let completedSteps = 0;
   const results = [];
@@ -369,7 +384,7 @@ async function runSearch(port, message) {
       }
       try {
         const found = step.query
-          ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
+          ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode, incognitoWindowId)
           : [];
         const selected = sites.length
           ? found.filter((listing) => step.discovery || listingMatchesSites(listing, sites))
@@ -379,7 +394,7 @@ async function runSearch(port, message) {
         sources.push({ name: step.name, status: 'ok', count: selected.length });
       } catch (error) {
         sources.push({ name: step.name, status: 'error', count: 0, error: error.message });
-        if (/CAPTCHA|verificacao/i.test(error.message)) googleBlocked = true;
+        if (/CAPTCHA|verificacao/i.test(error.message)) { googleBlocked = true; captchaEncountered = true; }
       }
       completedSteps += 1;
     }
@@ -392,7 +407,7 @@ async function runSearch(port, message) {
     });
     if (mercadoLivreEnabled) {
       try {
-        const found = await searchMercadoLivre(product);
+        const found = await searchMercadoLivre(product, incognitoWindowId);
         listings.push(...found);
         sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
       } catch (error) {
@@ -406,6 +421,10 @@ async function runSearch(port, message) {
   }
 
   safePost(port, { type: 'BROWSER_SEARCH_RESULT', requestId, results });
+
+  if (incognitoWindowId && !captchaEncountered) {
+    await chrome.windows.remove(incognitoWindowId).catch(() => {});
+  }
 }
 
 chrome.runtime.onConnect.addListener((port) => {
