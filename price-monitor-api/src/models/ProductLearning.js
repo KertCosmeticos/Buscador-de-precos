@@ -6,10 +6,6 @@ const productLearningSchema = new mongoose.Schema({
   goodTerms: { type: [String], default: [] },
   badTerms: { type: [String], default: [] },
   ignoredTitles: { type: [String], default: [] },
-  siteRejections: {
-    type: [{ domain: { type: String, required: true }, title: { type: String, required: true }, _id: false }],
-    default: []
-  },
   excludedWords: { type: [String], default: [] }
 }, { timestamps: true, versionKey: false });
 

@@ -7,8 +7,13 @@ const productSchema = new mongoose.Schema({
   category: { type: String, required: true, trim: true, index: true },
   family: { type: String, required: true, trim: true, index: true },
   volume: { type: String, trim: true, default: '' },
+  ncm: { type: String, trim: true, default: '' },
   netPrice: { type: Number, min: 0, default: null },
+  searchTerm: { type: String, trim: true, default: '' },
   tokens: { type: [String], default: [] },
+  aliases: { type: [String], default: [] },
+  requiredWords: { type: [String], default: [] },
+  forbiddenWords: { type: [String], default: [] },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 

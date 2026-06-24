@@ -57,12 +57,10 @@ function isRelevantOffer(title, productName) {
   const expected = searchTokens(productName);
   const received = searchTokens(title);
   const expectedBrands = expected.filter((token) => trustedBrands.has(token));
-  if (expectedBrands.length) {
-    const receivedHasExpectedBrand = expectedBrands.some(
-      (brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert'))
-    );
-    if (!receivedHasExpectedBrand) return false;
-  }
+  const receivedHasExpectedBrand = expectedBrands.length
+    ? expectedBrands.some((brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert')))
+    : received.some((token) => trustedBrands.has(token));
+  if (!receivedHasExpectedBrand) return false;
 
   const distinctive = expected.filter((token) => !trustedBrands.has(token) && !genericProductWords.has(token));
   if (!distinctive.length) return true;
@@ -355,38 +353,22 @@ async function findGoogleWebResults(query) {
   return data;
 }
 
-function domainMatches(link, domains = []) {
-  if (!domains.length) return true;
-  try {
-    const hostname = new URL(link).hostname.replace(/^www\./, '').toLowerCase();
-    return domains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
-  } catch { return false; }
-}
-
-function domainGroups(domains, size = 4) {
-  const groups = [];
-  for (let index = 0; index < domains.length; index += size) groups.push(domains.slice(index, index + size));
-  return groups;
-}
-
-async function searchGoogleWeb(ean, productName, domains = []) {
+async function searchGoogleWeb(ean, productName) {
   const baseQuery = productName || ean;
-  const selectedGroups = domains.length ? domainGroups(domains) : priorityDomainGroups;
   const domainQueries = productName
-    ? selectedGroups.map((group) => `"${productName}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`)
+    ? priorityDomainGroups.map((domains) => `"${productName}" (${domains.map((domain) => `site:${domain}`).join(' OR ')})`)
     : [];
   const searches = await Promise.allSettled([
-    ...(domains.length ? [] : [findGoogleWebResults(baseQuery)]),
+    findGoogleWebResults(baseQuery),
     ...domainQueries.map(findGoogleWebResults)
   ]);
   const offers = searches.flatMap((result) => result.status === 'fulfilled'
     ? googleWebOffersFromData(result.value, productName)
     : []);
-  const resolved = await resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
-  return resolved.filter((offer) => domainMatches(offer.link, domains));
+  return resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
 }
 
-async function searchGoogleShopping(ean, productName = '', options = {}) {
+async function searchGoogleShopping(ean, productName = '') {
   if (!process.env.SERPAPI_KEY) return [];
 
   try {
@@ -402,14 +384,10 @@ async function searchGoogleShopping(ean, productName = '', options = {}) {
       const offers = await Promise.allSettled(products.map((product) => getDirectSellerOffers(product, ean)));
       return offers.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
     })();
-    const searches = await Promise.allSettled([shoppingPromise, searchGoogleWeb(ean, productName, options.domains || [])]);
+    const searches = await Promise.allSettled([shoppingPromise, searchGoogleWeb(ean, productName)]);
     const successful = searches.filter((result) => result.status === 'fulfilled');
     if (!successful.length) throw searches[0].reason;
-    const offers = successful.flatMap((result) => result.value);
-    if (!(options.domains || []).length) return offers;
-    return offers.map((offer) => domainMatches(offer.link, options.domains)
-      ? offer
-      : { ...offer, discoveryCandidate: true });
+    return successful.flatMap((result) => result.value);
   } catch (error) {
     const message = error.code === 'ECONNABORTED'
       ? 'O Google Shopping demorou demais para responder.'
@@ -420,4 +398,4 @@ async function searchGoogleShopping(ean, productName = '', options = {}) {
   }
 }
 
-module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml, domainMatches };
+module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml };

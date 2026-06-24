@@ -7,13 +7,11 @@ const { mapWithConcurrency } = require('./utils/limit');
 const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/sites');
+const learningRoutes = require('./routes/learning');
 const productCatalog = require('./services/productCatalog');
+const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
-const { router: configRouter, getSearchConfig } = require('./routes/config');
 const { generateSearchTerms } = require('./services/searchTerms');
-const { postalCode, formatPostalCode } = require('./config/search');
-const Site = require('./models/Site');
-const { splitDiscoveredListings } = require('./services/siteDiscovery');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -34,7 +32,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 app.use('/sites', siteRoutes);
-app.use('/config', configRouter);
+app.use('/aprendizado', learningRoutes);
 
 function summarize(ean, listings, sources = []) {
   const prices = listings.map((item) => item.price).filter(Number.isFinite);
@@ -72,37 +70,25 @@ function summarize(ean, listings, sources = []) {
   };
 }
 
-async function searchFresh(ean, sites = []) {
+async function searchFresh(ean) {
   const product = demoMode ? null : await productCatalog.getProductByEan(ean);
-  const terms = product ? generateSearchTerms(product) : [];
+  const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
+  const terms = product ? generateSearchTerms(product, learning || {}) : [];
   const nameTerm = terms.find((term) => term !== ean) || product?.name;
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean, nameTerm, sites);
-  const { ownBrands: dynamicBrands = [] } = demoMode ? {} : await getSearchConfig();
-  const scoredListings = product
-    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, dynamicBrands) }))
+    : await searchAllMarketplaces(ean, nameTerm);
+  const listings = product
+    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
-  const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
-  const result = summarize(ean, discovery.listings, search.sources);
-  result.discoveredSites = discovery.discoveredSites;
+  const result = summarize(ean, listings, search.sources);
   if (product) {
     result.productId = product._id;
     result.searchTerms = terms;
     result.usedSearchTerm = nameTerm;
   }
-  if (sites.length && !demoMode) {
-    await Site.updateMany({ _id: { $in: sites.map((site) => site._id) } }, { $set: { discoveryStatus: 'learning', lastDiscoveryAt: new Date() } });
-  }
   return result;
-}
-
-async function selectedSites(input) {
-  if (demoMode) return [];
-  if (!Array.isArray(input) || !input.length) return Site.find({ active: true }).sort({ name: 1 }).lean();
-  const ids = [...new Set(input.map(String).filter((id) => /^[a-f\d]{24}$/i.test(id)))].slice(0, 20);
-  return ids.length ? Site.find({ _id: { $in: ids }, active: true }).lean() : [];
 }
 
 app.get('/health', (_req, res) => res.json({
@@ -112,14 +98,13 @@ app.get('/health', (_req, res) => res.json({
     mercadoLivre: !demoMode,
     googleShopping: !demoMode && Boolean(process.env.SERPAPI_KEY),
     productCatalog: true
-  },
-  searchDefaults: { postalCode: formatPostalCode(postalCode) }
+  }
 }));
 
 app.get('/buscar', async (req, res, next) => {
   try {
     const ean = assertValidEan(req.query.ean);
-    const result = await searchFresh(ean, await selectedSites());
+    const result = await searchFresh(ean);
     if (result.listingsCount === 0) {
       return res.status(404).json({
         error: 'Nenhum anúncio foi encontrado para este EAN.',
@@ -143,13 +128,12 @@ app.post('/buscar/lote', async (req, res, next) => {
     }
 
     const eans = [...new Set(input.map(normalizeEan))];
-    const sites = await selectedSites(req.body?.siteIds);
     const results = await mapWithConcurrency(eans, 5, async (ean) => {
       if (!isValidEan(ean)) {
         return { ean, error: 'EAN inválido. Informe somente de 8 a 14 dígitos.' };
       }
       try {
-        const result = await searchFresh(ean, sites);
+        const result = await searchFresh(ean);
         return result.listingsCount
           ? result
           : { ...result, error: 'Nenhum anúncio foi encontrado para este EAN.' };
@@ -171,15 +155,11 @@ app.post('/avaliar', async (req, res, next) => {
     if (!Array.isArray(listings) || listings.length > 200) return res.status(400).json({ error: 'Envie até 200 ofertas para avaliação.' });
     const product = await productCatalog.getProductByEan(ean);
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
-    const sites = demoMode ? [] : await Site.find({ active: true }).lean();
-    const { ownBrands: dynamicBrands = [] } = demoMode ? {} : await getSearchConfig();
-    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, dynamicBrands) }))
-      .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
-    const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
+    const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
     return res.json({
       productId: product._id,
-      listings: discovery.listings,
-      discoveredSites: discovery.discoveredSites
+      listings: listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
+        .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     });
   } catch (error) { return next(error); }
 });
