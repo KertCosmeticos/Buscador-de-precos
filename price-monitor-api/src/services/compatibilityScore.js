@@ -45,7 +45,12 @@ function calculateCompatibility(product, listing, ownBrands = []) {
   const productOwnText = normalizeText(`${product.name || ''} ${product.family || ''}`);
   if (brandPattern.test(productOwnText) && !brandPattern.test(titleText)) add(-50, 'Marca própria ausente no título');
   if (brandPattern.test(productOwnText) && brandPattern.test(text)) add(30, 'Marca própria');
-  if (product.family && includesTerm(text, product.family)) add(25, 'Linha correta');
+  if (product.family) {
+    let familyTokens = tokenize(product.family);
+    // "mais" é conector opcional nas linhas "muito-*": "Muito+Liso" ≡ "Muito Mais Liso"
+    if (familyTokens.includes('muito')) familyTokens = familyTokens.filter((t) => t !== 'mais');
+    if (familyTokens.length && familyTokens.every((token) => text.includes(token))) add(25, 'Linha correta');
+  }
   if (product.volume && includesTerm(text, product.volume)) add(10, 'Volume correto');
 
   const required = product.tokens?.length ? product.tokens.slice(0, 3) : tokenize(product.name).slice(0, 3);

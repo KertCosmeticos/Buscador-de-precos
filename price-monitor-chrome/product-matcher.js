@@ -46,8 +46,8 @@
     { id: 'hard-color', detect: /hard\s+colors?/i, anchors: ['hard'] },
     { id: 'shine-mask', detect: /shine\s+mask/i, anchors: ['shine'] },
     { id: 'men', detect: /\bkeraton\s+men\b/i, anchors: ['men'] },
-    { id: 'muito-liso', detect: /muito\s*\+?\s*liso/i, anchors: ['muito', 'liso'] },
-    { id: 'muito-cachos', detect: /muito\s*\+?\s*cachos/i, anchors: ['muito', 'cachos'] },
+    { id: 'muito-liso', detect: /muito\s*(?:\+|mais\s*\+?)?\s*liso/i, anchors: ['muito', 'liso'] },
+    { id: 'muito-cachos', detect: /muito\s*(?:\+|mais\s*\+?)?\s*cachos/i, anchors: ['muito', 'cachos'] },
     { id: 'uso-essencial', detect: /uso\s+essencial/i, anchors: ['essencial'] },
     { id: 'desmaia-fio', detect: /desmaia\s+fio/i, anchors: ['desmaia', 'fio'] },
     { id: 'keragen-evolution', detect: /keragen\s+evolution/i, anchors: ['keragen', 'evolution'] },
@@ -105,6 +105,8 @@
       'color', 'colors', 'keraton', 'kert', 'phytogen', 'keragen', 'n',
       volume, shadeCode
     ]);
+    // "mais" é conector nas linhas "muito-*" (ex: "Muito+Liso" = "Muito Mais Liso")
+    if (line?.id?.startsWith('muito-')) excluded.add('mais');
     const remaining = nameTokens.filter((token) => !excluded.has(token) && !volumePattern.test(token));
     const variants = isColorProduct && !shadeCode ? [...new Set(remaining)] : [];
     const identity = isColorProduct ? [] : [...new Set(remaining.filter((token) => token.length >= 3))];
