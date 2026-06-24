@@ -51,7 +51,19 @@ async function searchGoogle(query, product, mode = 'web') {
   try {
     await navigateTab(tab.id, `https://www.google.com/search?${parameters}`);
     await delay(mode === 'shopping' ? 2600 : 1600);
-    const result = await sendToTab(tab.id, 'EXTRACT_GOOGLE_RESULTS', { product });
+    let result;
+    try {
+      result = await sendToTab(tab.id, 'EXTRACT_GOOGLE_RESULTS', { product });
+    } catch (sendError) {
+      const currentTab = await chrome.tabs.get(tab.id).catch(() => null);
+      const currentUrl = currentTab?.url || '';
+      if (/\/sorry\/|consent\.google|\/recaptcha/i.test(currentUrl)) {
+        keepOpen = true;
+        await chrome.tabs.update(tab.id, { active: true });
+        throw new Error('O Google solicitou verificação. Resolva o CAPTCHA na aba aberta e repita a busca.');
+      }
+      throw sendError;
+    }
     if (result?.captcha) {
       keepOpen = true;
       await chrome.tabs.update(tab.id, { active: true });
@@ -154,12 +166,18 @@ async function runSearch(port, message) {
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
     ];
 
+    let googleBlocked = false;
     for (const step of steps) {
       safePost(port, {
         type: 'BROWSER_SEARCH_PROGRESS', requestId,
         completed: completedSteps, total: totalSteps,
         message: `Pesquisando ${label} em ${step.name}…`
       });
+      if (googleBlocked) {
+        sources.push({ name: step.name, status: 'skipped', count: 0, error: 'Google bloqueado por CAPTCHA' });
+        completedSteps += 1;
+        continue;
+      }
       try {
         const found = step.query
           ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
@@ -172,7 +190,7 @@ async function runSearch(port, message) {
         sources.push({ name: step.name, status: 'ok', count: selected.length });
       } catch (error) {
         sources.push({ name: step.name, status: 'error', count: 0, error: error.message });
-        if (/CAPTCHA|verificação/i.test(error.message)) throw error;
+        if (/CAPTCHA|verificação/i.test(error.message)) googleBlocked = true;
       }
       completedSteps += 1;
     }
