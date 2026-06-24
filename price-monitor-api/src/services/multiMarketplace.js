@@ -1,5 +1,5 @@
 const { searchByEan } = require('./mercadoLivre');
-const { searchGoogleShopping } = require('./serpApi');
+const { searchGoogleShopping, isRelevantOffer } = require('./serpApi');
 
 function deduplicate(listings) {
   const results = [];
@@ -52,7 +52,10 @@ async function searchAllMarketplaces(ean, productName = '', sites = []) {
   const domains = [...new Set(sites.map(searchableSiteDomain).filter(Boolean))];
   const mercadoLivreSelected = !sites.length || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
   const connectors = [
-    { name: 'Mercado Livre', enabled: mercadoLivreSelected, search: () => searchByEan(ean) },
+    { name: 'Mercado Livre', enabled: mercadoLivreSelected, search: async () => {
+      const items = await searchByEan(ean);
+      return productName ? items.filter((item) => isRelevantOffer(item.title, productName)) : items;
+    } },
     { name: sites.length ? 'Sites selecionados via Google' : 'Google Shopping e Web', enabled: Boolean(process.env.SERPAPI_KEY) && (!sites.length || domains.length > 0), search: () => searchGoogleShopping(ean, productName, { domains }) }
   ].filter((connector) => connector.enabled);
 

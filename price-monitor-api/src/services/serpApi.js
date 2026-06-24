@@ -57,10 +57,12 @@ function isRelevantOffer(title, productName) {
   const expected = searchTokens(productName);
   const received = searchTokens(title);
   const expectedBrands = expected.filter((token) => trustedBrands.has(token));
-  const receivedHasExpectedBrand = expectedBrands.length
-    ? expectedBrands.some((brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert')))
-    : received.some((token) => trustedBrands.has(token));
-  if (!receivedHasExpectedBrand) return false;
+  if (expectedBrands.length) {
+    const receivedHasExpectedBrand = expectedBrands.some(
+      (brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert'))
+    );
+    if (!receivedHasExpectedBrand) return false;
+  }
 
   const distinctive = expected.filter((token) => !trustedBrands.has(token) && !genericProductWords.has(token));
   if (!distinctive.length) return true;

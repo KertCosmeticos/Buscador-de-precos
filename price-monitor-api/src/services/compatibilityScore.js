@@ -41,7 +41,9 @@ function calculateCompatibility(product, listing, ownBrands = []) {
   if (COMPETITOR_PATTERN.test(titleText)) add(-100, 'Marca concorrente no título');
 
   if (product.ean && text.includes(product.ean)) add(100, 'EAN encontrado');
-  if (buildBrandPattern(ownBrands).test(text)) add(30, 'Marca própria');
+  const brandPattern = buildBrandPattern(ownBrands);
+  const productOwnText = normalizeText(`${product.name || ''} ${product.family || ''}`);
+  if (brandPattern.test(productOwnText) && brandPattern.test(text)) add(30, 'Marca própria');
   if (product.family && includesTerm(text, product.family)) add(25, 'Linha correta');
   if (product.volume && includesTerm(text, product.volume)) add(10, 'Volume correto');
 
