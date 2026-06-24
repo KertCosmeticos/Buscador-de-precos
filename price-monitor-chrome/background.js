@@ -1,4 +1,4 @@
-importScripts('product-matcher.js');
+import './product-matcher.js';
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
