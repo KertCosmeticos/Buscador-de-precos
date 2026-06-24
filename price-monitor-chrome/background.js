@@ -6,9 +6,10 @@ const ProductMatcher = (() => {
     'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
     'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
     'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
-    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
-    'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
-    'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama'
+    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'natura', 'nature',
+    'naturе', 'niely', 'nivea', 'novex', 'nutriex', 'pantene', 'redken', 'revlon',
+    'salon', 'salonline', 'schwarzkopf', 'seda', 'skala', 'softcolor', 'truss',
+    'tresemme', 'wella', 'yama'
   ]);
   const fillerWords = new Set([
     'a', 'as', 'com', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os',
@@ -137,13 +138,8 @@ const ProductMatcher = (() => {
     if (profile.type && !profile.type.alternatives.some((alternative) => containsSequence(received, alternative))) {
       return { relevant: false, reason: `Tipo incompativel com ${profile.type.id}.` };
     }
-    if (profile.line) {
-      const allAnchors = containsSequence(received, profile.line.anchors);
-      const ownBrandInListing = received.some((t) => ownBrands.has(t));
-      const anyAnchor = profile.line.anchors.some((a) => received.some((t) => tokenMatches(a, t)));
-      if (!allAnchors && !(ownBrandInListing && anyAnchor)) {
-        return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
-      }
+    if (profile.line && !profile.line.anchors.some((anchor) => received.some((token) => tokenMatches(anchor, token)))) {
+      return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
     }
     if (profile.identity.length) {
       const matched = profile.identity.filter((expected) => received.some((token) => tokenMatches(expected, token)));
@@ -346,7 +342,7 @@ async function runSearch(port, message) {
     const label = product.name || product.ean;
     const semantic = ProductMatcher.buildSemanticQuery(product);
     const domains = [...new Set(sites.map(siteDomain).filter(Boolean))];
-    const siteClause = domains.length ? `(${domains.map((domain) => `site:${domain}`).join(' OR ')})` : '';
+    const siteClause = domains.length ? `(${domains.slice(0, 8).map((domain) => `site:${domain}`).join(' OR ')})` : '';
     const steps = sites.length ? [
       { name: 'Sites por EAN', query: `${product.ean} ${siteClause}`, mode: 'web', exactEan: true },
       { name: 'Sites por nome', query: `"${product.name || product.ean}" ${siteClause}`, mode: 'web' },

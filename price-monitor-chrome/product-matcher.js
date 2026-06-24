@@ -9,9 +9,10 @@
     'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
     'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
     'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
-    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
-    'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
-    'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama'
+    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'natura', 'nature',
+    'naturе', 'niely', 'nivea', 'novex', 'nutriex', 'pantene', 'redken', 'revlon',
+    'salon', 'salonline', 'schwarzkopf', 'seda', 'skala', 'softcolor', 'truss',
+    'tresemme', 'wella', 'yama'
   ]);
   const fillerWords = new Set([
     'a', 'as', 'com', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'o', 'os',
@@ -142,13 +143,8 @@
     if (profile.type && !profile.type.alternatives.some((alternative) => containsSequence(received, alternative))) {
       return { relevant: false, reason: `Tipo incompatível com ${profile.type.id}.` };
     }
-    if (profile.line) {
-      const allAnchors = containsSequence(received, profile.line.anchors);
-      const ownBrandInListing = received.some((t) => ownBrands.has(t));
-      const anyAnchor = profile.line.anchors.some((a) => received.some((t) => tokenMatches(a, t)));
-      if (!allAnchors && !(ownBrandInListing && anyAnchor)) {
-        return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
-      }
+    if (profile.line && !profile.line.anchors.some((anchor) => received.some((token) => tokenMatches(anchor, token)))) {
+      return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
     }
 
     if (profile.identity.length) {
