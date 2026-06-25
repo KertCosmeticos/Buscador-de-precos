@@ -112,8 +112,12 @@
     return { name, category, family, brands, type, line, shadeCode, volume, isColorProduct, variants, identity };
   }
 
+  const competitorPhrases = [/\bmeu\s+liso\b/i];
+
   function hasCompetingBrand(received) {
-    return received.some((token) => competitorBrands.has(token));
+    if (received.some((token) => competitorBrands.has(token))) return true;
+    const joined = received.join(' ');
+    return competitorPhrases.some((pattern) => pattern.test(joined));
   }
 
   function matchesOffer(text, link, product = {}) {
@@ -179,5 +183,20 @@
     return [...decisive.map((term) => `"${term}"`), typeQuery].filter(Boolean).join(' ');
   }
 
-  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
+  function buildMarketplaceQuery(product) {
+    const profile = buildProfile(product);
+    const canonicalType = profile.type?.alternatives?.[0]?.join(' ') || '';
+    const volume = profile.volume || normalize(product.volume || product.grammage || '');
+    const identity = profile.isColorProduct ? profile.variants : profile.identity.slice(0, 4);
+    return [...new Set([
+      ...profile.brands,
+      canonicalType,
+      ...(profile.line?.anchors || []),
+      profile.shadeCode,
+      ...identity,
+      volume
+    ].filter(Boolean))].join(' ');
+  }
+
+  return { buildProfile, buildSemanticQuery, buildMarketplaceQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
 }));

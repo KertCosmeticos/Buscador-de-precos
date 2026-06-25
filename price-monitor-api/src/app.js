@@ -84,6 +84,7 @@ async function searchFresh(ean, sites = []) {
   const scoredListings = product
     ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
       .filter((listing) => !listing.rejectedByLearning)
+      .filter((listing) => listing.status !== 'Ignorar')
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
   const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
@@ -187,6 +188,7 @@ app.post('/avaliar', async (req, res, next) => {
     const sites = demoMode ? [] : await Site.find({ active: true }).lean();
     const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
       .filter((listing) => !listing.rejectedByLearning)
+      .filter((listing) => listing.status !== 'Ignorar')
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
     const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
     if (!demoMode && discovery.listings.length) {

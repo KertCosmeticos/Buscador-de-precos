@@ -1,5 +1,18 @@
 const { normalizeText, tokenize } = require('../utils/text');
 
+const COMPETITOR_PATTERN = new RegExp(
+  '\\b(?:' + [
+    'acquaflora', 'alfaparf', 'amend', 'anaconda', 'beautycolor', 'biocolor',
+    'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
+    'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
+    'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
+    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
+    'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
+    'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama',
+    'meu\\s+liso'
+  ].join('|') + ')\\b', 'i'
+);
+
 function includesTerm(text, term) {
   const normalized = normalizeText(term);
   return normalized && text.includes(normalized);
@@ -17,6 +30,9 @@ function calculateCompatibility(product, listing, learning = {}) {
   const reasons = [];
   let score = 0;
   const add = (points, reason) => { score += points; reasons.push({ points, reason }); };
+
+  const titleText = normalizeText(listing.title || '');
+  if (COMPETITOR_PATTERN.test(titleText)) add(-100, 'Marca concorrente no título');
 
   if (product.ean && text.includes(product.ean)) add(100, 'EAN encontrado');
   if (/\b(?:keraton|kert)\b/.test(text)) add(30, 'Marca Keraton/Kert');

@@ -108,8 +108,12 @@ const ProductMatcher = (() => {
     return { name, category, family, brands, type, line, shadeCode, volume, isColorProduct, variants, identity };
   }
 
+  const competitorPhrases = [/\bmeu\s+liso\b/i];
+
   function hasCompetingBrand(received) {
-    return received.some((token) => competitorBrands.has(token));
+    if (received.some((token) => competitorBrands.has(token))) return true;
+    const joined = received.join(' ');
+    return competitorPhrases.some((pattern) => pattern.test(joined));
   }
 
   function matchesOffer(text, link, product = {}) {
@@ -175,7 +179,22 @@ const ProductMatcher = (() => {
     return [...decisive.map((term) => `"${term}"`), typeQuery].filter(Boolean).join(' ');
   }
 
-  return { buildProfile, buildSemanticQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
+  function buildMarketplaceQuery(product) {
+    const profile = buildProfile(product);
+    const canonicalType = profile.type?.alternatives?.[0]?.join(' ') || '';
+    const volume = profile.volume || normalize(product.volume || product.grammage || '');
+    const identity = profile.isColorProduct ? profile.variants : profile.identity.slice(0, 4);
+    return [...new Set([
+      ...profile.brands,
+      canonicalType,
+      ...(profile.line?.anchors || []),
+      profile.shadeCode,
+      ...identity,
+      volume
+    ].filter(Boolean))].join(' ');
+  }
+
+  return { buildProfile, buildSemanticQuery, buildMarketplaceQuery, matchesOffer, linkMatchesProduct, normalize, tokenize };
 })();
 
 function delay(milliseconds) {
@@ -290,9 +309,33 @@ function deduplicate(listings) {
   return [...byLink.values()];
 }
 
+function siteDomain(site) {
+  try {
+    const domain = new URL(site.searchUrl || site.baseUrl).hostname.replace(/^www\./, '').toLowerCase();
+    const expected = [
+      { name: /mercado\s*livre/i, domain: 'mercadolivre.com.br' },
+      { name: /amazon/i, domain: 'amazon.com.br' },
+      { name: /shopee/i, domain: 'shopee.com.br' }
+    ].find((rule) => rule.name.test(site.name || ''));
+    return expected && !domain.endsWith(expected.domain) ? '' : domain;
+  } catch { return ''; }
+}
+
+function listingMatchesSites(listing, sites) {
+  if (!sites.length) return true;
+  try {
+    const hostname = new URL(listing.link).hostname.replace(/^www\./, '').toLowerCase();
+    return sites.some((site) => {
+      const domain = siteDomain(site);
+      return domain && (hostname === domain || hostname.endsWith(`.${domain}`));
+    });
+  } catch { return false; }
+}
+
 async function runSearch(port, message) {
   const requestId = message.requestId;
   const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
+  const sites = Array.isArray(message.sites) ? message.sites.slice(0, 20) : [];
   if (!products.length) throw new Error('Nenhum produto valido foi enviado a extensao.');
 
   const totalSteps = products.length * 5;
@@ -303,11 +346,18 @@ async function runSearch(port, message) {
     const listings = [];
     const sources = [];
     const label = product.name || product.ean;
-    const semMarca = nameWithoutBrand(product);
-    const steps = [
+    const semantic = ProductMatcher.buildSemanticQuery(product);
+    const domains = [...new Set(sites.map(siteDomain).filter(Boolean))];
+    const siteClause = domains.length ? `(${domains.map((domain) => `site:${domain}`).join(' OR ')})` : '';
+    const steps = sites.length ? [
+      { name: 'Sites por EAN', query: `${product.ean} ${siteClause}`, mode: 'web', exactEan: true },
+      { name: 'Sites por nome', query: `"${product.name || product.ean}" ${siteClause}`, mode: 'web' },
+      { name: 'Sites por semantica', query: `${semantic || product.name || product.ean} ${siteClause}`, mode: 'web' },
+      { name: 'Descoberta Google Shopping', query: product.name || product.ean, mode: 'shopping', discovery: true }
+    ] : [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
-      { name: 'Google Sem Marca', query: semMarca || product.name || product.ean, mode: 'web' },
+      { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
     ];
 
@@ -321,8 +371,12 @@ async function runSearch(port, message) {
         const found = step.query
           ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
           : [];
-        listings.push(...found);
-        sources.push({ name: step.name, status: 'ok', count: found.length });
+        const selected = sites.length
+          ? found.filter((listing) => step.discovery || listingMatchesSites(listing, sites))
+            .map((listing) => step.discovery && !listingMatchesSites(listing, sites) ? { ...listing, discoveryCandidate: true } : listing)
+          : found;
+        listings.push(...selected);
+        sources.push({ name: step.name, status: 'ok', count: selected.length });
       } catch (error) {
         sources.push({ name: step.name, status: 'error', count: 0, error: error.message });
         if (/CAPTCHA|verificacao/i.test(error.message)) throw error;
@@ -335,14 +389,17 @@ async function runSearch(port, message) {
       completed: completedSteps, total: totalSteps,
       message: `Pesquisando ${label} no Mercado Livre...`
     });
-    try {
-      const mlQuery = product.ean || product.name;
-      const mlProduct = product.ean ? { ...product, searchMode: 'ean' } : product;
-      const found = await searchMercadoLivre(mlProduct, mlQuery);
-      listings.push(...found);
-      sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
-    } catch (error) {
-      sources.push({ name: 'Mercado Livre', status: 'error', count: 0, error: error.message });
+    const mercadoLivreEnabled = !sites.length || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
+    if (mercadoLivreEnabled) {
+      try {
+        const found = await searchMercadoLivre(product, ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean);
+        listings.push(...found);
+        sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
+      } catch (error) {
+        sources.push({ name: 'Mercado Livre', status: 'error', count: 0, error: error.message });
+      }
+    } else {
+      sources.push({ name: 'Mercado Livre', status: 'skipped', count: 0 });
     }
     completedSteps += 1;
     results.push({ ean: product.ean, listings: deduplicate(listings), sources });
