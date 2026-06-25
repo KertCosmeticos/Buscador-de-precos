@@ -205,7 +205,7 @@ function safePost(port, message) {
   try { port.postMessage(message); } catch { /* painel fechado */ }
 }
 
-function waitForTab(tabId, timeout = 30000) {
+function waitForTab(tabId, timeout = 45000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
@@ -224,20 +224,46 @@ function waitForTab(tabId, timeout = 30000) {
 async function navigateTab(tabId, url) {
   const loaded = waitForTab(tabId);
   await chrome.tabs.update(tabId, { url });
-  await loaded;
+  await loaded.catch(async () => {
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab?.url || tab.url === 'about:blank') throw new Error('A pagina demorou demais para carregar.');
+  });
 }
 
 async function sendToTab(tabId, type, payload = {}) {
   let lastError;
+  let injected = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       return await chrome.tabs.sendMessage(tabId, { type, ...payload });
     } catch (error) {
       lastError = error;
+      if (!injected && /Receiving end does not exist|Could not establish connection/i.test(error.message || '')) {
+        injected = await injectExtractor(tabId);
+      }
       await delay(700);
     }
   }
   throw lastError || new Error('Nao foi possivel ler a pagina de pesquisa.');
+}
+
+async function injectExtractor(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const url = new URL(tab.url || '');
+    let files = [];
+    if (/(^|\.)google\.com(?:\.br)?$/.test(url.hostname) && url.pathname.startsWith('/search')) {
+      files = ['product-matcher.js', 'google-extractor.js'];
+    } else if (/(^|\.)mercadolivre\.com\.br$/.test(url.hostname)) {
+      files = ['product-matcher.js', 'mercadolivre-extractor.js'];
+    }
+    if (!files.length) return false;
+    await chrome.scripting.executeScript({ target: { tabId }, files });
+    await delay(300);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function searchGoogle(query, product, mode = 'web') {

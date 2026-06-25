@@ -3,7 +3,7 @@
   "name": "Buscador de Preços Kert",
   "version": "4.0.0",
   "description": "Pesquisa preços no Google Web, Google Shopping e Mercado Livre usando a sessão local do Chrome.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "scripting"],
   "host_permissions": [
     "https://www.google.com/*",
     "https://www.google.com.br/*",
