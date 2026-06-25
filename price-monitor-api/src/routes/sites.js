@@ -8,11 +8,13 @@ const demoSites = [];
 const isDemo = () => process.env.DEMO_MODE === 'true';
 
 function validateSite(body) {
+  let inferredBaseUrl = '';
+  try { inferredBaseUrl = new URL(body.searchUrl || body.baseUrl || '').origin; } catch {}
   const site = {
     name: String(body.name || '').trim(),
-    baseUrl: String(body.baseUrl || '').trim(),
+    baseUrl: String(body.baseUrl || inferredBaseUrl).trim(),
     searchUrl: String(body.searchUrl || '').trim(),
-    type: String(body.type || '').trim(),
+    type: String(body.type || 'perfumaria').trim(),
     acceptsEan: body.acceptsEan !== false,
     acceptsName: body.acceptsName !== false,
     requiresPlaywright: body.requiresPlaywright === true,
@@ -41,6 +43,29 @@ router.post('/', requireAdmin, async (req, res, next) => {
       return res.status(201).json(site);
     }
     return res.status(201).json(await Site.create(input));
+  } catch (error) { return next(error); }
+});
+router.post('/importar', requireAdmin, async (req, res, next) => {
+  try {
+    const input = Array.isArray(req.body) ? req.body : req.body?.sites;
+    if (!Array.isArray(input) || !input.length) return res.status(400).json({ error: 'Envie uma lista de sites.' });
+    if (input.length > 500) return res.status(400).json({ error: 'O limite é de 500 sites por importação.' });
+
+    let created = 0;
+    let updated = 0;
+    for (const item of input) {
+      const site = validateSite(item);
+      if (isDemo()) {
+        const index = demoSites.findIndex((current) => current.name.toLocaleLowerCase('pt-BR') === site.name.toLocaleLowerCase('pt-BR'));
+        if (index >= 0) { demoSites[index] = { ...demoSites[index], ...site }; updated += 1; }
+        else { demoSites.push({ _id: `demo-site-${Date.now()}-${created}`, ...site }); created += 1; }
+        continue;
+      }
+      const existing = await Site.findOne({ name: site.name }).lean();
+      await Site.updateOne({ name: site.name }, { $set: site }, { upsert: true });
+      existing ? updated += 1 : created += 1;
+    }
+    return res.json({ created, updated });
   } catch (error) { return next(error); }
 });
 router.put('/:id', requireAdmin, async (req, res, next) => {

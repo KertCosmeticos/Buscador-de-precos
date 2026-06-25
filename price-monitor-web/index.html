@@ -35,6 +35,8 @@
             <h2>Consultar produtos</h2>
           </div>
         </div>
+        <label for="quick-product-search">Consultar por seleção</label>
+        <input id="quick-product-search" placeholder="Digite o EAN, Nome, Categoria ou Família" autocomplete="off">
         <div class="catalog-picker">
           <div class="subheading"><div><h3>Consultar produtos</h3><p>Digite o produto.</p></div><span id="selected-count">0 selecionado(s)</span></div>
           <div class="filter-grid">
@@ -46,7 +48,14 @@
           <div id="product-picker-list" class="product-picker-list"><p>Carregando catálogo…</p></div>
         </div>
         <div class="search-source-card">
-          <strong>Extensão do Chrome</strong>
+          <div>
+            <strong>Fonte da pesquisa</strong>
+            <p>Use o Chrome para pesquisar como cliente ou a API online como alternativa.</p>
+          </div>
+          <div class="search-source-options">
+            <label class="source-option"><input type="radio" name="search-source" value="browser" checked> Chrome local <span class="recommended">Mais resultados</span></label>
+            <label class="source-option"><input type="radio" name="search-source" value="api"> API online <span>Busca em lote</span></label>
+          </div>
           <div id="browser-extension-status" class="extension-status unavailable">Extensão do Chrome não detectada.</div>
           <details class="extension-help">
             <summary>Como instalar a extensão</summary>

@@ -447,7 +447,8 @@ function updateSelectedCount() {
 }
 
 function hasActiveProductFilter() {
-  return selectedNames.size > 0
+  return Boolean(byId('quick-product-search').value.trim())
+    || selectedNames.size > 0
     || selectedCategories.size > 0
     || selectedFamilies.size > 0;
 }
@@ -487,21 +488,20 @@ function renderProductPicker() {
 }
 
 async function loadPickerProducts() {
+  const search = byId('quick-product-search').value.trim().toLocaleLowerCase('pt-BR');
   if (!hasActiveProductFilter()) {
     catalogProducts = [];
-    selectedProductEans.clear();
     renderProductPicker();
     return;
   }
-  catalogProducts = allCatalogProducts.filter((product) =>
-    (!selectedNames.size || selectedNames.has(product.name))
-    && (!selectedCategories.size || selectedCategories.has(product.category))
-    && (!selectedFamilies.size || selectedFamilies.has(product.family))
-  );
-  const visibleEans = new Set(catalogProducts.map((p) => p.ean));
-  for (const ean of selectedProductEans) {
-    if (!visibleEans.has(ean)) selectedProductEans.delete(ean);
-  }
+  catalogProducts = allCatalogProducts.filter((product) => {
+    const matchesSearch = !search || [product.ean, product.sku, product.name, product.category, product.family]
+      .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(search));
+    return matchesSearch
+      && (!selectedNames.size || selectedNames.has(product.name))
+      && (!selectedCategories.size || selectedCategories.has(product.category))
+      && (!selectedFamilies.size || selectedFamilies.has(product.family));
+  });
   renderProductPicker();
 }
 
@@ -785,9 +785,11 @@ async function loadSites() {
 }
 
 byId('search-button').addEventListener('click', async () => {
-  const eans = [...selectedProductEans];
+  const typedValue = byId('quick-product-search').value.trim();
+  const typedEans = /^\d{8,14}$/.test(typedValue) ? [typedValue] : [];
+  const eans = [...new Set([...typedEans, ...selectedProductEans])];
   if (!eans.length) {
-    setMessage(byId('search-message'), 'Selecione pelo menos um produto para consultar.', 'error');
+    setMessage(byId('search-message'), 'Selecione pelo menos um produto ou digite um EAN valido.', 'error');
     return;
   }
   if (!allSites.length) {
@@ -796,6 +798,7 @@ byId('search-button').addEventListener('click', async () => {
   }
 
   const button = byId('search-button');
+  const searchSource = document.querySelector('input[name="search-source"]:checked')?.value || 'browser';
   const products = eans.map((ean) => {
     const catalogProduct = allCatalogProducts.find((product) => product.ean === ean);
     return {
@@ -809,9 +812,18 @@ byId('search-button').addEventListener('click', async () => {
   const sites = allSites;
   setLoading(button, true);
   byId('search-progress').hidden = true;
-  setMessage(byId('search-message'), 'Preparando pesquisa no Chrome…');
+  setMessage(byId('search-message'), searchSource === 'browser' ? 'Preparando pesquisa no Chrome...' : 'Consultando API online...');
   try {
-    currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
+    if (searchSource === 'browser') {
+      currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
+    } else {
+      const data = await request('/buscar/lote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eans })
+      });
+      currentResults = data.results || [];
+    }
     renderResults(currentResults);
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
@@ -820,19 +832,20 @@ byId('search-button').addEventListener('click', async () => {
     const failedSources = sourceDiagnostics.filter((source) => source.status === 'error').length;
     const errorGroups = new Map();
     sourceDiagnostics.filter((source) => source.status === 'error').forEach((source) => {
-      const reason = source.error || 'Erro não identificado';
+      const reason = source.error || 'Erro nao identificado';
       errorGroups.set(reason, (errorGroups.get(reason) || 0) + 1);
     });
     const mainErrors = [...errorGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
-      .map(([reason, count]) => `${count}× ${reason}`).join(' | ');
+      .map(([reason, count]) => `${count}x ${reason}`).join(' | ');
     const diagnosticText = sourceDiagnostics.length
-      ? ` ${sourcesWithOffers} fonte(s) com oferta e ${failedSources} com erro técnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
+      ? ` ${sourcesWithOffers} fonte(s) com oferta e ${failedSources} com erro tecnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
       : '';
+    const sourceLabel = searchSource === 'browser' ? 'pelo Chrome' : 'pela API online';
     setMessage(
       byId('search-message'),
       errors
-        ? `Busca concluída com ${errors} item(ns) sem resultado.${diagnosticText}`
-        : `Busca concluída com sucesso pelo Chrome.${diagnosticText}`,
+        ? `Busca concluida com ${errors} item(ns) sem resultado.${diagnosticText}`
+        : `Busca concluida com sucesso ${sourceLabel}.${diagnosticText}`,
       errors ? 'error' : 'success'
     );
   } catch (error) {
@@ -841,7 +854,6 @@ byId('search-button').addEventListener('click', async () => {
     setLoading(button, false);
   }
 });
-
 function csvCell(value) {
   return `"${String(value ?? '').replaceAll('"', '""')}"`;
 }
@@ -858,6 +870,14 @@ byId('export-button').addEventListener('click', () => {
   link.download = `price-monitor-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(link.href);
+});
+
+let catalogSearchTimer;
+byId('quick-product-search').addEventListener('input', () => {
+  clearTimeout(catalogSearchTimer);
+  catalogSearchTimer = setTimeout(() => loadPickerProducts().catch((error) => {
+    byId('product-picker-list').textContent = error.message;
+  }), 250);
 });
 
 Object.entries(filterDefinitions).forEach(([type, definition]) => {
