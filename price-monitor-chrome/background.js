@@ -310,6 +310,14 @@ function nameWithoutBrand(product) {
     .trim();
 }
 
+function queryVariants(query) {
+  const normalized = ProductMatcher.normalize(query);
+  if (!normalized) return [];
+  const expandedType = normalized.replace(/\bsh\b/g, 'shampoo');
+  const expandedLine = expandedType.replace(/\bmuito\s+liso\b/g, 'muito mais liso');
+  return [...new Set([normalized, expandedType, expandedLine])];
+}
+
 function normalizeLink(value) {
   try {
     const url = new URL(value);
@@ -479,8 +487,7 @@ function siteSearchSteps(product, sites = []) {
   const domains = [...new Set([...sites.map(siteDomain).filter(Boolean), ...priorityDomainGroups.flat()])];
   const baseQuery = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
   if (!baseQuery || !domains.length) return [];
-  const expandedQuery = baseQuery.replace(/\bmuito\s+liso\b/i, 'muito mais liso');
-  const queries = [...new Set([baseQuery, expandedQuery])];
+  const queries = queryVariants(baseQuery);
   return queries.flatMap((query, queryIndex) => domainGroups(domains, 4).slice(0, 4).map((group, index) => ({
     name: `Google Sites ${queryIndex + 1}.${index + 1}`,
     query: `${query} (${group.map((domain) => `site:${domain}`).join(' OR ')})`,
@@ -494,7 +501,12 @@ async function runSearch(port, message) {
   if (!products.length) throw new Error('Nenhum produto valido foi enviado a extensao.');
 
   const siteStepsByEan = new Map(products.map((product) => [product.ean, siteSearchSteps(product, message.sites || [])]));
-  const totalSteps = products.reduce((total, product) => total + 6 + (siteStepsByEan.get(product.ean)?.length || 0), 0);
+  const expandedQueriesByEan = new Map(products.map((product) => [
+    product.ean,
+    queryVariants(ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean)
+  ]));
+  const totalSteps = products.reduce((total, product) =>
+    total + 6 + (expandedQueriesByEan.get(product.ean)?.length || 0) + (siteStepsByEan.get(product.ean)?.length || 0), 0);
   let completedSteps = 0;
   const results = [];
 
@@ -503,10 +515,13 @@ async function runSearch(port, message) {
     const sources = [];
     const label = product.name || product.ean;
     const semantic = ProductMatcher.buildSemanticQuery(product);
+    const marketplace = ProductMatcher.buildMarketplaceQuery(product);
+    const expandedQueries = expandedQueriesByEan.get(product.ean) || [];
     const semMarca = nameWithoutBrand(product);
     const steps = [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
+      ...expandedQueries.map((query, index) => ({ name: `Google Expandido ${index + 1}`, query, mode: 'web' })),
       { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
       { name: 'Google Sem Marca', query: semMarca || product.name || product.ean, mode: 'web' },
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' },
@@ -539,7 +554,10 @@ async function runSearch(port, message) {
       message: `Pesquisando ${label} no Mercado Livre...`
     });
     try {
-      const found = await searchMercadoLivre(product, ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean);
+      const found = [];
+      for (const query of expandedQueries.length ? expandedQueries : [marketplace || product.name || product.ean]) {
+        found.push(...await searchMercadoLivre(product, query));
+      }
       listings.push(...found);
       sources.push({ name: 'Mercado Livre', status: 'ok', count: found.length });
     } catch (error) {

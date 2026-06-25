@@ -806,7 +806,9 @@ byId('search-button').addEventListener('click', async () => {
       name: catalogProduct?.name || '',
       sku: catalogProduct?.sku || '',
       category: catalogProduct?.category || '',
-      family: catalogProduct?.family || ''
+      family: catalogProduct?.family || '',
+      volume: catalogProduct?.volume || '',
+      searchTerm: catalogProduct?.searchTerm || ''
     };
   });
   const sites = allSites;
