@@ -1,5 +1,6 @@
 const { searchByEan } = require('./mercadoLivre');
 const { searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide } = require('./serpApi');
+const { searchRegisteredSites } = require('./siteSearch');
 
 function deduplicate(listings) {
   const results = [];
@@ -64,6 +65,11 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
       name: 'Mercado Livre',
       enabled: mercadoLivreSelected,
       search: () => searchByEan(ean, productName),
+    },
+    {
+      name: 'Sites cadastrados',
+      enabled: sites.length > 0,
+      search: () => searchRegisteredSites(ean, layered, sites),
     },
     {
       name: sites.length ? 'Sites selecionados via Google' : 'Google Shopping e Web',

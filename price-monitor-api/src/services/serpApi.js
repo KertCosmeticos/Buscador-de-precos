@@ -214,7 +214,8 @@ function productPageDataFromHtml(html, pageUrl) {
           return {
             price: details.price,
             directLink: details.directLink || absoluteUrl(product.url || '', pageUrl) || pageUrl,
-            isProductPage: true
+            isProductPage: true,
+            title: String(product.name || '').trim(),
           };
         }
       }
@@ -226,10 +227,12 @@ function productPageDataFromHtml(html, pageUrl) {
   let metaPrice = null;
   let productType = false;
   let canonical = '';
+  let titleFromMeta = '';
   for (const tag of String(html).match(/<(?:meta|link)\b[^>]*>/gi) || []) {
     const attributes = htmlAttributes(tag);
     const key = String(attributes.property || attributes.name || attributes.itemprop || '').toLowerCase();
     if (key === 'og:type' && String(attributes.content).toLowerCase().includes('product')) productType = true;
+    if (key === 'og:title' && attributes.content) titleFromMeta = String(attributes.content).trim();
     if (['product:price:amount', 'og:price:amount', 'price'].includes(key)) {
       const price = numberFromPrice(attributes.content);
       if (Number.isFinite(price)) metaPrice = price;
@@ -241,7 +244,8 @@ function productPageDataFromHtml(html, pageUrl) {
   return {
     price: metaPrice,
     directLink: canonical || pageUrl,
-    isProductPage: productType || Number.isFinite(metaPrice)
+    isProductPage: productType || Number.isFinite(metaPrice),
+    title: titleFromMeta,
   };
 }
 
@@ -449,7 +453,38 @@ async function searchGoogleWebWide(term) {
   } catch { return []; }
 }
 
+function slugTitle(url) {
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    return (parts.pop() || '').replace(/[-_.]/g, ' ').replace(/\s+/g, ' ').trim();
+  } catch { return ''; }
+}
+
+// Abre cada URL diretamente, extrai preço via JSON-LD/og:price e retorna listings.
+// Usado para monitorar URLs já validadas sem custo de API de busca.
+async function fetchDirectUrls(urls = []) {
+  if (!urls.length) return [];
+  const results = [];
+  await Promise.allSettled(
+    urls.map(async (url) => {
+      const page = await inspectProductPage(url);
+      if (!page || !Number.isFinite(page.price)) return;
+      let marketplace = '';
+      try { marketplace = new URL(url).hostname.replace(/^www\./, ''); } catch { /* skip */ }
+      results.push({
+        title: page.title || slugTitle(url),
+        price: page.price,
+        link: page.directLink || url,
+        marketplace,
+        source: 'knownUrl',
+      });
+    })
+  );
+  return results;
+}
+
 module.exports = {
   searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide,
   googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml, domainMatches,
+  fetchDirectUrls, inspectProductPage,
 };
