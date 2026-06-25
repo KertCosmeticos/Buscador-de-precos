@@ -1,7 +1,7 @@
 // v29bf11f
 const express = require('express');
 const cors = require('cors');
-const { searchAllMarketplaces } = require('./services/multiMarketplace');
+const { searchAllMarketplaces, deduplicate } = require('./services/multiMarketplace');
 const { demoSearch } = require('./services/demo');
 const { assertValidEan, normalizeEan, isValidEan } = require('./utils/validation');
 const { mapWithConcurrency } = require('./utils/limit');
@@ -16,6 +16,7 @@ const { generateSearchTerms, generateLayeredTerms } = require('./services/search
 const { postalCode, formatPostalCode } = require('./config/search');
 const Site = require('./models/Site');
 const { splitDiscoveredListings } = require('./services/siteDiscovery');
+const { fetchDirectUrls } = require('./services/serpApi');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -84,14 +85,24 @@ async function searchFresh(ean, sites = []) {
   const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
   const layeredTerms = product ? generateLayeredTerms(product, learning || {}) : null;
   const firstExactTerm = layeredTerms?.exact?.find((t) => t !== ean) || product?.name;
-  const search = demoMode
-    ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean, layeredTerms, sites);
+  const knownUrls = [
+    ...(product?.knownUrls || []),
+    ...(learning?.confirmedUrls || []),
+  ].filter(Boolean);
+
+  const [search, directListings] = await Promise.all([
+    demoMode
+      ? Promise.resolve({ listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] })
+      : searchAllMarketplaces(ean, layeredTerms, sites),
+    knownUrls.length && !demoMode ? fetchDirectUrls(knownUrls) : Promise.resolve([]),
+  ]);
+
+  const combinedListings = deduplicate([...directListings, ...search.listings]);
 
   // Pontua todos os resultados antes de qualquer filtro
   const allScored = product
-    ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
-    : search.listings;
+    ? combinedListings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
+    : combinedListings;
 
   // Discovery roda sobre TODOS os pontuados (inclui CandidatoFraco para detecção de sites)
   const discovery = await splitDiscoveredListings(allScored, sites, demoMode);
@@ -107,13 +118,23 @@ async function searchFresh(ean, sites = []) {
     const titles = [...new Set(priceListings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
     const addToSet = { confirmedAliases: { $each: titles } };
     if (firstExactTerm) addToSet.goodTerms = firstExactTerm;
+    const newConfirmedUrls = [...new Set(
+      priceListings
+        .filter((l) => l.status === 'Aprovado' && l.link && !knownUrls.includes(l.link))
+        .map((l) => l.link)
+    )];
+    if (newConfirmedUrls.length) addToSet.confirmedUrls = { $each: newConfirmedUrls };
     await ProductLearning.updateOne(
       { productId: product._id },
       { $setOnInsert: { productId: product._id }, $addToSet: addToSet },
       { upsert: true }
     );
   }
-  const result = summarize(ean, priceListings, search.sources);
+  const allSources = [
+    ...(directListings.length ? [{ name: 'URLs monitoradas', status: 'ok', count: directListings.length }] : []),
+    ...search.sources,
+  ];
+  const result = summarize(ean, priceListings, allSources);
   result.discoveredSites = discovery.discoveredSites;
   if (discovery.weakSites?.length) result.weakSites = discovery.weakSites;
   if (product) {
@@ -137,6 +158,7 @@ async function searchFresh(ean, sites = []) {
     result.debug = {
       collected: allScored.length,
       priced: allScored.filter((l) => Number.isFinite(l.price)).length,
+      directUrls: directListings.length,
       byStatus,
       rejectReasons,
     };
