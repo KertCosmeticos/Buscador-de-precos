@@ -93,20 +93,21 @@ test('Revisar: shampoo da marca mas linha ausente e palavras incompletas', () =>
   assert.ok(result.reasons.some(({ reason }) => /linha/i.test(reason)));
 });
 
-test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon sem lineBlockWords)', () => {
+test('linha interna Keraton conflitante é rejeitada (Hidratação ≠ Muito Liso)', () => {
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
     volume: '300ml',
     requiredWords: ['keraton', 'shampoo']
   };
-  // Tipo +30, Marca +35, Linha ausente -10 cap, Volume +15, Palavras +20, Amazon não trusted +0, Preço +10 = 100 → capped 89
+  // "hidratacao" está em INTERNAL_KERATON_LINES → trava absoluta
   const result = calculateCompatibility(muitoLiso, {
     title: 'Shampoo Hidratacao Keraton 300ml Preto',
     price: 35,
     link: 'https://www.amazon.com.br/dp/B09XYZ'
   });
-  assert.equal(result.status, 'Revisar');
+  assert.equal(result.status, 'Rejeitado');
+  assert.ok(result.reasons.some(({ reason }) => /linha keraton conflitante/i.test(reason)));
 });
 
 test('lineBlockWords penaliza fortemente linha interna suspeita (Amazon errado)', () => {

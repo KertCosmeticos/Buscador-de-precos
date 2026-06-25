@@ -29,6 +29,25 @@ const TYPE_PATTERNS = [
   { id: 'redutor-cor', pattern: /\b(?:redutor\s+de\s+cor|reduton|dye\s+remover)\b/i },
 ];
 
+// Linhas internas Keraton — detectadas no título com marca Keraton presente mas família errada.
+// Trava absoluta: rejeita sem penalidade parcial.
+const INTERNAL_KERATON_LINES = [
+  'mais hidratacao',
+  'mais hidratação',
+  'hidratacao',
+  'hidratação',
+  'mais forca',
+  'mais força',
+  'mais cor',
+  'nutri color',
+  'keragen',
+  'evolution',
+  'vermelho',
+  'preto',
+  'coloridos',
+  'mechas',
+];
+
 const LINE_PATTERNS = [
   { id: 'dual-block', pattern: /color\s+dual\s+block/i },
   { id: 'selfie-my-crush', pattern: /selfie\s+my\s+crush/i },
@@ -132,7 +151,8 @@ function calculateCompatibility(product, listing, learning = {}) {
   if (hasEan) add(120, 'EAN encontrado');
 
   // Marca própria
-  if (/\b(?:keraton|kert)\b/.test(text)) add(35, 'Marca Keraton/Kert');
+  const hasKeratonBrand = /\b(?:keraton|kert)\b/.test(text);
+  if (hasKeratonBrand) add(35, 'Marca Keraton/Kert');
 
   // Linha (family)
   if (product.family) {
@@ -140,11 +160,16 @@ function calculateCompatibility(product, listing, learning = {}) {
     if (familyFound) {
       add(60, 'Linha correta');
     } else {
-      // Linha conflitante: outra linha detectada → trava absoluta
+      // Linha conflitante via LINE_PATTERNS → trava absoluta
       const productLine = detectLine(normalizeText(product.family));
       const listingLine = detectLine(text);
       if (productLine && listingLine && productLine.id !== listingLine.id) {
         return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);
+      }
+      // Linha interna Keraton conflitante → trava absoluta (sem EAN confirmado)
+      if (!hasEan && hasKeratonBrand) {
+        const blockedLine = INTERNAL_KERATON_LINES.find((w) => includesTerm(titleText, w));
+        if (blockedLine) return rejected(`Linha Keraton conflitante: "${blockedLine}"`);
       }
       // Palavras que sugerem outra linha Keraton → penalidade forte + cap (não rejeita direto)
       if (!hasEan && product.lineBlockWords?.length) {
