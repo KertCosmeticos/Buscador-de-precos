@@ -9,7 +9,8 @@ const product = {
 
 test('pontua marca, linha, volume, palavras obrigatórias e preço', () => {
   const result = calculateCompatibility(product, { title: 'Tônico Keraton Antiqueda 140ml', price: 25.90 });
-  assert.equal(result.score, 125);
+  // Marca +35, Linha +60, Volume +15, Palavras +20, Preço +10 = 140
+  assert.equal(result.score, 140);
   assert.equal(result.status, 'Aprovado');
 });
 
@@ -61,27 +62,69 @@ test('rejeita MyPhios como marca concorrente', () => {
   assert.ok(result.reasons.some(({ reason }) => /Marca concorrente/i.test(reason)));
 });
 
-test('classifica como CandidatoFraco quando tem marca mas falta identidade', () => {
-  // só marca + preço = 40+10 = 50... precisa de menos pontos para CandidatoFraco
-  // marca + preço - palavras ausentes = 40+10-30 = 20... ainda Rejeitado
-  // marca + linha + preço = 40+35+10 = 85 → Revisar, não CandidatoFraco
-  // Simula listing apenas com marca e preço, sem linha/volume/palavras:
+test('rejeita quando só tem marca e palavras ausentes', () => {
+  // Marca +35, Linha ausente -20 cap, Palavras ausentes -30, Preço +10 = -5 → Rejeitado
   const simple = { name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml', requiredWords: ['keraton', 'antiqueda'] };
   const result = calculateCompatibility(simple, { title: 'Keraton cosmeticos', price: 30 });
-  // marca(+40) + preço(+10) - palavras ausentes(-30) = 20 → Rejeitado
-  // Mas palavras=['keraton','antiqueda'], 'keraton' encontrado, 'antiqueda' não → não é TODOS encontrados
-  // Então: -30 por palavras ausentes
-  // score = 40+10-30 = 20 → Rejeitado
   assert.equal(result.status, 'Rejeitado');
 });
 
-test('CandidatoFraco: marca + linha parcial sem volume', () => {
+test('Aprovado: marca e linha corretas sem volume', () => {
   const simple = { name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml' };
-  // Sem requiredWords → auto-gera ['keraton', 'antiqueda']
+  // Marca +35, Linha +60, Palavras +20, Preço +10 = 125 → Aprovado (sem volume no título)
   const result = calculateCompatibility(simple, { title: 'Keraton Antiqueda', price: 20 });
-  // marca(+40) + linha(+35) + palavras(+20) + preço(+10) = 105 → Aprovado (sem volume no título)
-  // Nota: volume '140ml' não está no título → não pontua volume
   assert.equal(result.status, 'Aprovado');
+});
+
+test('CandidatoFraco: shampoo da marca mas linha ausente e palavras incompletas', () => {
+  const muitoLiso = {
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Muito + Liso',
+    volume: '300ml',
+    requiredWords: ['keraton', 'shampoo', 'liso']
+  };
+  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras ausentes -30, Preço +10 = 40
+  const result = calculateCompatibility(muitoLiso, {
+    title: 'Shampoo Keraton 300ml',
+    price: 22,
+    link: 'https://newsite.com.br/shampoo-keraton-300ml'
+  });
+  assert.equal(result.status, 'CandidatoFraco');
+  assert.ok(result.reasons.some(({ reason }) => /linha/i.test(reason)));
+});
+
+test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon)', () => {
+  const muitoLiso = {
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Muito + Liso',
+    volume: '300ml',
+    requiredWords: ['keraton', 'shampoo']
+  };
+  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras +20, Domínio +15, Preço +10 = 105 → capped 89
+  const result = calculateCompatibility(muitoLiso, {
+    title: 'Shampoo Hidratacao Keraton 300ml Preto',
+    price: 35,
+    link: 'https://www.amazon.com.br/dp/B09XYZ'
+  });
+  assert.equal(result.status, 'Revisar');
+});
+
+test('familyAliases ampliam detecção da linha', () => {
+  const muitoLiso = {
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Muito + Liso',
+    familyAliases: ['phytogen muito liso', 'liso perfeito'],
+    volume: '300ml',
+    requiredWords: ['keraton', 'shampoo', 'liso']
+  };
+  // Linha encontrada via alias 'phytogen muito liso' → +60, sem cap
+  const result = calculateCompatibility(muitoLiso, {
+    title: 'Shampoo Phytogen Muito Liso 300ml Keraton',
+    price: 29,
+    link: 'https://goyaperfumaria.com.br/phytogen-muito-liso-shampoo-300ml'
+  });
+  assert.equal(result.status, 'Aprovado');
+  assert.ok(result.reasons.some(({ points }) => points === 60));
 });
 
 test('rejeita quando sem preço', () => {

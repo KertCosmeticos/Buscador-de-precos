@@ -76,6 +76,11 @@ function includesTerm(text, term) {
   return normalized && text.includes(normalized);
 }
 
+function hasFamilyInText(text, product) {
+  if (includesTerm(text, product.family)) return true;
+  return (product.familyAliases || []).some((alias) => includesTerm(text, alias));
+}
+
 function scoreStatus(score) {
   if (score >= 90) return 'Aprovado';
   if (score >= 50) return 'Revisar';
@@ -92,6 +97,7 @@ function calculateCompatibility(product, listing, learning = {}) {
   const text = normalizeText(`${listing.title || ''} ${listing.link || ''}`);
   const reasons = [];
   let score = 0;
+  let capAtRevisar = false;
   const add = (points, reason) => { score += points; reasons.push({ points, reason }); };
 
   // Travas absolutas — retorno imediato sem análise adicional
@@ -99,6 +105,7 @@ function calculateCompatibility(product, listing, learning = {}) {
   if (learning.ignoredTitles?.some((t) => normalizeText(t) === normalizeText(listing.title))) {
     return rejected('Título já ignorado');
   }
+  if (!Number.isFinite(listing.price) || listing.price <= 0) return rejected('Sem preço');
 
   // Tipo: rejeita apenas se tipo conflitante for detectado
   const productType = detectType(normalizeText(product.name || ''));
@@ -121,26 +128,34 @@ function calculateCompatibility(product, listing, learning = {}) {
   }
 
   // EAN
-  if (product.ean && text.includes(product.ean)) add(120, 'EAN encontrado');
+  const hasEan = Boolean(product.ean && text.includes(product.ean));
+  if (hasEan) add(120, 'EAN encontrado');
 
   // Marca própria
-  if (/\b(?:keraton|kert)\b/.test(text)) add(40, 'Marca Keraton/Kert');
+  if (/\b(?:keraton|kert)\b/.test(text)) add(35, 'Marca Keraton/Kert');
 
-  // Linha (family): bônus se encontrada, penalidade apenas se linha conflitante detectada
+  // Linha (family)
   if (product.family) {
-    if (includesTerm(text, product.family)) {
-      add(35, 'Linha correta');
+    const familyFound = hasFamilyInText(text, product);
+    if (familyFound) {
+      add(60, 'Linha correta');
     } else {
+      // Linha conflitante: outra linha detectada → trava absoluta
       const productLine = detectLine(normalizeText(product.family));
       const listingLine = detectLine(text);
       if (productLine && listingLine && productLine.id !== listingLine.id) {
-        add(-80, `Linha errada: esperada ${productLine.id}, encontrada ${listingLine.id}`);
+        return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);
+      }
+      // Linha ausente sem conflito: penaliza e limita status a Revisar (a menos que EAN garanta identidade)
+      if (!hasEan) {
+        add(-20, 'Linha não identificada');
+        capAtRevisar = true;
       }
     }
   }
 
   // Volume
-  if (product.volume && includesTerm(text, product.volume)) add(20, 'Volume correto');
+  if (product.volume && includesTerm(text, product.volume)) add(15, 'Volume correto');
 
   // Palavras obrigatórias
   const required = product.requiredWords?.length
@@ -159,13 +174,10 @@ function calculateCompatibility(product, listing, learning = {}) {
   if (listing.link && isTrustedDomain(listing.link)) add(15, 'Domínio confiável');
 
   // Preço
-  if (Number.isFinite(listing.price) && listing.price > 0) {
-    add(10, 'Preço encontrado');
-  } else {
-    add(-100, 'Sem preço');
-  }
+  add(10, 'Preço encontrado');
 
-  const finalScore = Math.max(-150, Math.min(200, score));
+  let finalScore = Math.max(-150, Math.min(200, score));
+  if (capAtRevisar) finalScore = Math.min(89, finalScore);
   return { score: finalScore, status: scoreStatus(finalScore), reasons };
 }
 

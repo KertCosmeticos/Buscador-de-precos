@@ -16,6 +16,7 @@ const productSchema = new mongoose.Schema({
   forbiddenWords: { type: [String], default: [] },
   palavrasDesejaveis: { type: [String], default: [] },
   aceitaKit: { type: Boolean, default: false },
+  familyAliases: { type: [String], default: [] },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 

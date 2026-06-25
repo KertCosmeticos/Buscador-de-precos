@@ -85,7 +85,7 @@ function generateLayeredTerms(product, learning = {}) {
     brand || null,
   ).filter((t) => !exact.includes(t) && !medium.includes(t));
 
-  return { exact, medium, wide };
+  return { exact, medium, wide, siteAliases: product.familyAliases || [] };
 }
 
 // Interface legada — usado em rotas que ainda esperam array plano de strings.
