@@ -17,6 +17,7 @@ const productSchema = new mongoose.Schema({
   palavrasDesejaveis: { type: [String], default: [] },
   aceitaKit: { type: Boolean, default: false },
   familyAliases: { type: [String], default: [] },
+  lineBlockWords: { type: [String], default: [] },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 

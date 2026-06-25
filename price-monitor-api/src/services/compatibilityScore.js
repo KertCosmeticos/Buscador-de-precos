@@ -50,7 +50,7 @@ const LINE_PATTERNS = [
 ];
 
 const TRUSTED_DOMAINS = [
-  'amazon.com.br', 'mercadolivre.com', 'mercadolivre.com.br',
+  'mercadolivre.com', 'mercadolivre.com.br',
   'shopee.com.br', 'magazineluiza.com.br', 'americanas.com.br',
   'belezanaweb.com.br', 'epocacosmeticos.com.br', 'drogariasaopaulo.com.br',
   'drogasil.com.br', 'drogaraia.com.br', 'ultrafarma.com.br',
@@ -145,6 +145,11 @@ function calculateCompatibility(product, listing, learning = {}) {
       const listingLine = detectLine(text);
       if (productLine && listingLine && productLine.id !== listingLine.id) {
         return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);
+      }
+      // Palavras que indicam outra linha Keraton → trava absoluta (sem EAN)
+      if (!hasEan && product.lineBlockWords?.length) {
+        const blocked = product.lineBlockWords.find((w) => includesTerm(text, w));
+        if (blocked) return rejected(`Linha bloqueada: "${blocked}" indica produto de outra linha`);
       }
       // Linha ausente sem conflito: penaliza e limita status a Revisar (a menos que EAN garanta identidade)
       if (!hasEan) {

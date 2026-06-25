@@ -93,20 +93,41 @@ test('CandidatoFraco: shampoo da marca mas linha ausente e palavras incompletas'
   assert.ok(result.reasons.some(({ reason }) => /linha/i.test(reason)));
 });
 
-test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon)', () => {
+test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon sem lineBlockWords)', () => {
+  // Produto sem lineBlockWords → cap mas não rejeita
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
     volume: '300ml',
     requiredWords: ['keraton', 'shampoo']
   };
-  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras +20, Domínio +15, Preço +10 = 105 → capped 89
+  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras +20, Amazon não trusted +0, Preço +10 = 90 → capped 89
   const result = calculateCompatibility(muitoLiso, {
     title: 'Shampoo Hidratacao Keraton 300ml Preto',
     price: 35,
     link: 'https://www.amazon.com.br/dp/B09XYZ'
   });
   assert.equal(result.status, 'Revisar');
+});
+
+test('lineBlockWords rejeita linha interna bloqueada (Amazon errado)', () => {
+  const muitoLiso = {
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Muito + Liso',
+    volume: '300ml',
+    requiredWords: ['keraton', 'shampoo'],
+    lineBlockWords: ['hidratacao', 'forca', 'preto']
+  };
+  const cases = [
+    { title: 'Shampoo Hidratacao Keraton 300ml Preto', price: 35, link: 'https://www.amazon.com.br/dp/B1' },
+    { title: 'Shampoo Forca Keraton 300ml Preto', price: 33, link: 'https://www.amazon.com.br/dp/B2' },
+    { title: 'Keraton Shampoo Mais 300Ml Preto', price: 31, link: 'https://www.amazon.com.br/dp/B3' },
+  ];
+  cases.forEach((listing) => {
+    const result = calculateCompatibility(muitoLiso, listing);
+    assert.equal(result.status, 'Rejeitado', `deveria rejeitar: "${listing.title}"`);
+    assert.ok(result.reasons.some(({ reason }) => /bloqueada/i.test(reason)));
+  });
 });
 
 test('familyAliases ampliam detecção da linha', () => {

@@ -82,12 +82,15 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
       enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
       search: () => searchGoogleWebWide(term),
     })),
-    // Camada alias: aliases da linha buscados por sites cadastrados (site:dominio alias)
-    ...(layered.siteAliases || []).slice(0, 3).map((alias, i) => ({
-      name: `Google Alias ${i + 1}`,
-      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(alias) && domains.length > 0,
-      search: () => searchGoogleWebMedium(alias, domains),
-    })),
+    // Camada site+alias: alias buscado individualmente por domínio cadastrado
+    // (busca individual é mais precisa que OR agrupado para sites menores)
+    ...(layered.siteAliases || []).slice(0, 2).flatMap((alias, i) =>
+      domains.slice(0, 5).map((domain) => ({
+        name: `Google Alias ${i + 1}:${domain}`,
+        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(alias),
+        search: () => searchGoogleWebMedium(alias, [domain]),
+      }))
+    ),
   ].filter((connector) => connector.enabled);
 
   const settled = await Promise.allSettled(connectors.map((connector) => connector.search()));
