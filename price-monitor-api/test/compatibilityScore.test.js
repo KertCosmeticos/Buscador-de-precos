@@ -7,18 +7,41 @@ const product = {
   searchTerm: 'keraton antiqueda', requiredWords: ['keraton', 'antiqueda'], forbiddenWords: ['shampoo']
 };
 
-test('pontua marca, linha, volume e palavras obrigatórias', () => {
-  const result = calculateCompatibility(product, { title: 'Tônico Keraton Antiqueda 140ml' });
-  assert.equal(result.score, 90);
-  assert.equal(result.status, 'Confirmado');
+test('pontua marca, linha, volume, palavras obrigatórias e preço', () => {
+  const result = calculateCompatibility(product, { title: 'Tônico Keraton Antiqueda 140ml', price: 25.90 });
+  assert.equal(result.score, 125);
+  assert.equal(result.status, 'Aprovado');
 });
 
-test('penaliza kit, palavra proibida e título já rejeitado', () => {
-  const listing = { title: 'Kit Shampoo Keraton Antiqueda 140ml' };
-  const result = calculateCompatibility(product, listing, { ignoredTitles: [listing.title] });
-  assert.equal(result.status, 'Ignorar');
+test('penaliza kit', () => {
+  const listing = { title: 'Kit Keraton Antiqueda 140ml', price: 50 };
+  const result = calculateCompatibility(product, listing);
+  assert.equal(result.status, 'Revisar');
   assert.ok(result.reasons.some(({ reason }) => reason === 'Produto em kit'));
-  assert.equal(result.reasons.some(({ reason }) => /Palavra proibida/i.test(reason)), false);
+});
+
+test('rejeita título já ignorado imediatamente', () => {
+  const listing = { title: 'Kit Keraton Antiqueda 140ml' };
+  const result = calculateCompatibility(product, listing, { ignoredTitles: [listing.title] });
+  assert.equal(result.status, 'Rejeitado');
+  assert.ok(result.reasons.some(({ reason }) => /ignorado/i.test(reason)));
+});
+
+test('rejeita tipo conflitante', () => {
+  const shampoo = {
+    ean: '7896380660971',
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Muito + Liso',
+    volume: '300ml',
+    searchTerm: 'keraton shampoo muito liso'
+  };
+  const result = calculateCompatibility(shampoo, {
+    title: 'Condicionador Keraton Muito Liso 300ml',
+    price: 18,
+    link: 'https://example.com/cond'
+  });
+  assert.equal(result.status, 'Rejeitado');
+  assert.ok(result.reasons.some(({ reason }) => /tipo errado/i.test(reason)));
 });
 
 test('rejeita MyPhios como marca concorrente', () => {
@@ -31,15 +54,22 @@ test('rejeita MyPhios como marca concorrente', () => {
   };
   const result = calculateCompatibility(muitoLiso, {
     title: 'Shampoo MyPhios Muito Mais Liso Reducao de Frizz 300 ml',
+    price: 15,
     link: 'https://www.docebeleza.com.br/products/shampoo-myphios-muito-mais-liso-reducao-de-frizz-300-ml'
   });
-  assert.equal(result.status, 'Ignorar');
+  assert.equal(result.status, 'Rejeitado');
   assert.ok(result.reasons.some(({ reason }) => /Marca concorrente/i.test(reason)));
 });
 
+test('rejeita quando sem preço', () => {
+  const result = calculateCompatibility(product, { title: 'Keraton Antiqueda 140ml' });
+  assert.equal(result.status, 'Rejeitado');
+  assert.ok(result.reasons.some(({ reason }) => /sem pre.o/i.test(reason)));
+});
+
 test('classifica os intervalos definidos', () => {
-  assert.equal(scoreStatus(90), 'Confirmado');
-  assert.equal(scoreStatus(70), 'Provável');
-  assert.equal(scoreStatus(40), 'Revisar');
-  assert.equal(scoreStatus(39), 'Ignorar');
+  assert.equal(scoreStatus(90), 'Aprovado');
+  assert.equal(scoreStatus(89), 'Revisar');
+  assert.equal(scoreStatus(50), 'Revisar');
+  assert.equal(scoreStatus(49), 'Rejeitado');
 });

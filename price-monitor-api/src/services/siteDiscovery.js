@@ -24,7 +24,7 @@ async function splitDiscoveredListings(listings, sites, demoMode = false) {
     const domain = hostname(listing.link);
     const isRegistered = domain && registeredDomain(domain, sites);
     const candidate = listing.discoveryCandidate === true && domain && !isRegistered
-      && Number.isFinite(listing.price) && Number(listing.score) >= 40;
+      && Number.isFinite(listing.price) && Number(listing.score) >= 45;
     if (!candidate) {
       if (!listing.discoveryCandidate || isRegistered) regular.push({ ...listing, sellerStatus: 'active' });
       return;
@@ -55,7 +55,12 @@ async function splitDiscoveredListings(listings, sites, demoMode = false) {
     }
   }
   const discovered = [...byDomain.values()];
-  const newListings = discovered.map(({ listing, candidate }) => ({ ...listing, sellerStatus: 'new', siteCandidate: candidate }));
+  const newListings = discovered.map(({ listing, candidate }) => ({
+    ...listing,
+    sellerStatus: 'new',
+    siteCandidate: candidate,
+    discoveryStatus: Number(listing.score) >= 70 ? 'aprovado' : 'revisar',
+  }));
   return { listings: [...newListings, ...regular], discoveredSites: discovered.map(({ candidate }) => candidate) };
 }
 

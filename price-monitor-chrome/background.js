@@ -120,12 +120,17 @@ const ProductMatcher = (() => {
     if (product.searchMode === 'ean') return { relevant: true, confidence: 'ean', reason: 'Pesquisa exata por EAN.' };
     const profile = buildProfile(product);
     const received = tokenize(`${text} ${link || ''}`);
+
+    // Rejeicoes obvias — o restante vai para a API pontuar
     if (hasCompetingBrand(received)) return { relevant: false, reason: 'Marca concorrente identificada.' };
 
     const productIsKit = /\b(?:kit|combo|conjunto)\b/.test(profile.name);
     const resultIsKit = received.some((token) => ['kit', 'combo', 'conjunto'].includes(token));
-    if (!productIsKit && resultIsKit) return { relevant: false, reason: 'O anuncio e um kit diferente do produto unitario.' };
+    if (!productIsKit && !product.aceitaKit && resultIsKit) {
+      return { relevant: false, reason: 'O anuncio e um kit diferente do produto unitario.' };
+    }
 
+    // Produtos de coloracao: nuance e variante sao obrigatorias (alta especificidade)
     if (profile.shadeCode && !received.includes(profile.shadeCode)) {
       return { relevant: false, reason: `Nuance ${profile.shadeCode} ausente.` };
     }
@@ -133,20 +138,16 @@ const ProductMatcher = (() => {
       return { relevant: false, reason: `Variante obrigatoria ausente: ${profile.variants.join(' ')}.` };
     }
 
-    if (profile.type && !profile.type.alternatives.some((alternative) => containsSequence(received, alternative))) {
-      return { relevant: false, reason: `Tipo incompativel com ${profile.type.id}.` };
-    }
-    if (profile.line && !profile.line.anchors.some((anchor) => received.some((token) => tokenMatches(anchor, token)))) {
-      return { relevant: false, reason: `Linha ${profile.line.id} ausente.` };
-    }
-
-    if (profile.identity.length) {
-      const matched = profile.identity.filter((expected) => received.some((token) => tokenMatches(expected, token)));
-      if (matched.length < Math.max(1, Math.ceil(profile.identity.length * 0.6))) {
-        return { relevant: false, reason: 'Poucos termos de identidade do produto.' };
+    // Tipo: rejeita so se tipo DIFERENTE for detectado no titulo
+    if (profile.type) {
+      const foundType = typeRules.find((rule) => rule.detect.test(normalize(`${text} ${link || ''}`)));
+      if (foundType && foundType.id !== profile.type.id) {
+        return { relevant: false, reason: `Tipo incompativel: esperado ${profile.type.id}, encontrado ${foundType.id}.` };
       }
     }
-    return { relevant: true, confidence: profile.brands.some((brand) => received.includes(brand)) ? 'high' : 'semantic', reason: 'Marca/tipo/linha/variante compativeis.' };
+
+    // Linha e identidade — avaliacao delegada a API
+    return { relevant: true, confidence: profile.brands.some((brand) => received.includes(brand)) ? 'high' : 'semantic', reason: 'Candidato para avaliacao pela API.' };
   }
 
   function linkMatchesProduct(link, product) {

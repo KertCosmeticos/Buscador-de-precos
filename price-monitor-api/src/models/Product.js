@@ -14,6 +14,8 @@ const productSchema = new mongoose.Schema({
   aliases: { type: [String], default: [] },
   requiredWords: { type: [String], default: [] },
   forbiddenWords: { type: [String], default: [] },
+  palavrasDesejaveis: { type: [String], default: [] },
+  aceitaKit: { type: Boolean, default: false },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 

@@ -75,9 +75,7 @@ function summarize(ean, listings, sources = []) {
 
 function shouldHideListing(listing) {
   if (listing.rejectedByLearning) return true;
-  return (listing.reasons || []).some(({ reason }) =>
-    /marca concorrente|titulo ja ignorado|título já ignorado/i.test(reason)
-  );
+  return listing.status === 'Rejeitado';
 }
 
 async function searchFresh(ean, sites = []) {
