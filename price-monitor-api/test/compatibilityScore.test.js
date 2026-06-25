@@ -93,21 +93,27 @@ test('Revisar: shampoo da marca mas linha ausente e palavras incompletas', () =>
   assert.ok(result.reasons.some(({ reason }) => /linha/i.test(reason)));
 });
 
-test('linha interna Keraton conflitante é rejeitada (Hidratação ≠ Muito Liso)', () => {
+test('linha interna Keraton conflitante é rejeitada (nutri color / keragen / coloridos ≠ Muito Liso)', () => {
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
     volume: '300ml',
     requiredWords: ['keraton', 'shampoo']
   };
-  // "hidratacao" está em INTERNAL_KERATON_LINES → trava absoluta
-  const result = calculateCompatibility(muitoLiso, {
-    title: 'Shampoo Hidratacao Keraton 300ml Preto',
-    price: 35,
-    link: 'https://www.amazon.com.br/dp/B09XYZ'
+  // Casos cobertes só por INTERNAL_KERATON_LINES (não pelo LINE_PATTERNS existente)
+  const cases = [
+    { title: 'Keraton Shampoo Nutri Color 300ml', price: 35, link: 'https://www.amazon.com.br/dp/B1' },
+    { title: 'Keraton Keragen Shampoo 300ml', price: 33, link: 'https://www.amazon.com.br/dp/B2' },
+    { title: 'Keraton Shampoo Coloridos 300ml', price: 31, link: 'https://www.amazon.com.br/dp/B3' },
+  ];
+  cases.forEach((listing) => {
+    const result = calculateCompatibility(muitoLiso, listing);
+    assert.equal(result.status, 'Rejeitado', `deve rejeitar: "${listing.title}"`);
+    assert.ok(
+      result.reasons.some(({ reason }) => /linha.*conflitante/i.test(reason)),
+      `deve ter razão de linha em: "${listing.title}"`
+    );
   });
-  assert.equal(result.status, 'Rejeitado');
-  assert.ok(result.reasons.some(({ reason }) => /linha keraton conflitante/i.test(reason)));
 });
 
 test('lineBlockWords penaliza fortemente linha interna suspeita (Amazon errado)', () => {

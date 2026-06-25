@@ -29,21 +29,18 @@ const TYPE_PATTERNS = [
   { id: 'redutor-cor', pattern: /\b(?:redutor\s+de\s+cor|reduton|dye\s+remover)\b/i },
 ];
 
-// Linhas internas Keraton — detectadas no título com marca Keraton presente mas família errada.
-// Trava absoluta: rejeita sem penalidade parcial.
+// Linhas internas Keraton — nomes de linha específicos que identificam produto errado quando
+// a marca Keraton aparece no título mas a família correta não foi encontrada.
+// Apenas frases específicas: palavras genéricas como "hidratacao" ou "preto" foram removidas
+// pois aparecem em descrições legítimas de qualquer produto.
 const INTERNAL_KERATON_LINES = [
   'mais hidratacao',
   'mais hidratação',
-  'hidratacao',
-  'hidratação',
   'mais forca',
   'mais força',
   'mais cor',
   'nutri color',
   'keragen',
-  'evolution',
-  'vermelho',
-  'preto',
   'coloridos',
   'mechas',
 ];
