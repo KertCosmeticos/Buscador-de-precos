@@ -18,6 +18,7 @@ test('penaliza kit, palavra proibida e título já rejeitado', () => {
   const result = calculateCompatibility(product, listing, { ignoredTitles: [listing.title] });
   assert.equal(result.status, 'Ignorar');
   assert.ok(result.reasons.some(({ reason }) => reason === 'Produto em kit'));
+  assert.equal(result.reasons.some(({ reason }) => /Palavra proibida/i.test(reason)), false);
 });
 
 test('rejeita MyPhios como marca concorrente', () => {

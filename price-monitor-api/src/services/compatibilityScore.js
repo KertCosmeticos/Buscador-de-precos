@@ -43,9 +43,6 @@ function calculateCompatibility(product, listing, learning = {}) {
   const requiredMatched = required.filter((word) => includesTerm(text, word));
   if (required.length && requiredMatched.length === required.length) add(25, 'Palavras obrigatórias encontradas');
 
-  const forbidden = [...(product.forbiddenWords || []), ...(learning.excludedWords || [])];
-  const foundForbidden = forbidden.find((word) => includesTerm(text, word));
-  if (foundForbidden) add(-50, `Palavra proibida: ${foundForbidden}`);
   if (/\b(?:kit|combo|conjunto)\b/.test(text) && !/\b(?:kit|combo|conjunto)\b/.test(normalizeText(product.name))) add(-40, 'Produto em kit');
   if (learning.ignoredTitles?.some((title) => normalizeText(title) === normalizeText(listing.title))) add(-100, 'Título já ignorado');
 
