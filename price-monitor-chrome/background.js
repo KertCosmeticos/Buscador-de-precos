@@ -206,16 +206,16 @@ function safePost(port, message) {
 }
 
 function waitForTab(tabId, timeout = 45000) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error('A pagina demorou demais para carregar.'));
+      resolve(false);
     }, timeout);
     function listener(updatedTabId, changeInfo) {
       if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
       clearTimeout(timer);
       chrome.tabs.onUpdated.removeListener(listener);
-      resolve();
+      resolve(true);
     }
     chrome.tabs.onUpdated.addListener(listener);
   });
@@ -224,10 +224,7 @@ function waitForTab(tabId, timeout = 45000) {
 async function navigateTab(tabId, url) {
   const loaded = waitForTab(tabId);
   await chrome.tabs.update(tabId, { url });
-  await loaded.catch(async () => {
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    if (!tab?.url || tab.url === 'about:blank') throw new Error('A pagina demorou demais para carregar.');
-  });
+  await loaded;
 }
 
 async function sendToTab(tabId, type, payload = {}) {
@@ -363,7 +360,7 @@ async function runSearch(port, message) {
   const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
   if (!products.length) throw new Error('Nenhum produto valido foi enviado a extensao.');
 
-  const totalSteps = products.length * 5;
+  const totalSteps = products.length * 6;
   let completedSteps = 0;
   const results = [];
 
@@ -372,10 +369,12 @@ async function runSearch(port, message) {
     const sources = [];
     const label = product.name || product.ean;
     const semantic = ProductMatcher.buildSemanticQuery(product);
+    const semMarca = nameWithoutBrand(product);
     const steps = [
       { name: 'Google EAN', query: product.ean, mode: 'web', exactEan: true },
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
       { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
+      { name: 'Google Sem Marca', query: semMarca || product.name || product.ean, mode: 'web' },
       { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
     ];
 
