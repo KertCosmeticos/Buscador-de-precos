@@ -321,6 +321,114 @@ function normalizeLink(value) {
   } catch { return value || ''; }
 }
 
+function numberFromPrice(value) {
+  if (Number.isFinite(value)) return Number(value);
+  const normalized = String(value || '')
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+  const price = Number.parseFloat(normalized);
+  return Number.isFinite(price) ? price : null;
+}
+
+function htmlAttributes(tag) {
+  const attributes = {};
+  for (const match of String(tag).matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/g)) {
+    attributes[match[1].toLowerCase()] = match[2].replaceAll('&amp;', '&');
+  }
+  return attributes;
+}
+
+function absoluteUrl(value, baseUrl) {
+  if (!value) return '';
+  try { return new URL(value, baseUrl).href; } catch { return ''; }
+}
+
+function jsonLdProducts(value, found = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => jsonLdProducts(item, found));
+  } else if (value && typeof value === 'object') {
+    const types = Array.isArray(value['@type']) ? value['@type'] : [value['@type']];
+    if (types.some((type) => String(type).toLowerCase() === 'product')) found.push(value);
+    Object.values(value).forEach((item) => jsonLdProducts(item, found));
+  }
+  return found;
+}
+
+function offerDetails(offers, baseUrl) {
+  const list = Array.isArray(offers) ? offers : [offers];
+  for (const offer of list) {
+    if (!offer || typeof offer !== 'object') continue;
+    const price = numberFromPrice(offer.price ?? offer.lowPrice ?? offer.highPrice);
+    if (Number.isFinite(price)) return { price, directLink: absoluteUrl(offer.url || '', baseUrl) };
+  }
+  return { price: null, directLink: '' };
+}
+
+function productPageDataFromHtml(html, pageUrl) {
+  for (const match of String(html).matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      for (const product of jsonLdProducts(JSON.parse(match[1].trim()))) {
+        const details = offerDetails(product.offers, pageUrl);
+        if (Number.isFinite(details.price)) {
+          return { price: details.price, directLink: details.directLink || absoluteUrl(product.url || '', pageUrl) || pageUrl, isProductPage: true };
+        }
+      }
+    } catch {
+      // Continua para metadados quando o JSON-LD da loja vier invalido.
+    }
+  }
+
+  let metaPrice = null;
+  let productType = false;
+  let canonical = '';
+  for (const tag of String(html).match(/<(?:meta|link)\b[^>]*>/gi) || []) {
+    const attributes = htmlAttributes(tag);
+    const key = String(attributes.property || attributes.name || attributes.itemprop || '').toLowerCase();
+    if (key === 'og:type' && String(attributes.content).toLowerCase().includes('product')) productType = true;
+    if (['product:price:amount', 'og:price:amount', 'price'].includes(key)) {
+      const price = numberFromPrice(attributes.content);
+      if (Number.isFinite(price)) metaPrice = price;
+    }
+    if (tag.toLowerCase().startsWith('<link') && String(attributes.rel).toLowerCase() === 'canonical') {
+      canonical = absoluteUrl(attributes.href || '', pageUrl);
+    }
+  }
+  return { price: metaPrice, directLink: canonical || pageUrl, isProductPage: productType || Number.isFinite(metaPrice) };
+}
+
+async function inspectProductPage(pageUrl) {
+  let parsed;
+  try { parsed = new URL(pageUrl); } catch { return null; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+  try {
+    const response = await fetch(parsed.href, {
+      headers: { Accept: 'text/html,application/xhtml+xml' }
+    });
+    if (!response.ok) return null;
+    return productPageDataFromHtml(await response.text(), response.url || parsed.href);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveInspectedListings(listings, product) {
+  const results = [];
+  for (const listing of listings) {
+    if (Number.isFinite(listing.price) && !listing.needsInspection) {
+      results.push(listing);
+      continue;
+    }
+    const page = await inspectProductPage(listing.link);
+    const price = Number.isFinite(listing.price) ? listing.price : page?.price;
+    const link = normalizeLink(page?.directLink || listing.link);
+    if (!Number.isFinite(price) || !page?.isProductPage) continue;
+    if (!ProductMatcher.linkMatchesProduct(link, product) || !ProductMatcher.matchesOffer(`${listing.title} ${link}`, link, product).relevant) continue;
+    results.push({ ...listing, price, link, needsInspection: false });
+  }
+  return results;
+}
+
 function deduplicate(listings) {
   const byLink = new Map();
   listings.forEach((listing) => {
@@ -369,13 +477,15 @@ function domainGroups(domains, size = 4) {
 
 function siteSearchSteps(product, sites = []) {
   const domains = [...new Set([...sites.map(siteDomain).filter(Boolean), ...priorityDomainGroups.flat()])];
-  const query = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
-  if (!query || !domains.length) return [];
-  return domainGroups(domains, 4).slice(0, 8).map((group, index) => ({
-    name: `Google Sites ${index + 1}`,
+  const baseQuery = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
+  if (!baseQuery || !domains.length) return [];
+  const expandedQuery = baseQuery.replace(/\bmuito\s+liso\b/i, 'muito mais liso');
+  const queries = [...new Set([baseQuery, expandedQuery])];
+  return queries.flatMap((query, queryIndex) => domainGroups(domains, 4).slice(0, 4).map((group, index) => ({
+    name: `Google Sites ${queryIndex + 1}.${index + 1}`,
     query: `${query} (${group.map((domain) => `site:${domain}`).join(' OR ')})`,
     mode: 'web'
-  }));
+  })));
 }
 
 async function runSearch(port, message) {
@@ -413,8 +523,9 @@ async function runSearch(port, message) {
         const found = step.query
           ? await searchGoogle(step.query, step.exactEan ? { ...product, searchMode: 'ean' } : product, step.mode)
           : [];
-        listings.push(...found);
-        sources.push({ name: step.name, status: 'ok', count: found.length });
+        const resolved = await resolveInspectedListings(found, step.exactEan ? { ...product, searchMode: 'ean' } : product);
+        listings.push(...resolved);
+        sources.push({ name: step.name, status: 'ok', count: resolved.length });
       } catch (error) {
         sources.push({ name: step.name, status: 'error', count: 0, error: error.message });
         if (/CAPTCHA|verificacao/i.test(error.message)) throw error;
