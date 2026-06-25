@@ -20,6 +20,22 @@ test('penaliza kit, palavra proibida e título já rejeitado', () => {
   assert.ok(result.reasons.some(({ reason }) => reason === 'Produto em kit'));
 });
 
+test('rejeita MyPhios como marca concorrente', () => {
+  const muitoLiso = {
+    ean: '7896380660971',
+    name: 'Keraton Sh Muito + Liso',
+    family: 'Tratamento',
+    volume: '300ml',
+    searchTerm: 'keraton shampoo muito liso'
+  };
+  const result = calculateCompatibility(muitoLiso, {
+    title: 'Shampoo MyPhios Muito Mais Liso Reducao de Frizz 300 ml',
+    link: 'https://www.docebeleza.com.br/products/shampoo-myphios-muito-mais-liso-reducao-de-frizz-300-ml'
+  });
+  assert.equal(result.status, 'Ignorar');
+  assert.ok(result.reasons.some(({ reason }) => /Marca concorrente/i.test(reason)));
+});
+
 test('classifica os intervalos definidos', () => {
   assert.equal(scoreStatus(90), 'Confirmado');
   assert.equal(scoreStatus(70), 'Provável');
