@@ -83,8 +83,8 @@ function hasFamilyInText(text, product) {
 
 function scoreStatus(score) {
   if (score >= 90) return 'Aprovado';
-  if (score >= 50) return 'Revisar';
-  if (score >= 25) return 'CandidatoFraco';
+  if (score >= 45) return 'Revisar';
+  if (score >= 20) return 'CandidatoFraco';
   return 'Rejeitado';
 }
 
@@ -146,14 +146,17 @@ function calculateCompatibility(product, listing, learning = {}) {
       if (productLine && listingLine && productLine.id !== listingLine.id) {
         return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);
       }
-      // Palavras que indicam outra linha Keraton → trava absoluta (sem EAN)
+      // Palavras que sugerem outra linha Keraton → penalidade forte + cap (não rejeita direto)
       if (!hasEan && product.lineBlockWords?.length) {
-        const blocked = product.lineBlockWords.find((w) => includesTerm(text, w));
-        if (blocked) return rejected(`Linha bloqueada: "${blocked}" indica produto de outra linha`);
+        const blocked = product.lineBlockWords.find((w) => includesTerm(titleText, w));
+        if (blocked) {
+          add(-60, `Possível linha concorrente: "${blocked}"`);
+          capAtRevisar = true;
+        }
       }
-      // Linha ausente sem conflito: penaliza e limita status a Revisar (a menos que EAN garanta identidade)
+      // Linha ausente sem conflito: penalidade leve + cap Revisar
       if (!hasEan) {
-        add(-20, 'Linha não identificada');
+        add(-10, 'Linha não identificada');
         capAtRevisar = true;
       }
     }
@@ -171,7 +174,7 @@ function calculateCompatibility(product, listing, learning = {}) {
     if (matched.length === required.length) {
       add(20, 'Palavras obrigatórias encontradas');
     } else if (matched.length < required.length) {
-      add(-30, `Palavras ausentes: ${required.filter((w) => !matched.includes(w)).join(', ')}`);
+      add(-10, `Palavras ausentes: ${required.filter((w) => !matched.includes(w)).join(', ')}`);
     }
   }
 

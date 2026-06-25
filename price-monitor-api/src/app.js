@@ -120,6 +120,26 @@ async function searchFresh(ean, sites = []) {
     result.productId = product._id;
     result.searchTerms = layeredTerms;
     result.usedSearchTerm = firstExactTerm;
+    // Debug: resumo do pipeline de coleta e pontuação
+    const byStatus = allScored.reduce((acc, l) => {
+      const s = l.status || 'sem-status';
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
+    const rejectReasons = allScored
+      .filter((l) => l.status === 'Rejeitado')
+      .flatMap((l) => l.reasons || [])
+      .reduce((acc, r) => {
+        const key = String(r.reason || 'unknown').slice(0, 50);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    result.debug = {
+      collected: allScored.length,
+      priced: allScored.filter((l) => Number.isFinite(l.price)).length,
+      byStatus,
+      rejectReasons,
+    };
   }
   if (sites.length && !demoMode) {
     await Site.updateMany({ _id: { $in: sites.map((site) => site._id) } }, { $set: { discoveryStatus: 'learning', lastDiscoveryAt: new Date() } });

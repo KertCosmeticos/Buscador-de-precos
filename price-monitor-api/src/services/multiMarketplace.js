@@ -83,12 +83,20 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
       search: () => searchGoogleWebWide(term),
     })),
     // Camada site+alias: alias buscado individualmente por domínio cadastrado
-    // (busca individual é mais precisa que OR agrupado para sites menores)
     ...(layered.siteAliases || []).slice(0, 2).flatMap((alias, i) =>
       domains.slice(0, 5).map((domain) => ({
         name: `Google Alias ${i + 1}:${domain}`,
         enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(alias),
         search: () => searchGoogleWebMedium(alias, [domain]),
+      }))
+    ),
+    // Camada site+wide: termo amplo principal por domínio individual (keraton tipo família)
+    // Encontra produtos em sites menores mesmo sem alias cadastrado
+    ...(layered.wide || []).slice(0, 1).flatMap((term) =>
+      domains.slice(0, 5).map((domain) => ({
+        name: `Google Wide:${domain}`,
+        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
+        search: () => searchGoogleWebMedium(term, [domain]),
       }))
     ),
   ].filter((connector) => connector.enabled);

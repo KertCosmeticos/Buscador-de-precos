@@ -62,11 +62,11 @@ test('rejeita MyPhios como marca concorrente', () => {
   assert.ok(result.reasons.some(({ reason }) => /Marca concorrente/i.test(reason)));
 });
 
-test('rejeita quando só tem marca e palavras ausentes', () => {
-  // Marca +35, Linha ausente -20 cap, Palavras ausentes -30, Preço +10 = -5 → Rejeitado
+test('CandidatoFraco: só marca sem linha e palavras ausentes', () => {
+  // Marca +35, Linha ausente -10 cap, Palavras ausentes -10, Preço +10 = 25 → CandidatoFraco
   const simple = { name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml', requiredWords: ['keraton', 'antiqueda'] };
   const result = calculateCompatibility(simple, { title: 'Keraton cosmeticos', price: 30 });
-  assert.equal(result.status, 'Rejeitado');
+  assert.equal(result.status, 'CandidatoFraco');
 });
 
 test('Aprovado: marca e linha corretas sem volume', () => {
@@ -76,32 +76,31 @@ test('Aprovado: marca e linha corretas sem volume', () => {
   assert.equal(result.status, 'Aprovado');
 });
 
-test('CandidatoFraco: shampoo da marca mas linha ausente e palavras incompletas', () => {
+test('Revisar: shampoo da marca mas linha ausente e palavras incompletas', () => {
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
     volume: '300ml',
     requiredWords: ['keraton', 'shampoo', 'liso']
   };
-  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras ausentes -30, Preço +10 = 40
+  // Tipo +30, Marca +35, Linha ausente -10 cap, Volume +15, Palavras ausentes -10, Preço +10 = 70 → Revisar
   const result = calculateCompatibility(muitoLiso, {
     title: 'Shampoo Keraton 300ml',
     price: 22,
     link: 'https://newsite.com.br/shampoo-keraton-300ml'
   });
-  assert.equal(result.status, 'CandidatoFraco');
+  assert.equal(result.status, 'Revisar');
   assert.ok(result.reasons.some(({ reason }) => /linha/i.test(reason)));
 });
 
 test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon sem lineBlockWords)', () => {
-  // Produto sem lineBlockWords → cap mas não rejeita
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
     volume: '300ml',
     requiredWords: ['keraton', 'shampoo']
   };
-  // Tipo +30, Marca +35, Linha ausente -20 cap, Volume +15, Palavras +20, Amazon não trusted +0, Preço +10 = 90 → capped 89
+  // Tipo +30, Marca +35, Linha ausente -10 cap, Volume +15, Palavras +20, Amazon não trusted +0, Preço +10 = 100 → capped 89
   const result = calculateCompatibility(muitoLiso, {
     title: 'Shampoo Hidratacao Keraton 300ml Preto',
     price: 35,
@@ -110,7 +109,7 @@ test('linha ausente cap limita a Revisar mesmo com score alto (caso Amazon sem l
   assert.equal(result.status, 'Revisar');
 });
 
-test('lineBlockWords rejeita linha interna bloqueada (Amazon errado)', () => {
+test('lineBlockWords penaliza fortemente linha interna suspeita (Amazon errado)', () => {
   const muitoLiso = {
     name: 'Keraton Sh Muito + Liso',
     family: 'Muito + Liso',
@@ -118,6 +117,7 @@ test('lineBlockWords rejeita linha interna bloqueada (Amazon errado)', () => {
     requiredWords: ['keraton', 'shampoo'],
     lineBlockWords: ['hidratacao', 'forca', 'preto']
   };
+  // lineBlockWords no título → -60 + cap. Não Aprovado.
   const cases = [
     { title: 'Shampoo Hidratacao Keraton 300ml Preto', price: 35, link: 'https://www.amazon.com.br/dp/B1' },
     { title: 'Shampoo Forca Keraton 300ml Preto', price: 33, link: 'https://www.amazon.com.br/dp/B2' },
@@ -125,8 +125,11 @@ test('lineBlockWords rejeita linha interna bloqueada (Amazon errado)', () => {
   ];
   cases.forEach((listing) => {
     const result = calculateCompatibility(muitoLiso, listing);
-    assert.equal(result.status, 'Rejeitado', `deveria rejeitar: "${listing.title}"`);
-    assert.ok(result.reasons.some(({ reason }) => /bloqueada/i.test(reason)));
+    assert.notEqual(result.status, 'Aprovado', `não deveria aprovar: "${listing.title}"`);
+    assert.ok(
+      result.reasons.some(({ reason }) => /possivel|linha/i.test(reason)),
+      `deve ter razão de linha em: "${listing.title}"`
+    );
   });
 });
 
@@ -158,7 +161,9 @@ test('classifica os intervalos definidos', () => {
   assert.equal(scoreStatus(90), 'Aprovado');
   assert.equal(scoreStatus(89), 'Revisar');
   assert.equal(scoreStatus(50), 'Revisar');
-  assert.equal(scoreStatus(49), 'CandidatoFraco');
+  assert.equal(scoreStatus(45), 'Revisar');
+  assert.equal(scoreStatus(44), 'CandidatoFraco');
   assert.equal(scoreStatus(25), 'CandidatoFraco');
-  assert.equal(scoreStatus(24), 'Rejeitado');
+  assert.equal(scoreStatus(20), 'CandidatoFraco');
+  assert.equal(scoreStatus(19), 'Rejeitado');
 });
