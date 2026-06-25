@@ -79,6 +79,7 @@ function includesTerm(text, term) {
 function scoreStatus(score) {
   if (score >= 90) return 'Aprovado';
   if (score >= 50) return 'Revisar';
+  if (score >= 25) return 'CandidatoFraco';
   return 'Rejeitado';
 }
 

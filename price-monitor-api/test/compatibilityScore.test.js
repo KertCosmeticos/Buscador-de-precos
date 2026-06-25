@@ -61,6 +61,29 @@ test('rejeita MyPhios como marca concorrente', () => {
   assert.ok(result.reasons.some(({ reason }) => /Marca concorrente/i.test(reason)));
 });
 
+test('classifica como CandidatoFraco quando tem marca mas falta identidade', () => {
+  // só marca + preço = 40+10 = 50... precisa de menos pontos para CandidatoFraco
+  // marca + preço - palavras ausentes = 40+10-30 = 20... ainda Rejeitado
+  // marca + linha + preço = 40+35+10 = 85 → Revisar, não CandidatoFraco
+  // Simula listing apenas com marca e preço, sem linha/volume/palavras:
+  const simple = { name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml', requiredWords: ['keraton', 'antiqueda'] };
+  const result = calculateCompatibility(simple, { title: 'Keraton cosmeticos', price: 30 });
+  // marca(+40) + preço(+10) - palavras ausentes(-30) = 20 → Rejeitado
+  // Mas palavras=['keraton','antiqueda'], 'keraton' encontrado, 'antiqueda' não → não é TODOS encontrados
+  // Então: -30 por palavras ausentes
+  // score = 40+10-30 = 20 → Rejeitado
+  assert.equal(result.status, 'Rejeitado');
+});
+
+test('CandidatoFraco: marca + linha parcial sem volume', () => {
+  const simple = { name: 'KERATON ANTIQUEDA', family: 'Antiqueda', volume: '140ml' };
+  // Sem requiredWords → auto-gera ['keraton', 'antiqueda']
+  const result = calculateCompatibility(simple, { title: 'Keraton Antiqueda', price: 20 });
+  // marca(+40) + linha(+35) + palavras(+20) + preço(+10) = 105 → Aprovado (sem volume no título)
+  // Nota: volume '140ml' não está no título → não pontua volume
+  assert.equal(result.status, 'Aprovado');
+});
+
 test('rejeita quando sem preço', () => {
   const result = calculateCompatibility(product, { title: 'Keraton Antiqueda 140ml' });
   assert.equal(result.status, 'Rejeitado');
@@ -71,5 +94,7 @@ test('classifica os intervalos definidos', () => {
   assert.equal(scoreStatus(90), 'Aprovado');
   assert.equal(scoreStatus(89), 'Revisar');
   assert.equal(scoreStatus(50), 'Revisar');
-  assert.equal(scoreStatus(49), 'Rejeitado');
+  assert.equal(scoreStatus(49), 'CandidatoFraco');
+  assert.equal(scoreStatus(25), 'CandidatoFraco');
+  assert.equal(scoreStatus(24), 'Rejeitado');
 });

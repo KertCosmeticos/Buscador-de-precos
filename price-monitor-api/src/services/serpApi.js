@@ -421,4 +421,35 @@ async function searchGoogleShopping(ean, productName = '', options = {}) {
   }
 }
 
-module.exports = { searchGoogleShopping, googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml, domainMatches };
+// Busca média: uma query Google Web com filtro de domínio opcional.
+// Uma chamada SerpAPI por invocação — usada para termos de intenção.
+async function searchGoogleWebMedium(term, domains = []) {
+  if (!process.env.SERPAPI_KEY || !term) return [];
+  try {
+    const query = domains.length > 0
+      ? `${term} (${domains.slice(0, 4).map((d) => `site:${d}`).join(' OR ')})`
+      : term;
+    const data = await findGoogleWebResults(query);
+    const offers = googleWebOffersFromData(data, term);
+    const resolved = await resolveGoogleWebOffers([...new Map(offers.map((o) => [o.link, o])).values()]);
+    if (!domains.length) return resolved;
+    return resolved.map((o) => domainMatches(o.link, domains) ? o : { ...o, discoveryCandidate: true });
+  } catch { return []; }
+}
+
+// Busca ampla: uma query Google Web sem filtro, sem checagem de relevância.
+// Uma chamada SerpAPI por invocação — todos os resultados marcados como discoveryCandidate.
+async function searchGoogleWebWide(term) {
+  if (!process.env.SERPAPI_KEY || !term) return [];
+  try {
+    const data = await findGoogleWebResults(term);
+    const offers = googleWebOffersFromData(data, '');
+    const resolved = await resolveGoogleWebOffers([...new Map(offers.map((o) => [o.link, o])).values()]);
+    return resolved.map((o) => ({ ...o, discoveryCandidate: true }));
+  } catch { return []; }
+}
+
+module.exports = {
+  searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide,
+  googleWebOffersFromData, isRelevantOffer, productPageDataFromHtml, domainMatches,
+};

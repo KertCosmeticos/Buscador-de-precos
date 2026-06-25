@@ -11,7 +11,7 @@ const learningRoutes = require('./routes/learning');
 const productCatalog = require('./services/productCatalog');
 const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
-const { generateSearchTerms } = require('./services/searchTerms');
+const { generateSearchTerms, generateLayeredTerms } = require('./services/searchTerms');
 const { postalCode, formatPostalCode } = require('./config/search');
 const Site = require('./models/Site');
 const { splitDiscoveredListings } = require('./services/siteDiscovery');
@@ -75,39 +75,50 @@ function summarize(ean, listings, sources = []) {
 
 function shouldHideListing(listing) {
   if (listing.rejectedByLearning) return true;
-  return listing.status === 'Rejeitado';
+  return listing.status === 'Rejeitado' || listing.status === 'CandidatoFraco';
 }
 
 async function searchFresh(ean, sites = []) {
   const product = demoMode ? null : await productCatalog.getProductByEan(ean);
   const learning = product?._id ? await ProductLearning.findOne({ productId: product._id }).lean() : null;
-  const terms = product ? generateSearchTerms(product, learning || {}) : [];
-  const nameTerm = terms.find((term) => term !== ean) || product?.name;
+  const layeredTerms = product ? generateLayeredTerms(product, learning || {}) : null;
+  const firstExactTerm = layeredTerms?.exact?.find((t) => t !== ean) || product?.name;
   const search = demoMode
     ? { listings: demoSearch(ean), sources: [{ name: 'Demonstração multicanal', status: 'ok', count: 5 }] }
-    : await searchAllMarketplaces(ean, nameTerm, sites);
-  const scoredListings = product
+    : await searchAllMarketplaces(ean, layeredTerms, sites);
+
+  // Pontua todos os resultados antes de qualquer filtro
+  const allScored = product
     ? search.listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning || {}) }))
-      .filter((listing) => !shouldHideListing(listing))
-      .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
     : search.listings;
-  const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
-  if (!demoMode && product?._id && discovery.listings.length) {
-    const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
+
+  // Discovery roda sobre TODOS os pontuados (inclui CandidatoFraco para detecção de sites)
+  const discovery = await splitDiscoveredListings(allScored, sites, demoMode);
+
+  // Filtra para exibição de preços somente após a discovery processar candidatos fracos
+  const priceListings = product
+    ? discovery.listings
+        .filter((listing) => !shouldHideListing(listing))
+        .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity))
+    : discovery.listings;
+
+  if (!demoMode && product?._id && priceListings.length) {
+    const titles = [...new Set(priceListings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
     const addToSet = { confirmedAliases: { $each: titles } };
-    if (nameTerm) addToSet.goodTerms = nameTerm;
+    if (firstExactTerm) addToSet.goodTerms = firstExactTerm;
     await ProductLearning.updateOne(
       { productId: product._id },
       { $setOnInsert: { productId: product._id }, $addToSet: addToSet },
       { upsert: true }
     );
   }
-  const result = summarize(ean, discovery.listings, search.sources);
+  const result = summarize(ean, priceListings, search.sources);
   result.discoveredSites = discovery.discoveredSites;
+  if (discovery.weakSites?.length) result.weakSites = discovery.weakSites;
   if (product) {
     result.productId = product._id;
-    result.searchTerms = terms;
-    result.usedSearchTerm = nameTerm;
+    result.searchTerms = layeredTerms;
+    result.usedSearchTerm = firstExactTerm;
   }
   if (sites.length && !demoMode) {
     await Site.updateMany({ _id: { $in: sites.map((site) => site._id) } }, { $set: { discoveryStatus: 'learning', lastDiscoveryAt: new Date() } });
@@ -190,12 +201,13 @@ app.post('/avaliar', async (req, res, next) => {
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
     const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
     const sites = demoMode ? [] : await Site.find({ active: true }).lean();
-    const scoredListings = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }))
+    const allScored = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }));
+    const discovery = await splitDiscoveredListings(allScored, sites, demoMode);
+    const priceListings = discovery.listings
       .filter((listing) => !shouldHideListing(listing))
       .sort((left, right) => right.score - left.score || (left.price ?? Infinity) - (right.price ?? Infinity));
-    const discovery = await splitDiscoveredListings(scoredListings, sites, demoMode);
-    if (!demoMode && discovery.listings.length) {
-      const titles = [...new Set(discovery.listings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
+    if (!demoMode && priceListings.length) {
+      const titles = [...new Set(priceListings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
       if (titles.length) {
         await ProductLearning.updateOne(
           { productId: product._id },
@@ -206,8 +218,9 @@ app.post('/avaliar', async (req, res, next) => {
     }
     return res.json({
       productId: product._id,
-      listings: discovery.listings,
-      discoveredSites: discovery.discoveredSites
+      listings: priceListings,
+      discoveredSites: discovery.discoveredSites,
+      ...(discovery.weakSites?.length ? { weakSites: discovery.weakSites } : {}),
     });
   } catch (error) { return next(error); }
 });

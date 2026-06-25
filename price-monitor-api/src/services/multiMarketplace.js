@@ -1,5 +1,5 @@
 const { searchByEan } = require('./mercadoLivre');
-const { searchGoogleShopping } = require('./serpApi');
+const { searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide } = require('./serpApi');
 
 function deduplicate(listings) {
   const results = [];
@@ -48,12 +48,40 @@ function searchableSiteDomain(site) {
   return expected && !domain.endsWith(expected.domain) ? '' : domain;
 }
 
-async function searchAllMarketplaces(ean, productName = '', sites = []) {
+// terms pode ser string (legado) ou { exact, medium, wide } (novo)
+async function searchAllMarketplaces(ean, terms, sites = []) {
+  const layered = (!terms || typeof terms === 'string')
+    ? { exact: [terms].filter(Boolean), medium: [], wide: [] }
+    : terms;
+
+  const productName = (layered.exact || []).find((t) => t !== ean) || '';
   const domains = [...new Set(sites.map(searchableSiteDomain).filter(Boolean))];
-  const mercadoLivreSelected = !sites.length || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
+  const mercadoLivreSelected = !sites.length
+    || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
+
   const connectors = [
-    { name: 'Mercado Livre', enabled: mercadoLivreSelected, search: () => searchByEan(ean, productName) },
-    { name: sites.length ? 'Sites selecionados via Google' : 'Google Shopping e Web', enabled: Boolean(process.env.SERPAPI_KEY) && (!sites.length || domains.length > 0), search: () => searchGoogleShopping(ean, productName, { domains }) }
+    {
+      name: 'Mercado Livre',
+      enabled: mercadoLivreSelected,
+      search: () => searchByEan(ean, productName),
+    },
+    {
+      name: sites.length ? 'Sites selecionados via Google' : 'Google Shopping e Web',
+      enabled: Boolean(process.env.SERPAPI_KEY) && (!sites.length || domains.length > 0),
+      search: () => searchGoogleShopping(ean, productName, { domains }),
+    },
+    // Camada média: busca de intenção com termos sem volume/abreviação
+    ...(layered.medium || []).slice(0, 3).map((term, i) => ({
+      name: `Google Médio ${i + 1}`,
+      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
+      search: () => searchGoogleWebMedium(term, domains),
+    })),
+    // Camada ampla: descoberta de sites — todos marcados como discoveryCandidate
+    ...(layered.wide || []).slice(0, 3).map((term, i) => ({
+      name: `Google Amplo ${i + 1}`,
+      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
+      search: () => searchGoogleWebWide(term),
+    })),
   ].filter((connector) => connector.enabled);
 
   const settled = await Promise.allSettled(connectors.map((connector) => connector.search()));
@@ -61,7 +89,7 @@ async function searchAllMarketplaces(ean, productName = '', sites = []) {
     name: connectors[index].name,
     status: result.status === 'fulfilled' ? 'ok' : 'error',
     count: result.status === 'fulfilled' ? result.value.length : 0,
-    error: result.status === 'rejected' ? result.reason.message : undefined
+    error: result.status === 'rejected' ? result.reason.message : undefined,
   }));
   const listings = deduplicate(settled.flatMap((result) => result.status === 'fulfilled' ? result.value : []));
 
