@@ -8,7 +8,7 @@ const serpApi = axios.create({
 const searchLocation = process.env.SEARCH_LOCATION || undefined;
 const priorityDomainGroups = [
   ['amazon.com.br', 'mercadolivre.com.br', 'shopee.com.br', 'magazineluiza.com.br'],
-  ['belezanaweb.com.br', 'perfumariasumire.com.br', 'liviadistribuidora.com.br', 'riobelcosmeticos.com.br'],
+  ['belezanaweb.com.br', 'perfumariasumire.com.br', 'perfumariaseiki.com.br', 'riobelcosmeticos.com.br'],
   ['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'drogasil.com.br', 'drogaraia.com.br']
 ];
 
@@ -369,7 +369,10 @@ function domainGroups(domains, size = 4) {
 
 async function searchGoogleWeb(ean, productName, domains = []) {
   const baseQuery = productName || ean;
-  const selectedGroups = domains.length ? domainGroups(domains) : priorityDomainGroups;
+  const targetedDomains = domains.length
+    ? [...new Set([...domains, ...priorityDomainGroups.flat()])]
+    : [];
+  const selectedGroups = targetedDomains.length ? domainGroups(targetedDomains) : priorityDomainGroups;
   const domainQueries = productName
     ? selectedGroups.map((group) => `"${productName}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`)
     : [];
@@ -381,7 +384,7 @@ async function searchGoogleWeb(ean, productName, domains = []) {
     ? googleWebOffersFromData(result.value, productName)
     : []);
   const resolved = await resolveGoogleWebOffers([...new Map(offers.map((offer) => [offer.link, offer])).values()]);
-  return resolved.filter((offer) => domainMatches(offer.link, domains));
+  return resolved.filter((offer) => domainMatches(offer.link, targetedDomains));
 }
 
 async function searchGoogleShopping(ean, productName = '', options = {}) {

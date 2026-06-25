@@ -355,12 +355,36 @@ function listingMatchesSites(listing, sites) {
   } catch { return false; }
 }
 
+const priorityDomainGroups = [
+  ['amazon.com.br', 'mercadolivre.com.br', 'shopee.com.br', 'magazineluiza.com.br'],
+  ['belezanaweb.com.br', 'perfumariasumire.com.br', 'perfumariaseiki.com.br', 'riobelcosmeticos.com.br'],
+  ['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'drogasil.com.br', 'drogaraia.com.br']
+];
+
+function domainGroups(domains, size = 4) {
+  const groups = [];
+  for (let index = 0; index < domains.length; index += size) groups.push(domains.slice(index, index + size));
+  return groups;
+}
+
+function siteSearchSteps(product, sites = []) {
+  const domains = [...new Set([...sites.map(siteDomain).filter(Boolean), ...priorityDomainGroups.flat()])];
+  const query = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
+  if (!query || !domains.length) return [];
+  return domainGroups(domains, 4).slice(0, 8).map((group, index) => ({
+    name: `Google Sites ${index + 1}`,
+    query: `"${query}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`,
+    mode: 'web'
+  }));
+}
+
 async function runSearch(port, message) {
   const requestId = message.requestId;
   const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
   if (!products.length) throw new Error('Nenhum produto valido foi enviado a extensao.');
 
-  const totalSteps = products.length * 6;
+  const siteStepsByEan = new Map(products.map((product) => [product.ean, siteSearchSteps(product, message.sites || [])]));
+  const totalSteps = products.reduce((total, product) => total + 6 + (siteStepsByEan.get(product.ean)?.length || 0), 0);
   let completedSteps = 0;
   const results = [];
 
@@ -375,7 +399,8 @@ async function runSearch(port, message) {
       { name: 'Google Nome', query: product.name || product.ean, mode: 'web' },
       { name: 'Google Semantico', query: semantic || product.name || product.ean, mode: 'web' },
       { name: 'Google Sem Marca', query: semMarca || product.name || product.ean, mode: 'web' },
-      { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' }
+      { name: 'Google Shopping', query: product.name || product.ean, mode: 'shopping' },
+      ...(siteStepsByEan.get(product.ean) || [])
     ];
 
     for (const step of steps) {

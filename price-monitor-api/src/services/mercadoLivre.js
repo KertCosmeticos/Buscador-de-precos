@@ -28,15 +28,38 @@ function normalizeItem(item) {
   };
 }
 
-async function searchByEan(ean) {
-  try {
-    const { data } = await mlApi.get('/sites/MLB/search', {
-      params: { q: ean, limit: 50 }
-    });
+function deduplicateByLink(items) {
+  const results = [];
+  const seen = new Set();
+  items.forEach((item) => {
+    const key = item.link || `${item.title}|${item.price}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push(item);
+  });
+  return results;
+}
 
-    return (data.results || [])
-      .map(normalizeItem)
-      .filter((item) => Number.isFinite(item.price));
+async function searchQuery(query) {
+  if (!query) return [];
+  const { data } = await mlApi.get('/sites/MLB/search', {
+    params: { q: query, limit: 50 }
+  });
+
+  return (data.results || [])
+    .map(normalizeItem)
+    .filter((item) => Number.isFinite(item.price));
+}
+
+async function searchByEan(ean, productName = '') {
+  try {
+    const searches = await Promise.allSettled([
+      searchQuery(ean),
+      ...(productName ? [searchQuery(productName)] : [])
+    ]);
+    const successful = searches.filter((result) => result.status === 'fulfilled');
+    if (!successful.length && searches[0]?.status === 'rejected') throw searches[0].reason;
+    return deduplicateByLink(successful.flatMap((result) => result.value));
   } catch (error) {
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       const timeoutError = new Error('O Mercado Livre demorou demais para responder. Tente novamente.');
