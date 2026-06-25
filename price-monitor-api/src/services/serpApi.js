@@ -374,7 +374,7 @@ async function searchGoogleWeb(ean, productName, domains = []) {
     : [];
   const selectedGroups = targetedDomains.length ? domainGroups(targetedDomains) : priorityDomainGroups;
   const domainQueries = productName
-    ? selectedGroups.map((group) => `"${productName}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`)
+    ? selectedGroups.map((group) => `${productName} (${group.map((domain) => `site:${domain}`).join(' OR ')})`)
     : [];
   const searches = await Promise.allSettled([
     ...(domains.length ? [] : [findGoogleWebResults(baseQuery)]),

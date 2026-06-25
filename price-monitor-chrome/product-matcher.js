@@ -9,7 +9,7 @@
     'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
     'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
     'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
-    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
+    'kostume', 'loreal', 'mairibel', 'maxton', 'myphios', 'natucor', 'niely', 'nivea',
     'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
     'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama'
   ]);

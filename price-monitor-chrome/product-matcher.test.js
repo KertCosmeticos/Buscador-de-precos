@@ -14,6 +14,23 @@ test('EAN recebe confiança direta sem depender do nome do anúncio', () => {
   assert.equal(matcher.matchesOffer('Nome abreviado pelo fornecedor', '', { ...canela, searchMode: 'ean' }).relevant, true);
 });
 
+test('rejeita concorrente muito liso e aceita ofertas Keraton equivalentes', () => {
+  const product = {
+    ean: '7896380660971', name: 'Keraton Sh Muito + Liso',
+    volume: '300ml', category: 'Tratamento', family: 'Tratamento'
+  };
+  assert.equal(
+    matcher.matchesOffer(
+      'Shampoo MyPhios Muito Mais Liso Reducao de Frizz 300 ml',
+      'https://www.docebeleza.com.br/products/shampoo-myphios-muito-mais-liso-reducao-de-frizz-300-ml',
+      product
+    ).relevant,
+    false
+  );
+  assert.equal(matcher.matchesOffer('Keraton Shampoo Muito Mais Liso 300ml', 'https://www.mercadolivre.com.br/keraton-shampoo-muito-mais-liso-300ml/p/MLB2083144103', product).relevant, true);
+  assert.equal(matcher.matchesOffer('Shampoo Muito + Liso 300ml - Keraton Essencial', 'https://www.perfumariaseiki.com.br/cabelos/shampoo/cabelos-lisos/shampoo-muito-liso-300ml-keraton-essencial', product).relevant, true);
+});
+
 test('aceita sinônimos do tipo quando a cor obrigatória está presente', () => {
   assert.equal(matcher.matchesOffer('Tonalizante creme Canela 100g', 'https://loja.test/tonalizante-canela', canela).relevant, true);
   assert.equal(matcher.matchesOffer('Coloração temporária Canela Kert', 'https://loja.test/coloracao-canela', canela).relevant, true);

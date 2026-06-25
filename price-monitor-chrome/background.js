@@ -5,7 +5,7 @@ const ProductMatcher = (() => {
     'brae', 'cadiveu', 'casting', 'ckamura', 'clairol', 'colorissimo', 'corton',
     'dove', 'embelleze', 'eudora', 'garnier', 'haskell', 'helpex', 'igora',
     'inoar', 'itallian', 'italianhair', 'kamaleao', 'kamura', 'keune', 'koleston',
-    'kostume', 'loreal', 'mairibel', 'maxton', 'natucor', 'niely', 'nivea',
+    'kostume', 'loreal', 'mairibel', 'maxton', 'myphios', 'natucor', 'niely', 'nivea',
     'novex', 'nutriex', 'pantene', 'redken', 'revlon', 'salon', 'salonline',
     'schwarzkopf', 'skala', 'softcolor', 'truss', 'tresemme', 'wella', 'yama'
   ]);
@@ -373,7 +373,7 @@ function siteSearchSteps(product, sites = []) {
   if (!query || !domains.length) return [];
   return domainGroups(domains, 4).slice(0, 8).map((group, index) => ({
     name: `Google Sites ${index + 1}`,
-    query: `"${query}" (${group.map((domain) => `site:${domain}`).join(' OR ')})`,
+    query: `${query} (${group.map((domain) => `site:${domain}`).join(' OR ')})`,
     mode: 'web'
   }));
 }

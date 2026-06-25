@@ -51,11 +51,25 @@ async function searchQuery(query) {
     .filter((item) => Number.isFinite(item.price));
 }
 
+function searchQueryVariants(query) {
+  const normalized = String(query || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return [];
+  const expandedType = normalized.replace(/\bsh\b/g, 'shampoo');
+  const expandedLine = expandedType.replace(/\bmuito\s+liso\b/g, 'muito mais liso');
+  return [...new Set([normalized, expandedType, expandedLine])];
+}
+
 async function searchByEan(ean, productName = '') {
   try {
+    const queries = [ean, ...searchQueryVariants(productName)];
     const searches = await Promise.allSettled([
-      searchQuery(ean),
-      ...(productName ? [searchQuery(productName)] : [])
+      ...queries.map(searchQuery)
     ]);
     const successful = searches.filter((result) => result.status === 'fulfilled');
     if (!successful.length && searches[0]?.status === 'rejected') throw searches[0].reason;
