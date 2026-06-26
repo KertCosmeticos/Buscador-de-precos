@@ -181,7 +181,8 @@ function calculateCompatibility(product, listing, learning = {}) {
         }
       }
       // Linha ausente sem conflito: penalidade leve + cap Revisar
-      if (!hasEan) {
+      // Se o produto tem linha explícita, aplica mesmo com EAN (título suspeito mesmo confirmado)
+      if (!hasEan || product.line) {
         add(-10, 'Linha não identificada');
         capAtRevisar = true;
       }
