@@ -93,9 +93,10 @@ function includesTerm(text, term) {
   return normalized && text.includes(normalized);
 }
 
-function hasFamilyInText(text, product) {
-  if (includesTerm(text, product.family)) return true;
-  return (product.familyAliases || []).some((alias) => includesTerm(text, alias));
+function hasLineInText(text, product) {
+  const line = product.line || product.family || '';
+  if (includesTerm(text, line)) return true;
+  return (product.lineAliases || product.familyAliases || []).some((alias) => includesTerm(text, alias));
 }
 
 function scoreStatus(score) {
@@ -153,14 +154,15 @@ function calculateCompatibility(product, listing, learning = {}) {
   const hasKeratonBrand = /\b(?:keraton|kert)\b/.test(text);
   if (hasKeratonBrand) add(35, 'Marca Keraton/Kert');
 
-  // Linha (family)
-  if (product.family) {
-    const familyFound = hasFamilyInText(text, product);
+  // Linha
+  const productLineName = product.line || product.family || '';
+  if (productLineName) {
+    const familyFound = hasLineInText(text, product);
     if (familyFound) {
       add(60, 'Linha correta');
     } else {
       // Linha conflitante via LINE_PATTERNS → trava absoluta
-      const productLine = detectLine(normalizeText(product.family));
+      const productLine = detectLine(normalizeText(productLineName));
       const listingLine = detectLine(text);
       if (productLine && listingLine && productLine.id !== listingLine.id) {
         return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);

@@ -57,7 +57,7 @@ function generateLayeredTerms(product, learning = {}) {
   const noVolumeOrig = stripVolume(name);
   const brand = extractBrand(name);
   const type = extractTypeLabel(name);
-  const family = stripVolume(normalizeText(product.family || ''));
+  const family = stripVolume(normalizeText(product.line || product.family || ''));
   const category = normalizeText(product.category || '');
   const expandedLine = noVolume.replace(/muito\s+liso/gi, 'muito mais liso');
 
@@ -85,7 +85,7 @@ function generateLayeredTerms(product, learning = {}) {
     brand || null,
   ).filter((t) => !exact.includes(t) && !medium.includes(t));
 
-  return { exact, medium, wide, siteAliases: product.familyAliases || [] };
+  return { exact, medium, wide, siteAliases: product.lineAliases || product.familyAliases || [] };
 }
 
 // Interface legada — usado em rotas que ainda esperam array plano de strings.

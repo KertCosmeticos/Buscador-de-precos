@@ -15,7 +15,7 @@ const browserSearchRequests = new Map();
 const selectedProductEans = new Set();
 const selectedNames = new Set();
 const selectedCategories = new Set();
-const selectedFamilies = new Set();
+const selectedLines = new Set();
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -102,7 +102,7 @@ function readImportSpreadsheet(file) {
       volume: ['GRAMATURA', 'VOLUME', 'VOLUME GRAMATURA'],
       ean: ['CODBARRAS', 'COD BARRAS', 'EAN', 'CODIGO DE BARRAS'],
       category: ['CATEGORIA'],
-      family: ['FAMILIA']
+      line: ['LINHA', 'FAMILIA']
     };
     const positions = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [
       field,
@@ -125,10 +125,10 @@ function readImportSpreadsheet(file) {
         volume: spreadsheetCell(row[positions.volume]),
         ean: spreadsheetCell(row[positions.ean]),
         category: spreadsheetCell(row[positions.category]),
-        family: spreadsheetCell(row[positions.family]),
+        line: spreadsheetCell(row[positions.line]),
         active: true
       };
-      const emptyFields = ['sku', 'name', 'volume', 'ean', 'category', 'family'].filter((field) => !product[field]);
+      const emptyFields = ['sku', 'name', 'volume', 'ean', 'category', 'line'].filter((field) => !product[field]);
       if (emptyFields.length) {
         errors.push(`Linha ${line}: existem campos obrigatórios vazios.`);
       } else if (!/^\d{8,14}$/.test(product.ean)) {
@@ -368,7 +368,7 @@ async function restoreAdminSession() {
 const filterDefinitions = {
   name: { property: 'name', input: 'name-filter-search', options: 'name-filter-options', selected: selectedNames, placeholder: 'Digite EAN ou Nome do produto para selecionar' },
   category: { property: 'category', input: 'category-filter-search', options: 'category-filter-options', selected: selectedCategories, placeholder: 'Clique para selecionar' },
-  family: { property: 'family', input: 'family-filter-search', options: 'family-filter-options', selected: selectedFamilies, placeholder: 'Clique para selecionar' }
+  line: { property: 'line', input: 'line-filter-search', options: 'line-filter-options', selected: selectedLines, placeholder: 'Clique para selecionar' }
 };
 
 function updateFilterPlaceholder(definition) {
@@ -450,7 +450,7 @@ function hasActiveProductFilter() {
   return Boolean(byId('quick-product-search').value.trim())
     || selectedNames.size > 0
     || selectedCategories.size > 0
-    || selectedFamilies.size > 0;
+    || selectedLines.size > 0;
 }
 
 function renderProductPicker() {
@@ -479,7 +479,7 @@ function renderProductPicker() {
     const name = document.createElement('span');
     name.textContent = product.name;
     const details = document.createElement('small');
-    details.textContent = `${product.ean} · ${product.category} · ${product.family}`;
+    details.textContent = `${product.ean} · ${product.category} · ${product.line}`;
     description.append(name, document.createElement('br'), details);
     label.append(checkbox, description);
     list.append(label);
@@ -495,12 +495,12 @@ async function loadPickerProducts() {
     return;
   }
   catalogProducts = allCatalogProducts.filter((product) => {
-    const matchesSearch = !search || [product.ean, product.sku, product.name, product.category, product.family]
+    const matchesSearch = !search || [product.ean, product.sku, product.name, product.category, product.line]
       .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(search));
     return matchesSearch
       && (!selectedNames.size || selectedNames.has(product.name))
       && (!selectedCategories.size || selectedCategories.has(product.category))
-      && (!selectedFamilies.size || selectedFamilies.has(product.family));
+      && (!selectedLines.size || selectedLines.has(product.line));
   });
   renderProductPicker();
 }
@@ -520,7 +520,7 @@ function fillProductForm(product) {
   byId('catalog-sku').value = product.sku || '';
   byId('catalog-name').value = product.name;
   byId('catalog-category').value = product.category;
-  byId('catalog-family').value = product.family;
+  byId('catalog-line').value = product.line || product.family || '';
   byId('catalog-volume').value = product.volume || '';
   byId('catalog-nuance').value = product.nuance || '';
   byId('catalog-color').value = product.color || '';
@@ -550,7 +550,7 @@ async function loadCatalogTable() {
     appendCell(viewRow, product.sku || '—');
     appendCell(viewRow, product.name);
     appendCell(viewRow, product.category);
-    appendCell(viewRow, product.family);
+    appendCell(viewRow, product.line || product.family || '—');
     appendCell(viewRow, product.nuance || '—');
     appendCell(viewRow, product.color || '—');
     appendCell(viewRow, product.variant || '—');
@@ -560,7 +560,7 @@ async function loadCatalogTable() {
     appendCell(row, product.sku || '—');
     appendCell(row, product.name);
     appendCell(row, product.category);
-    appendCell(row, product.family);
+    appendCell(row, product.line || product.family || '—');
     appendCell(row, product.nuance || '—');
     appendCell(row, product.color || '—');
     appendCell(row, product.variant || '—');
@@ -815,7 +815,7 @@ byId('search-button').addEventListener('click', async () => {
       name: catalogProduct?.name || '',
       sku: catalogProduct?.sku || '',
       category: catalogProduct?.category || '',
-      family: catalogProduct?.family || '',
+      line: catalogProduct?.line || catalogProduct?.family || '',
       volume: catalogProduct?.volume || '',
       searchTerm: catalogProduct?.searchTerm || ''
     };
@@ -999,7 +999,7 @@ byId('product-form').addEventListener('submit', async (event) => {
     sku: byId('catalog-sku').value.trim(),
     name: byId('catalog-name').value.trim(),
     category: byId('catalog-category').value.trim(),
-    family: byId('catalog-family').value.trim(),
+    line: byId('catalog-line').value.trim(),
     volume: byId('catalog-volume').value.trim(),
     nuance: byId('catalog-nuance').value.trim(),
     color: byId('catalog-color').value.trim(),

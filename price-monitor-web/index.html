@@ -42,7 +42,7 @@
           <div class="filter-grid">
             <div class="field filter-field"><label for="name-filter-search">Produto</label><input id="name-filter-search" placeholder="Digite EAN ou Nome do produto para selecionar" autocomplete="off"><div id="name-filter-options" class="filter-options"></div></div>
             <div class="field filter-field"><label for="category-filter-search">Categoria</label><input id="category-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="category-filter-options" class="filter-options"></div></div>
-            <div class="field filter-field"><label for="family-filter-search">Família</label><input id="family-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="family-filter-options" class="filter-options"></div></div>
+            <div class="field filter-field"><label for="line-filter-search">Linha</label><input id="line-filter-search" placeholder="Clique para selecionar" autocomplete="off"><div id="line-filter-options" class="filter-options"></div></div>
           </div>
           <label id="filtered-select-all" class="check-row select-all" hidden><input id="select-all-products" type="checkbox"> Selecionar todos os produtos filtrados</label>
           <div id="product-picker-list" class="product-picker-list"><p>Carregando catálogo…</p></div>
@@ -116,7 +116,7 @@
       <div class="card results-card">
         <div class="card-heading"><div><h2>Produtos</h2><p id="catalog-view-count"></p></div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th><th>Nuance</th><th>Cor</th><th>Variante</th></tr></thead>
+          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Linha</th><th>Nuance</th><th>Cor</th><th>Variante</th></tr></thead>
           <tbody id="catalog-view-body"></tbody>
         </table></div>
       </div>
@@ -146,7 +146,7 @@
           <section>
             <h3>Cadastro pelo painel</h3>
             <ol>
-              <li>Preencha EAN, código interno, nome, gramatura, categoria e família.</li>
+              <li>Preencha EAN, código interno, nome, gramatura, categoria e linha.</li>
               <li>Clique em <strong>Salvar produto</strong>.</li>
               <li>Use a lista de produtos para editar ou excluir um cadastro.</li>
             </ol>
@@ -170,7 +170,7 @@
           <div class="field"><label for="catalog-sku">Código interno</label><input id="catalog-sku"></div>
           <div class="field span-2"><label for="catalog-name">Nome do produto *</label><input id="catalog-name" required></div>
           <div class="field"><label for="catalog-category">Categoria *</label><input id="catalog-category" required></div>
-          <div class="field"><label for="catalog-family">Família *</label><input id="catalog-family" required></div>
+          <div class="field"><label for="catalog-line">Linha *</label><input id="catalog-line" placeholder="Ex.: Selfie, Dual Block, Muito + Liso" required></div>
           <div class="field"><label for="catalog-volume">Volume/gramatura</label><input id="catalog-volume" placeholder="Ex.: 140ml"></div>
           <div class="field"><label for="catalog-nuance">Nuance / tom</label><input id="catalog-nuance" placeholder="Ex.: 7.0"></div>
           <div class="field"><label for="catalog-color">Cor</label><input id="catalog-color" placeholder="Ex.: Louro Médio"></div>
@@ -202,7 +202,7 @@
       <div class="card results-card">
         <div class="card-heading"><div><h2>Gerenciar produtos</h2><p id="catalog-count"></p></div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Família</th><th>Nuance</th><th>Cor</th><th>Variante</th><th>Ações</th></tr></thead>
+          <thead><tr><th>EAN</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Linha</th><th>Nuance</th><th>Cor</th><th>Variante</th><th>Ações</th></tr></thead>
           <tbody id="catalog-body"></tbody>
         </table></div>
       </div>

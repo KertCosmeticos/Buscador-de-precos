@@ -12,7 +12,7 @@ function validateProduct(body) {
     sku: String(body.sku || '').trim(),
     name: String(body.name || '').trim(),
     category: String(body.category || '').trim(),
-    family: String(body.family || '').trim(),
+    line: String(body.line || body.family || '').trim(),
     volume: String(body.volume || '').trim(),
     ncm: String(body.ncm || '').trim(),
     netPrice: body.netPrice === '' || body.netPrice == null ? null : Number(body.netPrice),
@@ -26,8 +26,8 @@ function validateProduct(body) {
     variant: String(body.variant || '').trim(),
     active: body.active !== false
   };
-  if (!product.name || !product.category || !product.family) {
-    const error = new Error('Nome, categoria e família são obrigatórios.');
+  if (!product.name || !product.category || !product.line) {
+    const error = new Error('Nome, categoria e linha são obrigatórios.');
     error.status = 400;
     throw error;
   }
@@ -48,7 +48,7 @@ router.get('/', async (req, res, next) => {
     const products = await catalog.listProducts({
       search: req.query.search,
       category: req.query.category,
-      family: req.query.family
+      line: req.query.line
     });
     res.json({ products });
   } catch (error) { next(error); }

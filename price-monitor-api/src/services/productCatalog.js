@@ -1,10 +1,10 @@
 const Product = require('../models/Product');
 
 const demoProducts = [
-  { _id: 'demo-1', ean: '7896380606429', sku: 'CAB-001', name: 'Shampoo Love My Hair Curly 300ml', category: 'Cabelos', family: 'Love My Hair', active: true },
-  { _id: 'demo-2', ean: '7896380606436', sku: 'CAB-002', name: 'Condicionador Love My Hair Curly 300ml', category: 'Cabelos', family: 'Love My Hair', active: true },
-  { _id: 'demo-3', ean: '7896380606504', sku: 'FIN-001', name: 'Óleo Finalizador 60ml', category: 'Finalizadores', family: 'Phyto Gen', active: true },
-  { _id: 'demo-4', ean: '7896380606511', sku: 'TRA-001', name: 'Máscara de Tratamento 250g', category: 'Tratamentos', family: 'Phyto Gen', active: true }
+  { _id: 'demo-1', ean: '7896380606429', sku: 'CAB-001', name: 'Shampoo Love My Hair Curly 300ml', category: 'Cabelos', line: 'Love My Hair', active: true },
+  { _id: 'demo-2', ean: '7896380606436', sku: 'CAB-002', name: 'Condicionador Love My Hair Curly 300ml', category: 'Cabelos', line: 'Love My Hair', active: true },
+  { _id: 'demo-3', ean: '7896380606504', sku: 'FIN-001', name: 'Óleo Finalizador 60ml', category: 'Finalizadores', line: 'Phyto Gen', active: true },
+  { _id: 'demo-4', ean: '7896380606511', sku: 'TRA-001', name: 'Máscara de Tratamento 250g', category: 'Tratamentos', line: 'Phyto Gen', active: true }
 ];
 
 function isDemo() {
@@ -14,16 +14,16 @@ function isDemo() {
 function matches(product, filters) {
   const search = String(filters.search || '').toLocaleLowerCase('pt-BR');
   return product.active !== false
-    && (!search || [product.name, product.ean, product.sku, product.category, product.family].some((value) => String(value).toLocaleLowerCase('pt-BR').includes(search)))
+    && (!search || [product.name, product.ean, product.sku, product.category, product.line].some((value) => String(value).toLocaleLowerCase('pt-BR').includes(search)))
     && (!filters.category || product.category === filters.category)
-    && (!filters.family || product.family === filters.family);
+    && (!filters.line || product.line === filters.line);
 }
 
 async function listProducts(filters = {}) {
   if (isDemo()) return demoProducts.filter((product) => matches(product, filters));
   const query = { active: true };
   if (filters.category) query.category = filters.category;
-  if (filters.family) query.family = filters.family;
+  if (filters.line) query.line = filters.line;
   if (filters.search) {
     const escaped = String(filters.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     query.$or = [
@@ -31,17 +31,17 @@ async function listProducts(filters = {}) {
       { ean: new RegExp(escaped, 'i') },
       { sku: new RegExp(escaped, 'i') },
       { category: new RegExp(escaped, 'i') },
-      { family: new RegExp(escaped, 'i') }
+      { line: new RegExp(escaped, 'i') }
     ];
   }
   return Product.find(query).sort({ name: 1 }).lean();
 }
 
 async function getFilters() {
-  const products = isDemo() ? demoProducts : await Product.find({ active: true }).select('category family').lean();
+  const products = isDemo() ? demoProducts : await Product.find({ active: true }).select('category line').lean();
   return {
     categories: [...new Set(products.map((item) => item.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
-    families: [...new Set(products.map((item) => item.family))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    families: [...new Set(products.map((item) => item.line))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   };
 }
 
@@ -56,7 +56,7 @@ function cleanProduct(input) {
     sku: String(input.sku || '').trim(),
     name: String(input.name || '').trim(),
     category: String(input.category || '').trim(),
-    family: String(input.family || '').trim(),
+    line: String(input.line || input.family || '').trim(),
     volume: String(input.volume || '').trim(),
     ncm: String(input.ncm || '').trim(),
     netPrice: input.netPrice == null ? null : Number(input.netPrice),
@@ -73,7 +73,7 @@ function cleanProduct(input) {
 }
 
 function sameProduct(left, right) {
-  const fields = ['ean', 'sku', 'name', 'category', 'family', 'volume', 'ncm', 'netPrice', 'searchTerm', 'active'];
+  const fields = ['ean', 'sku', 'name', 'category', 'line', 'volume', 'ncm', 'netPrice', 'searchTerm', 'active'];
   return fields.every((field) => left[field] === right[field])
     && ['tokens', 'aliases', 'requiredWords', 'forbiddenWords'].every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field]));
 }
