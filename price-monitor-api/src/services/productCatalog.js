@@ -65,6 +65,9 @@ function cleanProduct(input) {
     aliases: input.aliases || [],
     requiredWords: input.requiredWords || [],
     forbiddenWords: input.forbiddenWords || [],
+    nuance: String(input.nuance || '').trim(),
+    color: String(input.color || '').trim(),
+    variant: String(input.variant || '').trim(),
     active: input.active !== false
   };
 }
