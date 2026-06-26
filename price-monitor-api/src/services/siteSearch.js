@@ -186,7 +186,6 @@ async function searchVtexApi(baseUrl, term) {
   } catch { /* não é VTEX IO */ }
 
   return [];
-  }
 }
 
 async function searchSiteWithTerm(site, term) {
