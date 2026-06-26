@@ -118,9 +118,14 @@ async function searchFresh(ean, sites = []) {
     const titles = [...new Set(priceListings.map((listing) => String(listing.title || '').trim()).filter(Boolean))];
     const addToSet = { confirmedAliases: { $each: titles } };
     if (firstExactTerm) addToSet.goodTerms = firstExactTerm;
+    const eanInListing = (l) => {
+      const hay = `${l.title || ''} ${l.link || ''}`.toLowerCase();
+      return Boolean(product.ean) && hay.includes(product.ean);
+    };
     const newConfirmedUrls = [...new Set(
       priceListings
-        .filter((l) => l.status === 'Aprovado' && l.link && !knownUrls.includes(l.link))
+        .filter((l) => l.link && !knownUrls.includes(l.link)
+          && (l.status === 'Aprovado' || (l.status === 'Revisar' && eanInListing(l))))
         .map((l) => l.link)
     )];
     if (newConfirmedUrls.length) addToSet.confirmedUrls = { $each: newConfirmedUrls };

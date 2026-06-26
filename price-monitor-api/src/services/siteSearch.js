@@ -14,6 +14,30 @@ const httpClient = axios.create({
   }
 });
 
+// Cache em memória de sites com falhas consecutivas (anti-bot, timeout, sem produtos).
+// Após FAIL_THRESHOLD tentativas em branco, o site fica bloqueado por FAIL_TTL_MS.
+const siteFailCache = new Map();
+const FAIL_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
+const FAIL_THRESHOLD = 3;
+
+function siteKey(site) { return String(site._id || site.name || site.baseUrl || ''); }
+
+function isSiteBlocked(site) {
+  const entry = siteFailCache.get(siteKey(site));
+  if (!entry?.until) return false;
+  if (Date.now() > entry.until) { siteFailCache.delete(siteKey(site)); return false; }
+  return true;
+}
+
+function recordSiteResult(site, found) {
+  const key = siteKey(site);
+  if (found) { siteFailCache.delete(key); return; }
+  const entry = siteFailCache.get(key) || { failCount: 0 };
+  entry.failCount += 1;
+  if (entry.failCount >= FAIL_THRESHOLD) entry.until = Date.now() + FAIL_TTL_MS;
+  siteFailCache.set(key, entry);
+}
+
 function numberFromPrice(value) {
   if (Number.isFinite(value)) return Number(value);
   const normalized = String(value || '')
@@ -160,10 +184,10 @@ async function searchSite(site, ean, terms) {
   // Camada 1a: EAN — identidade absoluta, mais precisa
   if (site.acceptsEan && ean) {
     const results = await searchSiteWithTerm(site, ean);
-    if (results.length) return results;
+    if (results.length) { recordSiteResult(site, true); return results; }
   }
 
-  if (!site.acceptsName) return [];
+  if (!site.acceptsName) { recordSiteResult(site, false); return []; }
 
   // Camada 1b: termos de nome em ordem decrescente de especificidade
   // medium: nome sem volume, aliases, goodTerms aprendidos
@@ -176,15 +200,16 @@ async function searchSite(site, ean, terms) {
   for (const term of nameTerms) {
     // eslint-disable-next-line no-await-in-loop
     const results = await searchSiteWithTerm(site, term);
-    if (results.length) return results;
+    if (results.length) { recordSiteResult(site, true); return results; }
   }
 
+  recordSiteResult(site, false);
   return [];
 }
 
 // Busca em todos os sites cadastrados em paralelo e combina os resultados.
 async function searchRegisteredSites(ean, terms, sites = []) {
-  const active = sites.filter((s) => !s.requiresPlaywright && s.active !== false);
+  const active = sites.filter((s) => !s.requiresPlaywright && s.active !== false && !isSiteBlocked(s));
   if (!active.length) return [];
   const results = await Promise.allSettled(active.map((site) => searchSite(site, ean, terms)));
   return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);

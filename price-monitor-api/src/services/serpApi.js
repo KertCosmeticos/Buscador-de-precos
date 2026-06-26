@@ -56,12 +56,6 @@ function isRelevantOffer(title, productName) {
   if (!productName) return true;
   const expected = searchTokens(productName);
   const received = searchTokens(title);
-  const expectedBrands = expected.filter((token) => trustedBrands.has(token));
-  const receivedHasExpectedBrand = expectedBrands.length
-    ? expectedBrands.some((brand) => received.includes(brand) || (brand !== 'kert' && received.includes('kert')))
-    : received.some((token) => trustedBrands.has(token));
-  if (!receivedHasExpectedBrand) return false;
-
   const distinctive = expected.filter((token) => !trustedBrands.has(token) && !genericProductWords.has(token));
   if (!distinctive.length) return true;
   const matches = distinctive.filter((token) => received.some((candidate) => tokensMatch(token, candidate)));
@@ -431,7 +425,7 @@ async function searchGoogleWebMedium(term, domains = []) {
   if (!process.env.SERPAPI_KEY || !term) return [];
   try {
     const query = domains.length > 0
-      ? `${term} (${domains.slice(0, 4).map((d) => `site:${d}`).join(' OR ')})`
+      ? `${term} (${domains.slice(0, 8).map((d) => `site:${d}`).join(' OR ')})`
       : term;
     const data = await findGoogleWebResults(query);
     const offers = googleWebOffersFromData(data, term);

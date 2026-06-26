@@ -1,6 +1,8 @@
 const { searchByEan } = require('./mercadoLivre');
 const { searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide } = require('./serpApi');
 const { searchRegisteredSites } = require('./siteSearch');
+const { searchBingWeb } = require('./bingSearch');
+const { searchAggregators } = require('./buscapeSearch');
 
 function deduplicate(listings) {
   const results = [];
@@ -60,7 +62,10 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
   const mercadoLivreSelected = !sites.length
     || sites.some((site) => /mercado\s*livre/i.test(site.name) || /mercadolivre\.com\.br$/.test(siteDomain(site)));
 
-  const connectors = [
+  // queryKey: identifica queries idênticas para deduplicação (R6)
+  const qk = (prefix, term, doms = []) => `${prefix}:${term}:${[...doms].sort().join('|')}`;
+
+  const allConnectors = [
     {
       name: 'Mercado Livre',
       enabled: mercadoLivreSelected,
@@ -79,47 +84,71 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
     // Camada média: busca de intenção com termos sem volume/abreviação
     ...(layered.medium || []).slice(0, 3).map((term, i) => ({
       name: `Google Médio ${i + 1}`,
+      queryKey: qk('gm', term, domains),
       enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
       search: () => searchGoogleWebMedium(term, domains),
     })),
     // Camada ampla: descoberta de sites — todos marcados como discoveryCandidate
     ...(layered.wide || []).slice(0, 3).map((term, i) => ({
       name: `Google Amplo ${i + 1}`,
+      queryKey: qk('gw', term),
       enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
       search: () => searchGoogleWebWide(term),
     })),
-    // Camada EAN+site: EAN por domínio cadastrado — busca direta e precisa via Google
-    ...(ean && domains.length ? domains.slice(0, 5).map((domain) => ({
-      name: `Google EAN:${domain}`,
+    // Camada EAN+sites: 1 query consolidada para todos os domínios (era N calls separadas)
+    ...(ean && domains.length ? [{
+      name: 'Google EAN+sites',
+      queryKey: qk('gm', ean, domains.slice(0, 8)),
       enabled: Boolean(process.env.SERPAPI_KEY),
-      search: () => searchGoogleWebMedium(ean, [domain]),
-    })) : []),
-    // Camada nome+site: nome sem volume por domínio cadastrado — mais específico que wide
-    ...((layered.medium || []).slice(0, 1).flatMap((term) =>
-      domains.slice(0, 5).map((domain) => ({
-        name: `Google Nome:${domain}`,
-        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
-        search: () => searchGoogleWebMedium(term, [domain]),
-      }))
-    )),
-    // Camada site+alias: alias buscado individualmente por domínio cadastrado
-    ...(layered.siteAliases || []).slice(0, 2).flatMap((alias, i) =>
-      domains.slice(0, 5).map((domain) => ({
-        name: `Google Alias ${i + 1}:${domain}`,
-        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(alias),
-        search: () => searchGoogleWebMedium(alias, [domain]),
-      }))
-    ),
-    // Camada site+wide: termo amplo principal por domínio individual (keraton tipo família)
-    // Encontra produtos em sites menores mesmo sem alias cadastrado
-    ...(layered.wide || []).slice(0, 1).flatMap((term) =>
-      domains.slice(0, 5).map((domain) => ({
-        name: `Google Wide:${domain}`,
-        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
-        search: () => searchGoogleWebMedium(term, [domain]),
-      }))
-    ),
-  ].filter((connector) => connector.enabled);
+      search: () => searchGoogleWebMedium(ean, domains.slice(0, 8)),
+    }] : []),
+    // Camada nome+sites: nome sem volume em todos os domínios — 1 query consolidada
+    ...((layered.medium || []).slice(0, 1).map((term) => ({
+      name: 'Google Nome+sites',
+      queryKey: qk('gm', term, domains.slice(0, 8)),
+      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term) && domains.length > 0,
+      search: () => searchGoogleWebMedium(term, domains.slice(0, 8)),
+    }))),
+    // Camada alias+sites: 1 call por alias com todos os domínios (era alias×domain calls)
+    ...(layered.siteAliases || []).slice(0, 2).map((alias, i) => ({
+      name: `Google Alias ${i + 1}+sites`,
+      queryKey: qk('gm', alias, domains.slice(0, 8)),
+      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(alias) && domains.length > 0,
+      search: () => searchGoogleWebMedium(alias, domains.slice(0, 8)),
+    })),
+    // Camada wide+sites: termo amplo em todos os domínios — 1 query consolidada
+    ...((layered.wide || []).slice(0, 1).map((term) => ({
+      name: 'Google Wide+sites',
+      queryKey: qk('gm', term, domains.slice(0, 8)),
+      enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term) && domains.length > 0,
+      search: () => searchGoogleWebMedium(term, domains.slice(0, 8)),
+    }))),
+    // Bing Web: alternativa ao Google para descoberta, sem CAPTCHA (usa BING_API_KEY)
+    {
+      name: 'Bing Web',
+      queryKey: qk('bing', productName || ean, domains.slice(0, 6)),
+      enabled: Boolean(process.env.BING_API_KEY),
+      search: () => searchBingWeb(productName || ean, domains.slice(0, 6)),
+    },
+    // Buscapé/Zoom: agregadores de preço brasileiros — scraping sem chave de API
+    {
+      name: 'Buscapé/Zoom',
+      queryKey: `buscape:${ean}`,
+      enabled: Boolean(ean),
+      search: () => searchAggregators(ean),
+    },
+  ];
+
+  // Deduplica connectors com a mesma query antes de executar (R6)
+  const seenKeys = new Set();
+  const connectors = allConnectors
+    .filter((c) => c.enabled)
+    .filter((c) => {
+      if (!c.queryKey) return true;
+      if (seenKeys.has(c.queryKey)) return false;
+      seenKeys.add(c.queryKey);
+      return true;
+    });
 
   const settled = await Promise.allSettled(connectors.map((connector) => connector.search()));
   const sources = settled.map((result, index) => ({
