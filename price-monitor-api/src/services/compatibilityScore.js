@@ -156,25 +156,31 @@ function calculateCompatibility(product, listing, learning = {}) {
   const hasKeratonBrand = /\b(?:keraton|kert)\b/.test(text);
   if (hasKeratonBrand) add(35, 'Marca Keraton/Kert');
 
-  // Linha
+  // Linha — GATE 1
+  // Detecta a linha do produto em product.line/family; se não definida, usa o nome do produto
+  // como fallback — isso garante que produtos de outra linha Keraton sejam rejeitados mesmo
+  // quando o campo não foi preenchido no cadastro (ex: "selfie" aparecendo em busca de "dual-block").
   const productLineName = product.line || product.family || '';
+  const resolvedProductLine = productLineName
+    ? detectLine(normalizeText(productLineName))
+    : detectLine(normalizeText(product.name || ''));
+  const listingLine = detectLine(text);
+
   if (productLineName) {
     const familyFound = hasLineInText(text, product);
     if (familyFound) {
       add(60, 'Linha correta');
     } else {
-      // Linha conflitante via LINE_PATTERNS → trava absoluta
-      const productLine = detectLine(normalizeText(productLineName));
-      const listingLine = detectLine(text);
-      if (productLine && listingLine && productLine.id !== listingLine.id) {
-        return rejected(`Linha conflitante: esperada ${productLine.id}, encontrada ${listingLine.id}`);
+      // Linha conflitante → trava absoluta
+      if (resolvedProductLine && listingLine && resolvedProductLine.id !== listingLine.id) {
+        return rejected(`Linha conflitante: esperada ${resolvedProductLine.id}, encontrada ${listingLine.id}`);
       }
       // Linha interna Keraton conflitante → trava absoluta (sem EAN confirmado)
       if (!hasEan && hasKeratonBrand) {
         const blockedLine = INTERNAL_KERATON_LINES.find((w) => includesTerm(titleText, w));
         if (blockedLine) return rejected(`Linha Keraton conflitante: "${blockedLine}"`);
       }
-      // Palavras que sugerem outra linha Keraton → penalidade forte + cap (não rejeita direto)
+      // Palavras que sugerem outra linha Keraton → penalidade forte + cap
       if (!hasEan && product.lineBlockWords?.length) {
         const blocked = product.lineBlockWords.find((w) => includesTerm(titleText, w));
         if (blocked) {
@@ -182,27 +188,33 @@ function calculateCompatibility(product, listing, learning = {}) {
           capAtRevisar = true;
         }
       }
-      // Linha ausente sem conflito: penalidade leve + cap Revisar
-      // Se o produto tem linha explícita, aplica mesmo com EAN (título suspeito mesmo confirmado)
       if (!hasEan || product.line) {
         add(-10, 'Linha não identificada');
         capAtRevisar = true;
       }
     }
+  } else if (resolvedProductLine && listingLine && resolvedProductLine.id !== listingLine.id) {
+    // Produto sem linha explícita no cadastro mas linha diferente detectada → rejeita
+    return rejected(`Linha conflitante: esperada ${resolvedProductLine.id} (via nome), encontrada ${listingLine.id}`);
   }
 
-  // Volume — detecta correspondência e conflitos de tamanho/embalagem
+  // Volume/gramatura — GATE 4 (soft)
+  // Se o anúncio informa gramatura E o produto tem gramatura → devem coincidir (descarta se não).
+  // Se o anúncio não informa gramatura → não descarta (muitas lojas omitem).
   if (product.volume) {
     const prodVolNorm = normalizeVolume(product.volume);
     if (prodVolNorm && parsed.volume) {
       if (parsed.volume === prodVolNorm) {
-        add(15, 'Volume correto');
+        add(15, 'Volume/gramatura correto');
+      } else if (!hasEan) {
+        return rejected(`Volume/gramatura diferente: esperado ${product.volume}, encontrado ${parsed.volume}`);
       } else {
-        add(-20, `Volume divergente: esperado ${product.volume}, encontrado ${parsed.volume}`);
+        add(-20, `Volume divergente (EAN presente): esperado ${product.volume}, encontrado ${parsed.volume}`);
       }
     } else if (includesTerm(text, product.volume)) {
-      add(15, 'Volume correto');
+      add(15, 'Volume/gramatura correto');
     }
+    // Sem volume detectado no anúncio → não descarta
   }
 
   // Nuance e cor — validação em cascata:
@@ -233,17 +245,22 @@ function calculateCompatibility(product, listing, learning = {}) {
       }
     }
     // Sem nuance detectada no título → não penaliza; loja pode omitir o código de tom
-  } else if (product.color && parsed.colorId) {
-    // Sem nuance no produto → valida pela cor descritiva (ex: "Louro Médio", "Castanho Escuro")
-    const prodColorNorm = normalizeText(product.color);
-    const listColorNorm = normalizeText(parsed.colorLabel || parsed.colorId);
-    const colorMatch = listColorNorm === prodColorNorm
-      || listColorNorm.includes(prodColorNorm)
-      || prodColorNorm.includes(listColorNorm);
-    if (colorMatch) {
-      add(10, `Cor correta: ${product.color}`);
+  } else if (product.color) {
+    // Sem nuance no produto → valida pela cor descritiva por similaridade de palavras.
+    // Cor pode ser multi-palavra (ex: "Louro Muito Claro Cobre"); basta UMA palavra significativa
+    // bater no título do anúncio. Palavras curtas (< 4 chars) são ignoradas para evitar falsos positivos.
+    const colorWords = normalizeText(product.color)
+      .split(/\s+/)
+      .filter((w) => w.length >= 4);
+    if (colorWords.length > 0) {
+      const matchedWord = colorWords.find((w) => titleText.includes(w));
+      if (matchedWord) {
+        add(10, `Cor identificada: "${matchedWord}" de "${product.color}"`);
+      } else if (!hasEan) {
+        return rejected(`Cor não identificada: nenhuma palavra de "${product.color}" encontrada no título`);
+      }
+      // Com EAN confirmado → não descarta por cor ausente (EAN já garante identidade)
     }
-    // Cor divergente não rejeita — título pode omitir descritor de cor
   }
 
   // Palavras obrigatórias
