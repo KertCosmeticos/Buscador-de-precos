@@ -236,6 +236,16 @@ function productPageDataFromHtml(html, pageUrl) {
       canonical = absoluteUrl(attributes.href || '', pageUrl);
     }
   }
+
+  // Microdata: itemprop="price" — usado em lojas PHP antigas (ex: Loja Virtual, osCommerce)
+  if (!Number.isFinite(metaPrice)) {
+    const microdataContent = String(html).match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i);
+    const microdataText = String(html).match(/itemprop=["']price["'][^>]*>([^<]{1,20})</i);
+    const rawPrice = microdataContent?.[1] || microdataText?.[1] || '';
+    const price = numberFromPrice(rawPrice);
+    if (Number.isFinite(price)) { metaPrice = price; productType = true; }
+  }
+
   return {
     price: metaPrice,
     directLink: canonical || pageUrl,
