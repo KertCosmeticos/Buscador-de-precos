@@ -61,13 +61,14 @@ function slugTitle(url) {
 }
 
 // Monta a URL de busca do site substituindo placeholder ou ajustando o query param existente.
+// Suporta {termo}, {term} e {query} como placeholder — substitui todas as ocorrências (ex: VTEX /{termo}?_q={termo}&map=ft).
 function buildSearchUrl(site, term) {
   const raw = site.searchUrl || '';
   if (!raw || site.requiresPlaywright) return '';
-  if (/{(query|term)}/i.test(raw)) return raw.replace(/{(query|term)}/i, encodeURIComponent(term));
+  if (/{(query|term|termo)}/i.test(raw)) return raw.replace(/{(query|term|termo)}/gi, encodeURIComponent(term));
   try {
     const url = new URL(raw);
-    const knownKey = ['q', 'query', 'busca', 'search', 'keyword', 'pesquisa', 's', 'termo']
+    const knownKey = ['q', '_q', 'query', 'busca', 'search', 'keyword', 'pesquisa', 's', 'termo', 'palavra_busca', 'w']
       .find((k) => url.searchParams.has(k)) || 'q';
     url.searchParams.set(knownKey, term);
     return url.href;
