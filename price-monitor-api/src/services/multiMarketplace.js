@@ -1,7 +1,6 @@
 const { searchByEan } = require('./mercadoLivre');
 const { searchGoogleShopping, searchGoogleWebMedium, searchGoogleWebWide } = require('./serpApi');
 const { searchRegisteredSites } = require('./siteSearch');
-const { searchBingWeb } = require('./bingSearch');
 const { searchAggregators } = require('./buscapeSearch');
 
 function deduplicate(listings) {
@@ -123,13 +122,6 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
       enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term) && domains.length > 0,
       search: () => searchGoogleWebMedium(term, domains.slice(0, 8)),
     }))),
-    // Bing Web: alternativa ao Google para descoberta, sem CAPTCHA (usa BING_API_KEY)
-    {
-      name: 'Bing Web',
-      queryKey: qk('bing', productName || ean, domains.slice(0, 6)),
-      enabled: Boolean(process.env.BING_API_KEY),
-      search: () => searchBingWeb(productName || ean, domains.slice(0, 6)),
-    },
     // Buscapé/Zoom: agregadores de preço brasileiros — scraping sem chave de API
     {
       name: 'Buscapé/Zoom',
