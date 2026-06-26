@@ -522,6 +522,9 @@ function fillProductForm(product) {
   byId('catalog-category').value = product.category;
   byId('catalog-family').value = product.family;
   byId('catalog-volume').value = product.volume || '';
+  byId('catalog-nuance').value = product.nuance || '';
+  byId('catalog-color').value = product.color || '';
+  byId('catalog-variant').value = product.variant || '';
   byId('product-form-title').textContent = 'Editar produto';
   byId('cancel-edit').hidden = false;
   byId('catalog-ean').focus();
@@ -991,7 +994,10 @@ byId('product-form').addEventListener('submit', async (event) => {
     name: byId('catalog-name').value.trim(),
     category: byId('catalog-category').value.trim(),
     family: byId('catalog-family').value.trim(),
-    volume: byId('catalog-volume').value.trim()
+    volume: byId('catalog-volume').value.trim(),
+    nuance: byId('catalog-nuance').value.trim(),
+    color: byId('catalog-color').value.trim(),
+    variant: byId('catalog-variant').value.trim()
   };
 
   try {
