@@ -141,69 +141,16 @@ function extractProductLinks(html, pageUrl, baseUrl) {
   return links.slice(0, 10);
 }
 
-function parseVtexProducts(products, baseUrl) {
-  const marketplace = new URL(baseUrl).hostname.replace(/^www\./, '').toLowerCase();
-  const results = [];
-  for (const product of (Array.isArray(products) ? products : [])) {
-    const productLink = product.link || (product.linkText ? `${baseUrl}/${product.linkText}/p` : '');
-    if (!productLink) continue;
-    for (const item of (product.items || [])) {
-      const mainSeller = (item.sellers || []).find((s) => s.sellerId === '1') || item.sellers?.[0];
-      if (!mainSeller) continue;
-      const offer = mainSeller.commertialOffer || {};
-      const price = numberFromPrice(offer.Price ?? offer.ListPrice);
-      if (!Number.isFinite(price) || price <= 0) continue;
-      results.push({ title: product.productName || item.name || '', price, link: productLink, marketplace, seller: marketplace, condition: 'new', freeShipping: false });
-      break;
-    }
-  }
-  return results;
-}
-
-// Tenta a API REST pública do VTEX — retorna JSON diretamente sem precisar renderizar JavaScript.
-// Tenta primeiro a API Legacy (VTEX clássico) e depois a Intelligent Search (VTEX IO).
-async function searchVtexApi(baseUrl, term) {
-  // Tentativa 1: API Legacy (VTEX clássico e VTEX IO com compat layer)
-  try {
-    const url = new URL('/api/catalog_system/pub/products/search', baseUrl);
-    url.searchParams.set('ft', term);
-    url.searchParams.set('_from', '0');
-    url.searchParams.set('_to', '7');
-    const response = await httpClient.get(url.href, { headers: { Accept: 'application/json' }, timeout: 6000 });
-    const results = parseVtexProducts(response.data, baseUrl);
-    if (results.length) return results;
-  } catch { /* não é VTEX legacy ou API bloqueada */ }
-
-  // Tentativa 2: Intelligent Search API (VTEX IO)
-  try {
-    const url = new URL('/api/io/_v/api/intelligent-search/product_search', baseUrl);
-    url.searchParams.set('query', term);
-    url.searchParams.set('count', '8');
-    const response = await httpClient.get(url.href, { headers: { Accept: 'application/json' }, timeout: 6000 });
-    const products = response.data?.products || response.data?.items || [];
-    const results = parseVtexProducts(products, baseUrl);
-    if (results.length) return results;
-  } catch { /* não é VTEX IO */ }
-
-  return [];
-}
-
 async function searchSiteWithTerm(site, term) {
   const searchUrl = buildSearchUrl(site, term);
   if (!searchUrl) return [];
-  const marketplace = siteHostname(site);
-
-  // Camada 0: API VTEX — contorna JavaScript rendering; falha silenciosamente se o site não for VTEX
-  const vtexResults = await searchVtexApi(site.baseUrl, term);
-  if (vtexResults.length) return vtexResults.slice(0, 8);
-
-  // Camada 1: scraping HTML da página de resultados
   const fetched = await fetchHtml(searchUrl);
   if (!fetched) return [];
 
   const { html, finalUrl } = fetched;
+  const marketplace = siteHostname(site);
 
-  // Tenta JSON-LD da página de resultados (Magento, WooCommerce costumam publicar)
+  // Tenta JSON-LD da página de resultados (VTEX, Magento, WooCommerce costumam publicar)
   const jsonLdResults = listingsFromJsonLd(html, finalUrl);
   const withPrice = jsonLdResults.filter((r) => Number.isFinite(r.price));
   if (withPrice.length >= 2) {
