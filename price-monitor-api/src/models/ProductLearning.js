@@ -6,7 +6,8 @@ const productLearningSchema = new mongoose.Schema({
   goodTerms: { type: [String], default: [] },
   badTerms: { type: [String], default: [] },
   ignoredTitles: { type: [String], default: [] },
-  excludedWords: { type: [String], default: [] }
+  excludedWords: { type: [String], default: [] },
+  confirmedUrls: { type: [String], default: [] }
 }, { timestamps: true, versionKey: false });
 
 module.exports = mongoose.model('ProductLearning', productLearningSchema);

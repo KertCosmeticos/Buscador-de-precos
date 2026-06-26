@@ -157,17 +157,26 @@ async function searchSiteWithTerm(site, term) {
 }
 
 async function searchSite(site, ean, terms) {
-  const nameTerm = (terms.medium || [])[0] || (terms.exact || []).find((t) => t !== ean) || '';
-
-  // Tenta EAN primeiro se o site suporta
+  // Camada 1a: EAN — identidade absoluta, mais precisa
   if (site.acceptsEan && ean) {
     const results = await searchSiteWithTerm(site, ean);
     if (results.length) return results;
   }
 
-  // Fallback: termo de nome
-  if (site.acceptsName && nameTerm) {
-    return searchSiteWithTerm(site, nameTerm);
+  if (!site.acceptsName) return [];
+
+  // Camada 1b: termos de nome em ordem decrescente de especificidade
+  // medium: nome sem volume, aliases, goodTerms aprendidos
+  // wide: marca+tipo+família, marca+família (fallback de descoberta)
+  const nameTerms = [
+    ...(terms.medium || []).slice(0, 3),
+    ...(terms.wide || []).slice(0, 2),
+  ].filter(Boolean);
+
+  for (const term of nameTerms) {
+    // eslint-disable-next-line no-await-in-loop
+    const results = await searchSiteWithTerm(site, term);
+    if (results.length) return results;
   }
 
   return [];

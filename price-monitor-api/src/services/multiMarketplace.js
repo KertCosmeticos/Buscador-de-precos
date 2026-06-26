@@ -88,6 +88,20 @@ async function searchAllMarketplaces(ean, terms, sites = []) {
       enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
       search: () => searchGoogleWebWide(term),
     })),
+    // Camada EAN+site: EAN por domínio cadastrado — busca direta e precisa via Google
+    ...(ean && domains.length ? domains.slice(0, 5).map((domain) => ({
+      name: `Google EAN:${domain}`,
+      enabled: Boolean(process.env.SERPAPI_KEY),
+      search: () => searchGoogleWebMedium(ean, [domain]),
+    })) : []),
+    // Camada nome+site: nome sem volume por domínio cadastrado — mais específico que wide
+    ...((layered.medium || []).slice(0, 1).flatMap((term) =>
+      domains.slice(0, 5).map((domain) => ({
+        name: `Google Nome:${domain}`,
+        enabled: Boolean(process.env.SERPAPI_KEY) && Boolean(term),
+        search: () => searchGoogleWebMedium(term, [domain]),
+      }))
+    )),
     // Camada site+alias: alias buscado individualmente por domínio cadastrado
     ...(layered.siteAliases || []).slice(0, 2).flatMap((alias, i) =>
       domains.slice(0, 5).map((domain) => ({
