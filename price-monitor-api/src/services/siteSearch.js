@@ -141,16 +141,64 @@ function extractProductLinks(html, pageUrl, baseUrl) {
   return links.slice(0, 10);
 }
 
+// Tenta a API REST pública do VTEX — retorna JSON diretamente sem precisar renderizar JavaScript.
+// Funciona para qualquer loja VTEX (tradicional ou VTEX IO): Drogaraia, Danny, Época, etc.
+async function searchVtexApi(baseUrl, term) {
+  try {
+    const url = new URL('/api/catalog_system/pub/products/search', baseUrl);
+    url.searchParams.set('ft', term);
+    url.searchParams.set('_from', '0');
+    url.searchParams.set('_to', '7');
+    const response = await httpClient.get(url.href, {
+      headers: { Accept: 'application/json' },
+      timeout: 8000,
+    });
+    if (!Array.isArray(response.data) || !response.data.length) return [];
+    const marketplace = new URL(baseUrl).hostname.replace(/^www\./, '').toLowerCase();
+    const results = [];
+    for (const product of response.data) {
+      const productLink = product.link || '';
+      if (!productLink) continue;
+      for (const item of (product.items || [])) {
+        const mainSeller = (item.sellers || []).find((s) => s.sellerId === '1') || item.sellers?.[0];
+        if (!mainSeller) continue;
+        const offer = mainSeller.commertialOffer || {};
+        const price = numberFromPrice(offer.Price ?? offer.ListPrice);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        results.push({
+          title: product.productName || item.name || '',
+          price,
+          link: productLink,
+          marketplace,
+          seller: marketplace,
+          condition: 'new',
+          freeShipping: false,
+        });
+        break;
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 async function searchSiteWithTerm(site, term) {
   const searchUrl = buildSearchUrl(site, term);
   if (!searchUrl) return [];
+  const marketplace = siteHostname(site);
+
+  // Camada 0: API VTEX — contorna JavaScript rendering; falha silenciosamente se o site não for VTEX
+  const vtexResults = await searchVtexApi(site.baseUrl, term);
+  if (vtexResults.length) return vtexResults.slice(0, 8);
+
+  // Camada 1: scraping HTML da página de resultados
   const fetched = await fetchHtml(searchUrl);
   if (!fetched) return [];
 
   const { html, finalUrl } = fetched;
-  const marketplace = siteHostname(site);
 
-  // Tenta JSON-LD da página de resultados (VTEX, Magento, WooCommerce costumam publicar)
+  // Tenta JSON-LD da página de resultados (Magento, WooCommerce costumam publicar)
   const jsonLdResults = listingsFromJsonLd(html, finalUrl);
   const withPrice = jsonLdResults.filter((r) => Number.isFinite(r.price));
   if (withPrice.length >= 2) {
