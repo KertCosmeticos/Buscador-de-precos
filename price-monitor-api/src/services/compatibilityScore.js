@@ -71,6 +71,8 @@ const TRUSTED_DOMAINS = [
   'shopee.com.br', 'magazineluiza.com.br', 'americanas.com.br',
   'belezanaweb.com.br', 'epocacosmeticos.com.br', 'drogariasaopaulo.com.br',
   'drogasil.com.br', 'drogaraia.com.br', 'ultrafarma.com.br',
+  'florency.com.br', 'dannycosmeticos.com.br', 'akaicosmeticos.com.br',
+  'perfumariasumire.com.br', 'perfumariaseiki.com.br', 'riobelcosmeticos.com.br',
 ];
 
 function detectType(text) {

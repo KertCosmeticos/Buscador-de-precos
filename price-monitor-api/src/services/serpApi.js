@@ -9,7 +9,8 @@ const searchLocation = process.env.SEARCH_LOCATION || undefined;
 const priorityDomainGroups = [
   ['amazon.com.br', 'mercadolivre.com.br', 'shopee.com.br', 'magazineluiza.com.br'],
   ['belezanaweb.com.br', 'perfumariasumire.com.br', 'perfumariaseiki.com.br', 'riobelcosmeticos.com.br'],
-  ['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'drogasil.com.br', 'drogaraia.com.br']
+  ['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'drogasil.com.br', 'drogaraia.com.br'],
+  ['florency.com.br', 'dannycosmeticos.com.br', 'akaicosmeticos.com.br', 'lojajanecosmeticos.lojavirtualnuvem.com.br'],
 ];
 
 function hasFreeShipping(result) {
@@ -325,7 +326,8 @@ async function resolveGoogleWebOffers(offers) {
       const price = Number.isFinite(offer.price) ? offer.price : page?.price;
       const directLink = page?.directLink || offer.link;
       const validDirectLink = directLink && !isLikelySearchUrl(directLink);
-      results[index] = Number.isFinite(price) && validDirectLink && (!needsInspection || page?.isProductPage)
+      // Se o preço já foi confirmado pelo Google Shopping, não exige isProductPage — só precisa de link direto válido
+      results[index] = Number.isFinite(price) && validDirectLink && (!needsInspection || page?.isProductPage || Number.isFinite(offer.price))
         ? { ...offer, price, link: directLink }
         : null;
     }
