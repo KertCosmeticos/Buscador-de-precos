@@ -16,7 +16,7 @@ const { generateSearchTerms, generateLayeredTerms } = require('./services/search
 const { postalCode, formatPostalCode } = require('./config/search');
 const Site = require('./models/Site');
 const { splitDiscoveredListings } = require('./services/siteDiscovery');
-const { fetchDirectUrls } = require('./services/serpApi');
+const { fetchDirectUrls, searchGoogleWebMedium } = require('./services/serpApi');
 
 const app = express();
 const demoMode = process.env.DEMO_MODE === 'true';
@@ -249,7 +249,22 @@ app.post('/avaliar', async (req, res, next) => {
     if (!product) return res.status(404).json({ error: 'Produto não encontrado no catálogo.' });
     const learning = demoMode ? {} : await ProductLearning.findOne({ productId: product._id }).lean() || {};
     const sites = demoMode ? [] : await Site.find({ active: true }).lean();
-    const allScored = listings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }));
+
+    // Busca Google site:domain para sites cadastrados — complementa o que a extensão Chrome capturou
+    let allListings = listings;
+    if (!demoMode && process.env.SERPAPI_KEY && sites.length) {
+      const domains = [...new Set(sites.map((s) => {
+        try { return new URL(s.baseUrl || s.searchUrl || '').hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; }
+      }).filter(Boolean))];
+      if (domains.length) {
+        const terms = generateLayeredTerms(product, learning);
+        const productName = (terms.medium || [])[0] || product.name;
+        const siteListings = await searchGoogleWebMedium(productName, domains.slice(0, 8)).catch(() => []);
+        if (siteListings.length) allListings = deduplicate([...listings, ...siteListings]);
+      }
+    }
+
+    const allScored = allListings.map((listing) => ({ ...listing, ...calculateCompatibility(product, listing, learning) }));
     const discovery = await splitDiscoveredListings(allScored, sites, demoMode);
     const priceListings = discovery.listings
       .filter((listing) => !shouldHideListing(listing))
