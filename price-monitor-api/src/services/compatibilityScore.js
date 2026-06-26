@@ -205,13 +205,15 @@ function calculateCompatibility(product, listing, learning = {}) {
     }
   }
 
-  // Nuance — código de tom para coloração (ex: 7.0, 8.1, 5N)
-  // Normalização: "1.0" e "1" são equivalentes (normalizeNuance remove ".0" final).
-  // Fallback: quando o parser não detecta nuance no formato decimal/letra (ex: "7N", "1.0"),
-  // procura dígito avulso no título — captura casos como "Dual Block 2 Preto Azulado".
+  // Nuance e cor — validação em cascata:
+  //   1. Se o produto tem nuance → valida nuance; cor não é verificada (nuance já identifica o tom)
+  //   2. Se não tem nuance mas tem cor → valida cor
+  // Isso evita falsa rejeição quando a loja informa apenas um dos dois atributos.
   if (product.nuance) {
     const prodNuance = normalizeNuance(product.nuance);
 
+    // Fallback: quando NUANCE_RE não detecta formato decimal/letra (ex: "7N", "1.0"),
+    // procura dígito avulso no título (ex: "Dual Block 2 Preto Azulado" → "2")
     let foundNuance = parsed.nuance;
     if (!foundNuance) {
       const titleForNuance = (listing.title || '')
@@ -230,17 +232,18 @@ function calculateCompatibility(product, listing, learning = {}) {
         add(-40, `Nuance divergente (EAN presente): esperado ${product.nuance}, encontrado ${foundNuance}`);
       }
     }
-  }
-
-  // Cor — descriptor de cor do produto (ex: Louro Médio, Castanho Escuro)
-  if (product.color && parsed.colorId) {
+    // Sem nuance detectada no título → não penaliza; loja pode omitir o código de tom
+  } else if (product.color && parsed.colorId) {
+    // Sem nuance no produto → valida pela cor descritiva (ex: "Louro Médio", "Castanho Escuro")
     const prodColorNorm = normalizeText(product.color);
     const listColorNorm = normalizeText(parsed.colorLabel || parsed.colorId);
     const colorMatch = listColorNorm === prodColorNorm
       || listColorNorm.includes(prodColorNorm)
       || prodColorNorm.includes(listColorNorm);
-    if (colorMatch) add(10, `Cor correta: ${product.color}`);
-    // Sem penalidade por cor divergente — título pode omitir a cor
+    if (colorMatch) {
+      add(10, `Cor correta: ${product.color}`);
+    }
+    // Cor divergente não rejeita — título pode omitir descritor de cor
   }
 
   // Palavras obrigatórias

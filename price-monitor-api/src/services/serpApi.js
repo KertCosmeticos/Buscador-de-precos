@@ -49,8 +49,11 @@ function searchTokens(value) {
 }
 
 function tokensMatch(expected, received) {
-  return expected === received
-    || (expected.length >= 6 && received.length >= 6 && expected.slice(0, 6) === received.slice(0, 6));
+  if (expected === received) return true;
+  // "1.0" e "1" são o mesmo código de nuance
+  const norm = (t) => t.replace(/\.0+$/, '');
+  if (norm(expected) === norm(received)) return true;
+  return expected.length >= 6 && received.length >= 6 && expected.slice(0, 6) === received.slice(0, 6);
 }
 
 function isRelevantOffer(title, productName) {
@@ -60,9 +63,9 @@ function isRelevantOffer(title, productName) {
   const distinctive = expected.filter((token) => !trustedBrands.has(token) && !genericProductWords.has(token));
   if (!distinctive.length) return true;
   const matches = distinctive.filter((token) => received.some((candidate) => tokensMatch(token, candidate)));
-  const lastDistinctive = distinctive[distinctive.length - 1];
-  return received.some((candidate) => tokensMatch(lastDistinctive, candidate))
-    && matches.length >= Math.max(1, Math.ceil(distinctive.length * 0.6));
+  // Exige ≥60% dos tokens distintivos — lastDistinctive não é obrigatório pois lojas
+  // podem omitir cor/nuance no título (ex: Danny usa código numérico em vez de "Preto")
+  return matches.length >= Math.max(1, Math.ceil(distinctive.length * 0.6));
 }
 
 async function getDirectSellerOffers(product, ean) {
@@ -265,9 +268,18 @@ async function inspectProductPage(pageUrl) {
       }
     });
     const finalUrl = response.request?.res?.responseUrl || parsed.href;
-    return productPageDataFromHtml(response.data, finalUrl);
+    const pageData = productPageDataFromHtml(response.data, finalUrl);
+    if (Number.isFinite(pageData.price)) return pageData;
+    // Página VTEX (React SPA) detectada — tenta API de catálogo público para obter preço
+    if (/\b__RUNTIME__\b/.test(String(response.data).slice(0, 3000))) {
+      const vtex = await tryVtexApi(finalUrl);
+      if (vtex) return vtex;
+    }
+    return pageData;
   } catch {
-    return null;
+    // Requisição bloqueada (anti-bot, Cloudflare, etc.) — tenta VTEX API para URLs com productId
+    const vtex = vtexProductIdFromUrl(parsed.href) ? await tryVtexApi(parsed.href) : null;
+    return vtex || null;
   }
 }
 
@@ -454,6 +466,41 @@ function slugTitle(url) {
     const parts = new URL(url).pathname.split('/').filter(Boolean);
     return (parts.pop() || '').replace(/[-_.]/g, ' ').replace(/\s+/g, ' ').trim();
   } catch { return ''; }
+}
+
+// Extrai productId de URLs VTEX (ex: "-944731.html" ou "/produto/nome-944731/p")
+function vtexProductIdFromUrl(pageUrl) {
+  try {
+    const path = new URL(pageUrl).pathname;
+    const m = path.match(/-(\d{5,})(?:\/p)?(?:\.html)?$/) || path.match(/\/(\d{5,})(?:\/p)?(?:\.html)?$/);
+    return m ? m[1] : null;
+  } catch { return null; }
+}
+
+// Fallback VTEX: busca produto via API de catálogo público quando HTML não retorna preço.
+// Funciona mesmo quando a página HTML está protegida por anti-bot, pois a API /pub/ é pública.
+async function tryVtexApi(pageUrl) {
+  const productId = vtexProductIdFromUrl(pageUrl);
+  if (!productId) return null;
+  try {
+    const origin = new URL(pageUrl).origin;
+    const { data } = await axios.get(`${origin}/api/catalog_system/pub/products/search`, {
+      params: { fq: `productId:${productId}`, _from: 0, _to: 0 },
+      timeout: 5000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36' }
+    });
+    if (!Array.isArray(data) || !data.length) return null;
+    const product = data[0];
+    const sku = (product.items || []).find((i) => i.sellers?.length) || product.items?.[0];
+    const price = numberFromPrice(sku?.sellers?.[0]?.commertialOffer?.Price);
+    if (!Number.isFinite(price)) return null;
+    return {
+      price,
+      directLink: pageUrl,
+      isProductPage: true,
+      title: String(product.productName || product.name || sku?.name || '').trim(),
+    };
+  } catch { return null; }
 }
 
 // Abre cada URL diretamente, extrai preço via JSON-LD/og:price e retorna listings.

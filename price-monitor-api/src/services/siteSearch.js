@@ -141,6 +141,27 @@ function extractProductLinks(html, pageUrl, baseUrl) {
   return links.slice(0, 10);
 }
 
+// Busca produtos via API de catálogo VTEX público (ft = full-text search).
+// Usado quando a página de busca retorna HTML sem JSON-LD de produtos (React SPA).
+async function searchVtexCatalog(origin, term) {
+  try {
+    const response = await httpClient.get(`${origin}/api/catalog_system/pub/products/search`, {
+      params: { ft: term, _from: 0, _to: 4 },
+    });
+    const data = response.data;
+    if (!Array.isArray(data) || !data.length) return [];
+    return data.flatMap((product) => {
+      const sku = (product.items || []).find((i) => i.sellers?.length) || product.items?.[0];
+      if (!sku) return [];
+      const price = numberFromPrice(sku.sellers?.[0]?.commertialOffer?.Price);
+      if (!Number.isFinite(price)) return [];
+      const link = absoluteUrl(product.link || '', origin);
+      if (!link) return [];
+      return [{ title: String(product.productName || product.name || sku.name || '').trim(), price, link }];
+    });
+  } catch { return []; }
+}
+
 async function searchSiteWithTerm(site, term) {
   const searchUrl = buildSearchUrl(site, term);
   if (!searchUrl) return [];
@@ -155,6 +176,17 @@ async function searchSiteWithTerm(site, term) {
   const withPrice = jsonLdResults.filter((r) => Number.isFinite(r.price));
   if (withPrice.length >= 2) {
     return withPrice.slice(0, 8).map((r) => ({ ...r, marketplace, seller: marketplace, condition: 'new', freeShipping: false }));
+  }
+
+  // Fallback VTEX: página de busca é React SPA — usa API de catálogo público
+  if (/\b__RUNTIME__\b/.test(html.slice(0, 3000))) {
+    try {
+      const origin = new URL(searchUrl).origin;
+      const vtexResults = await searchVtexCatalog(origin, term);
+      if (vtexResults.length) {
+        return vtexResults.map((r) => ({ ...r, marketplace, seller: marketplace, condition: 'new', freeShipping: false }));
+      }
+    } catch { /* ignora — continua para fallback HTML */ }
   }
 
   // Fallback: visita links de produto encontrados na página
