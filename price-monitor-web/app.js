@@ -551,6 +551,9 @@ async function loadCatalogTable() {
     appendCell(viewRow, product.name);
     appendCell(viewRow, product.category);
     appendCell(viewRow, product.family);
+    appendCell(viewRow, product.nuance || '—');
+    appendCell(viewRow, product.color || '—');
+    appendCell(viewRow, product.variant || '—');
 
     const row = body.insertRow();
     appendCell(row, product.ean);
@@ -558,6 +561,9 @@ async function loadCatalogTable() {
     appendCell(row, product.name);
     appendCell(row, product.category);
     appendCell(row, product.family);
+    appendCell(row, product.nuance || '—');
+    appendCell(row, product.color || '—');
+    appendCell(row, product.variant || '—');
     const actions = row.insertCell();
     actions.append(
       actionButton('Editar', '', () => fillProductForm(product)),
