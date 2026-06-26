@@ -21,6 +21,9 @@ function validateProduct(body) {
     aliases: uniqueStrings(body.aliases),
     requiredWords: uniqueStrings(body.requiredWords),
     forbiddenWords: uniqueStrings(body.forbiddenWords),
+    nuance: String(body.nuance || '').trim(),
+    color: String(body.color || '').trim(),
+    variant: String(body.variant || '').trim(),
     active: body.active !== false
   };
   if (!product.name || !product.category || !product.family) {

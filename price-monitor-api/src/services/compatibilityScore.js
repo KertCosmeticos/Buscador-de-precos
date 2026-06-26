@@ -1,4 +1,5 @@
 const { normalizeText, tokenize } = require('../utils/text');
+const { parseListingTitle, normalizeVolume, normalizeNuance } = require('./listingParser');
 
 const COMPETITOR_PATTERN = new RegExp(
   '\\b(?:' + [
@@ -111,6 +112,7 @@ function rejected(reason) {
 function calculateCompatibility(product, listing, learning = {}) {
   const titleText = normalizeText(listing.title || '');
   const text = normalizeText(`${listing.title || ''} ${listing.link || ''}`);
+  const parsed = parseListingTitle(listing.title || '');
   const reasons = [];
   let score = 0;
   let capAtRevisar = false;
@@ -184,8 +186,44 @@ function calculateCompatibility(product, listing, learning = {}) {
     }
   }
 
-  // Volume
-  if (product.volume && includesTerm(text, product.volume)) add(15, 'Volume correto');
+  // Volume — detecta correspondência e conflitos de tamanho/embalagem
+  if (product.volume) {
+    const prodVolNorm = normalizeVolume(product.volume);
+    if (prodVolNorm && parsed.volume) {
+      if (parsed.volume === prodVolNorm) {
+        add(15, 'Volume correto');
+      } else {
+        add(-20, `Volume divergente: esperado ${product.volume}, encontrado ${parsed.volume}`);
+      }
+    } else if (includesTerm(text, product.volume)) {
+      add(15, 'Volume correto');
+    }
+  }
+
+  // Nuance — código de tom para coloração (ex: 7.0, 8.1, 5N)
+  // Rejeita quando nuances claramente diferentes sem EAN confirmando
+  if (product.nuance && parsed.nuance) {
+    const prodNuance = normalizeNuance(product.nuance);
+    const listNuance = normalizeNuance(parsed.nuance);
+    if (listNuance === prodNuance) {
+      add(25, `Nuance correta: ${product.nuance}`);
+    } else if (!hasEan) {
+      return rejected(`Nuance errada: esperado ${product.nuance}, encontrado ${parsed.nuance}`);
+    } else {
+      add(-40, `Nuance divergente (EAN presente): esperado ${product.nuance}, encontrado ${parsed.nuance}`);
+    }
+  }
+
+  // Cor — descriptor de cor do produto (ex: Louro Médio, Castanho Escuro)
+  if (product.color && parsed.colorId) {
+    const prodColorNorm = normalizeText(product.color);
+    const listColorNorm = normalizeText(parsed.colorLabel || parsed.colorId);
+    const colorMatch = listColorNorm === prodColorNorm
+      || listColorNorm.includes(prodColorNorm)
+      || prodColorNorm.includes(listColorNorm);
+    if (colorMatch) add(10, `Cor correta: ${product.color}`);
+    // Sem penalidade por cor divergente — título pode omitir a cor
+  }
 
   // Palavras obrigatórias
   const required = product.requiredWords?.length

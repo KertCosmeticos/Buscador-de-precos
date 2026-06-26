@@ -19,6 +19,9 @@ const productSchema = new mongoose.Schema({
   familyAliases: { type: [String], default: [] },
   lineBlockWords: { type: [String], default: [] },
   knownUrls: { type: [String], default: [] },
+  nuance: { type: String, trim: true, default: '' },
+  color: { type: String, trim: true, default: '' },
+  variant: { type: String, trim: true, default: '' },
   active: { type: Boolean, default: true, index: true }
 }, { timestamps: true, versionKey: false });
 
