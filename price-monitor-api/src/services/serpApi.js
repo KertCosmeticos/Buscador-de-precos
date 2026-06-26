@@ -468,11 +468,17 @@ function slugTitle(url) {
   } catch { return ''; }
 }
 
-// Extrai productId de URLs VTEX (ex: "-944731.html" ou "/produto/nome-944731/p")
+// Extrai productId de URLs VTEX.
+// Padrões suportados:
+//   "-944731.html"        → VTEX Legacy (Drogasil/Drogaraia)
+//   "dual-block646261/p"  → VTEX IO slug colado (Danny)
+//   "/p/646261"           → VTEX ID explícito no path
 function vtexProductIdFromUrl(pageUrl) {
   try {
     const path = new URL(pageUrl).pathname;
-    const m = path.match(/-(\d{5,})(?:\/p)?(?:\.html)?$/) || path.match(/\/(\d{5,})(?:\/p)?(?:\.html)?$/);
+    const m = path.match(/-(\d{5,})(?:\/p)?(?:\.html)?$/)     // "-944731.html" ou "-646261/p"
+      || path.match(/(\d{5,})(?:\/p)?(?:\.html)?$/)            // "block646261/p" (sem traço)
+      || path.match(/\/(\d{5,})(?:\/p)?(?:\.html)?$/);         // "/646261/p"
     return m ? m[1] : null;
   } catch { return null; }
 }

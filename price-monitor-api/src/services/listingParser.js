@@ -86,9 +86,12 @@ function extractType(normalizedText) {
 }
 
 // Normaliza volume para formato canônico: "50g", "100ml", "1.5kg"
+// "gr" é normalizado para "g" para equiparar "50 gr" com "50g"
 function normalizeVolume(text) {
   const m = VOLUME_RE.exec(normalizeText(text));
-  return m ? `${m[1].replace(',', '.')}${m[2].toLowerCase()}` : null;
+  if (!m) return null;
+  const unit = m[2].toLowerCase() === 'gr' ? 'g' : m[2].toLowerCase();
+  return `${m[1].replace(',', '.')}${unit}`;
 }
 
 function extractNuance(originalTitle) {

@@ -165,11 +165,21 @@ async function searchVtexCatalog(origin, term) {
 async function searchSiteWithTerm(site, term) {
   const searchUrl = buildSearchUrl(site, term);
   if (!searchUrl) return [];
+  const marketplace = siteHostname(site);
+
   const fetched = await fetchHtml(searchUrl);
-  if (!fetched) return [];
+
+  // Site bloqueou a página de busca (anti-bot, Cloudflare, timeout) → tenta VTEX API diretamente.
+  // A API /pub/ é pública e frequentemente acessível mesmo quando o HTML está protegido.
+  if (!fetched) {
+    try {
+      const origin = new URL(searchUrl).origin;
+      const vtexResults = await searchVtexCatalog(origin, term);
+      return vtexResults.map((r) => ({ ...r, marketplace, seller: marketplace, condition: 'new', freeShipping: false }));
+    } catch { return []; }
+  }
 
   const { html, finalUrl } = fetched;
-  const marketplace = siteHostname(site);
 
   // Tenta JSON-LD da página de resultados (VTEX, Magento, WooCommerce costumam publicar)
   const jsonLdResults = listingsFromJsonLd(html, finalUrl);
@@ -178,7 +188,7 @@ async function searchSiteWithTerm(site, term) {
     return withPrice.slice(0, 8).map((r) => ({ ...r, marketplace, seller: marketplace, condition: 'new', freeShipping: false }));
   }
 
-  // Fallback VTEX: página de busca é React SPA — usa API de catálogo público
+  // Fallback VTEX: página de busca é React SPA (__RUNTIME__) — usa API de catálogo público
   if (/\b__RUNTIME__\b/.test(html.slice(0, 3000))) {
     try {
       const origin = new URL(searchUrl).origin;
