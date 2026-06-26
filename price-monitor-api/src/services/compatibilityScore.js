@@ -206,16 +206,29 @@ function calculateCompatibility(product, listing, learning = {}) {
   }
 
   // Nuance — código de tom para coloração (ex: 7.0, 8.1, 5N)
-  // Rejeita quando nuances claramente diferentes sem EAN confirmando
-  if (product.nuance && parsed.nuance) {
+  // Normalização: "1.0" e "1" são equivalentes (normalizeNuance remove ".0" final).
+  // Fallback: quando o parser não detecta nuance no formato decimal/letra (ex: "7N", "1.0"),
+  // procura dígito avulso no título — captura casos como "Dual Block 2 Preto Azulado".
+  if (product.nuance) {
     const prodNuance = normalizeNuance(product.nuance);
-    const listNuance = normalizeNuance(parsed.nuance);
-    if (listNuance === prodNuance) {
-      add(25, `Nuance correta: ${product.nuance}`);
-    } else if (!hasEan) {
-      return rejected(`Nuance errada: esperado ${product.nuance}, encontrado ${parsed.nuance}`);
-    } else {
-      add(-40, `Nuance divergente (EAN presente): esperado ${product.nuance}, encontrado ${parsed.nuance}`);
+
+    let foundNuance = parsed.nuance;
+    if (!foundNuance) {
+      const titleForNuance = (listing.title || '')
+        .replace(/\b\d+(?:[.,]\d+)?\s*(?:ml|g|gr|kg|l)\b/gi, '')
+        .replace(/\b\d+\s+em\s+\d+\b/gi, '');
+      foundNuance = (titleForNuance.match(/\b([1-9]\d?)\b/) || [])[1] || null;
+    }
+
+    if (foundNuance) {
+      const listNuance = normalizeNuance(foundNuance);
+      if (listNuance === prodNuance) {
+        add(25, `Nuance correta: ${product.nuance}`);
+      } else if (!hasEan) {
+        return rejected(`Nuance errada: esperado ${product.nuance}, encontrado ${foundNuance}`);
+      } else {
+        add(-40, `Nuance divergente (EAN presente): esperado ${product.nuance}, encontrado ${foundNuance}`);
+      }
     }
   }
 

@@ -134,9 +134,13 @@ function parseListingTitle(title) {
   };
 }
 
-// Normaliza código de nuance para comparação: "7/0" → "7.0", "7,0" → "7.0"
+// Normaliza código de nuance para comparação: "7/0" → "7.0", "1.0" → "1", "1,0" → "1"
 function normalizeNuance(n) {
-  return String(n || '').replace(/[,\/]/g, '.').trim().toLowerCase();
+  return String(n || '')
+    .replace(/[,\/]/g, '.')
+    .trim()
+    .toLowerCase()
+    .replace(/\.0+$/, ''); // "1.0" e "1" são a mesma nuance; "5.3" mantém
 }
 
 module.exports = { parseListingTitle, normalizeVolume, normalizeNuance };
