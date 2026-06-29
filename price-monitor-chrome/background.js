@@ -449,123 +449,6 @@ function deduplicate(listings) {
   return [...byLink.values()];
 }
 
-// ── Busca direta em sites cadastrados ─────────────────────────────────────────
-
-function buildSearchUrl(site, term) {
-  const raw = site.searchUrl || '';
-  if (!raw) return '';
-  if (/{(query|term|termo)}/i.test(raw)) {
-    return raw.replace(/{(query|term|termo)}/gi, encodeURIComponent(term));
-  }
-  try {
-    const url = new URL(raw);
-    const knownKey = ['q', '_q', 'query', 'busca', 'search', 'keyword', 'pesquisa', 's', 'termo', 'palavra_busca', 'w']
-      .find((k) => url.searchParams.has(k)) || 'q';
-    url.searchParams.set(knownKey, term);
-    return url.href;
-  } catch { return ''; }
-}
-
-function listingsFromSearchPage(html, pageUrl) {
-  const results = [];
-  for (const match of String(html).matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
-    try {
-      const raw = JSON.parse(match[1].trim());
-      const nodes = Array.isArray(raw) ? raw : [raw];
-      for (const node of nodes) {
-        const types = [].concat(node['@type'] || []).map((t) => String(t).toLowerCase());
-        if (types.includes('itemlist')) {
-          for (const el of (node.itemListElement || [])) {
-            const item = el.item || el;
-            const iTypes = [].concat(item['@type'] || []).map((t) => String(t).toLowerCase());
-            if (!iTypes.includes('product')) continue;
-            const price = numberFromPrice(item.offers?.price ?? item.offers?.lowPrice);
-            const link = absoluteUrl(item.url || '', pageUrl);
-            if (link) results.push({ title: String(item.name || '').trim(), price, link });
-          }
-        }
-        if (types.includes('product')) {
-          const price = numberFromPrice(node.offers?.price ?? node.offers?.lowPrice);
-          const link = absoluteUrl(node.url || '', pageUrl);
-          if (link) results.push({ title: String(node.name || '').trim(), price, link });
-        }
-      }
-    } catch { /* JSON-LD inválido */ }
-  }
-  return results;
-}
-
-async function searchVtexCatalogDirect(origin, term) {
-  const isEan = /^\d{8,14}$/.test(String(term).trim());
-  const extractProducts = (data) => {
-    if (!Array.isArray(data) || !data.length) return [];
-    return data.flatMap((prod) => {
-      const sku = (prod.items || []).find((i) => i.sellers?.length) || prod.items?.[0];
-      if (!sku) return [];
-      const price = numberFromPrice(sku.sellers?.[0]?.commertialOffer?.Price);
-      if (!Number.isFinite(price)) return [];
-      const link = absoluteUrl(prod.link || '', origin);
-      if (!link) return [];
-      return [{ title: String(prod.productName || prod.name || sku.name || '').trim(), price, link }];
-    });
-  };
-  try {
-    if (isEan) {
-      const res = await fetch(`${origin}/api/catalog_system/pub/products/search?fq=alternateId:${encodeURIComponent(term)}&_from=0&_to=4`);
-      if (res.ok) {
-        const byEan = extractProducts(await res.json());
-        if (byEan.length) return byEan;
-      }
-    }
-    const res = await fetch(`${origin}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(term)}&_from=0&_to=4`);
-    if (!res.ok) return [];
-    return extractProducts(await res.json());
-  } catch { return []; }
-}
-
-// Busca diretamente no site usando a searchUrl cadastrada.
-// Retorna array de listings (pode ser vazio) ou null se o site requer Playwright (exclusão do fallback Google).
-async function searchSiteDirectly(site, product) {
-  if (site.requiresPlaywright) return null;
-  const origin = (() => { try { return new URL(site.searchUrl || site.baseUrl || '').origin; } catch { return ''; } })();
-  if (!origin) return null;
-
-  const terms = [];
-  if (site.acceptsEan && product.ean) terms.push(product.ean);
-  if (site.acceptsName !== false) {
-    const marketplace = ProductMatcher.buildMarketplaceQuery(product);
-    if (marketplace) terms.push(marketplace);
-    if (product.name && product.name !== marketplace) terms.push(product.name);
-  }
-  if (!terms.length) terms.push(product.name || product.ean);
-
-  for (const term of terms) {
-    const searchUrl = buildSearchUrl(site, term);
-    if (!searchUrl) continue;
-    try {
-      const response = await fetch(searchUrl, {
-        headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'Accept-Language': 'pt-BR,pt;q=0.9' }
-      });
-      if (!response.ok) {
-        const vtex = await searchVtexCatalogDirect(origin, term);
-        if (vtex.length) return vtex;
-        continue;
-      }
-      const html = await response.text();
-      const pageUrl = response.url || searchUrl;
-      const withPrice = listingsFromSearchPage(html, pageUrl).filter((r) => Number.isFinite(r.price));
-      if (withPrice.length >= 1) return withPrice.slice(0, 8);
-      if (/__RUNTIME__/.test(html.slice(0, 3000))) {
-        const vtex = await searchVtexCatalogDirect(origin, term);
-        if (vtex.length) return vtex;
-      }
-    } catch { /* tenta próximo termo */ }
-  }
-  return [];
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-
 function siteDomain(site) {
   try {
     const domain = new URL(site.searchUrl || site.baseUrl).hostname.replace(/^www\./, '').toLowerCase();
@@ -601,9 +484,8 @@ function domainGroups(domains, size = 4) {
   return groups;
 }
 
-function siteSearchSteps(product, sites = [], coveredDomains = new Set()) {
-  const domains = [...new Set([...sites.map(siteDomain).filter(Boolean), ...priorityDomainGroups.flat()])]
-    .filter((d) => !coveredDomains.has(d));
+function siteSearchSteps(product, sites = []) {
+  const domains = [...new Set([...sites.map(siteDomain).filter(Boolean), ...priorityDomainGroups.flat()])];
   const baseQuery = ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean;
   if (!baseQuery || !domains.length) return [];
   const queries = queryVariants(baseQuery);
@@ -619,35 +501,7 @@ async function runSearch(port, message) {
   const products = Array.isArray(message.products) ? message.products.slice(0, 5) : [];
   if (!products.length) throw new Error('Nenhum produto valido foi enviado a extensao.');
 
-  // Fase 1: busca direta em sites cadastrados (paralela, sem abrir abas)
-  safePost(port, {
-    type: 'BROWSER_SEARCH_PROGRESS', requestId,
-    completed: 0, total: 1,
-    message: 'Consultando sites cadastrados diretamente...'
-  });
-  const directByEan = new Map();
-  await Promise.all(products.map(async (product) => {
-    const covered = new Set();
-    const directListings = [];
-    const directSources = [];
-    await Promise.all((message.sites || []).map(async (site) => {
-      const domain = siteDomain(site);
-      if (!domain) return;
-      const result = await searchSiteDirectly(site, product);
-      if (!result || result.length === 0) return; // vazio ou requiresPlaywright: cai para Google
-      covered.add(domain);
-      const mapped = result.map((r) => ({ ...r, marketplace: domain, seller: r.seller || domain, condition: 'new', freeShipping: false }));
-      directListings.push(...mapped);
-      directSources.push({ name: `Direto: ${domain}`, status: 'ok', count: mapped.length });
-    }));
-    directByEan.set(product.ean, { covered, listings: directListings, sources: directSources });
-  }));
-
-  // Fase 2: passos Google — exclui domínios já cobertos pela busca direta
-  const siteStepsByEan = new Map(products.map((product) => {
-    const covered = directByEan.get(product.ean)?.covered || new Set();
-    return [product.ean, siteSearchSteps(product, message.sites || [], covered)];
-  }));
+  const siteStepsByEan = new Map(products.map((product) => [product.ean, siteSearchSteps(product, message.sites || [])]));
   const expandedQueriesByEan = new Map(products.map((product) => [
     product.ean,
     queryVariants(ProductMatcher.buildMarketplaceQuery(product) || product.name || product.ean)
@@ -658,9 +512,8 @@ async function runSearch(port, message) {
   const results = [];
 
   for (const product of products) {
-    const direct = directByEan.get(product.ean) || { listings: [], sources: [] };
-    const listings = [...direct.listings];
-    const sources = [...direct.sources];
+    const listings = [];
+    const sources = [];
     const label = product.name || product.ean;
     const semantic = ProductMatcher.buildSemanticQuery(product);
     const marketplace = ProductMatcher.buildMarketplaceQuery(product);
