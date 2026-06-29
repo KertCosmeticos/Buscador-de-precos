@@ -807,7 +807,6 @@ byId('search-button').addEventListener('click', async () => {
   }
 
   const button = byId('search-button');
-  const searchSource = document.querySelector('input[name="search-source"]:checked')?.value || 'browser';
   const products = eans.map((ean) => {
     const catalogProduct = allCatalogProducts.find((product) => product.ean === ean);
     return {
@@ -823,18 +822,9 @@ byId('search-button').addEventListener('click', async () => {
   const sites = allSites;
   setLoading(button, true);
   byId('search-progress').hidden = true;
-  setMessage(byId('search-message'), searchSource === 'browser' ? 'Preparando pesquisa no Chrome...' : 'Consultando API online...');
+  setMessage(byId('search-message'), 'Preparando pesquisa no Chrome...');
   try {
-    if (searchSource === 'browser') {
-      currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
-    } else {
-      const data = await request('/buscar/lote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eans })
-      });
-      currentResults = data.results || [];
-    }
+    currentResults = await scoreBrowserResults(await searchWithBrowser(products, sites));
     renderResults(currentResults);
     byId('export-button').disabled = currentResults.length === 0;
     const errors = currentResults.filter((item) => item.error).length;
@@ -851,12 +841,11 @@ byId('search-button').addEventListener('click', async () => {
     const diagnosticText = sourceDiagnostics.length
       ? ` ${sourcesWithOffers} fonte(s) com oferta e ${failedSources} com erro tecnico.${mainErrors ? ` Principais erros: ${mainErrors}` : ''}`
       : '';
-    const sourceLabel = searchSource === 'browser' ? 'pelo Chrome' : 'pela API online';
     setMessage(
       byId('search-message'),
       errors
         ? `Busca concluida com ${errors} item(ns) sem resultado.${diagnosticText}`
-        : `Busca concluida com sucesso ${sourceLabel}.${diagnosticText}`,
+        : `Busca concluida com sucesso pelo Chrome.${diagnosticText}`,
       errors ? 'error' : 'success'
     );
   } catch (error) {
