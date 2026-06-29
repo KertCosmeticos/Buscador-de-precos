@@ -138,27 +138,43 @@ function extractProductLinks(html, pageUrl, baseUrl) {
       if (!seen.has(key)) { seen.add(key); links.push(key); }
     } catch { /* skip */ }
   }
-  return links.slice(0, 10);
+  // Ordena por comprimento do slug final — slugs longos são páginas de produto,
+  // slugs curtos (ex: "cabelos", "shampoo") são categorias de navegação.
+  links.sort((a, b) => (b.split('/').pop() || '').length - (a.split('/').pop() || '').length);
+  return links.slice(0, 30);
 }
 
-// Busca produtos via API de catálogo VTEX público (ft = full-text search).
-// Usado quando a página de busca retorna HTML sem JSON-LD de produtos (React SPA).
+// Extrai listings de um array de produtos retornado pela API VTEX Legacy.
+function extractVtexProducts(data, origin) {
+  if (!Array.isArray(data) || !data.length) return [];
+  return data.flatMap((product) => {
+    const sku = (product.items || []).find((i) => i.sellers?.length) || product.items?.[0];
+    if (!sku) return [];
+    const price = numberFromPrice(sku.sellers?.[0]?.commertialOffer?.Price);
+    if (!Number.isFinite(price)) return [];
+    const link = absoluteUrl(product.link || '', origin);
+    if (!link) return [];
+    return [{ title: String(product.productName || product.name || sku.name || '').trim(), price, link }];
+  });
+}
+
+// Busca produtos via API de catálogo VTEX público.
+// Se o termo for um EAN (8-14 dígitos) usa fq=alternateId para busca exata por código de barras,
+// evitando que a busca full-text retorne produtos não relacionados.
 async function searchVtexCatalog(origin, term) {
+  const isEan = /^\d{8,14}$/.test(String(term).trim());
   try {
-    const response = await httpClient.get(`${origin}/api/catalog_system/pub/products/search`, {
+    if (isEan) {
+      const res = await httpClient.get(`${origin}/api/catalog_system/pub/products/search`, {
+        params: { fq: `alternateId:${String(term).trim()}`, _from: 0, _to: 4 },
+      });
+      const byEan = extractVtexProducts(res.data, origin);
+      if (byEan.length) return byEan;
+    }
+    const res = await httpClient.get(`${origin}/api/catalog_system/pub/products/search`, {
       params: { ft: term, _from: 0, _to: 4 },
     });
-    const data = response.data;
-    if (!Array.isArray(data) || !data.length) return [];
-    return data.flatMap((product) => {
-      const sku = (product.items || []).find((i) => i.sellers?.length) || product.items?.[0];
-      if (!sku) return [];
-      const price = numberFromPrice(sku.sellers?.[0]?.commertialOffer?.Price);
-      if (!Number.isFinite(price)) return [];
-      const link = absoluteUrl(product.link || '', origin);
-      if (!link) return [];
-      return [{ title: String(product.productName || product.name || sku.name || '').trim(), price, link }];
-    });
+    return extractVtexProducts(res.data, origin);
   } catch { return []; }
 }
 
@@ -202,7 +218,7 @@ async function searchSiteWithTerm(site, term) {
   // Fallback: visita links de produto encontrados na página
   const jsonLdLinks = jsonLdResults.filter((r) => !Number.isFinite(r.price)).map((r) => r.link);
   const htmlLinks = extractProductLinks(html, finalUrl, site.baseUrl);
-  const candidates = [...new Set([...jsonLdLinks, ...htmlLinks])].slice(0, 6);
+  const candidates = [...new Set([...jsonLdLinks, ...htmlLinks])].slice(0, 12);
   if (!candidates.length) return [];
 
   const visited = await Promise.allSettled(
