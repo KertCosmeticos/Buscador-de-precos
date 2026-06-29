@@ -200,7 +200,7 @@ async function searchSiteWithTerm(site, term) {
   // Tenta JSON-LD da página de resultados (VTEX, Magento, WooCommerce costumam publicar)
   const jsonLdResults = listingsFromJsonLd(html, finalUrl);
   const withPrice = jsonLdResults.filter((r) => Number.isFinite(r.price));
-  if (withPrice.length >= 2) {
+  if (withPrice.length >= 1) {
     return withPrice.slice(0, 8).map((r) => ({ ...r, marketplace, seller: marketplace, condition: 'new', freeShipping: false }));
   }
 
