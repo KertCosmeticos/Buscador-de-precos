@@ -1616,6 +1616,54 @@ async function desfazerImportacao(id, arquivo, tipo, criados) {
 
 // ── Gemini — busca na web ─────────────────────────────────────────────────
 
+let _geminiKey = null;
+
+async function getGeminiKey() {
+  if (_geminiKey) return _geminiKey;
+  try {
+    const { key } = await request('/gemini/key');
+    _geminiKey = key;
+    return key;
+  } catch { return null; }
+}
+
+async function geminiSearchProduct(nome, ean, apiKey) {
+  const termo = nome ? `"${nome}"` : `EAN ${ean}`;
+  const prompt =
+    `Pesquise o preço atual do produto ${termo} vendido no Brasil em lojas online e marketplaces. ` +
+    `Liste todas as ofertas encontradas. ` +
+    `Responda SOMENTE com JSON válido, sem texto adicional, neste formato exato:\n` +
+    `{"resultados":[{"produto":"nome completo do produto","preco":0.00,"loja":"nome da loja","url":"https://..."}]}\n` +
+    `Se não encontrar nenhuma oferta, retorne: {"resultados":[]}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]);
+    return Array.isArray(parsed.resultados) ? parsed.resultados : [];
+  } catch { return []; }
+}
+
 async function runGeminiSearch(results) {
   const btn = byId('gemini-search-btn');
   const status = byId('gemini-status');
@@ -1627,24 +1675,28 @@ async function runGeminiSearch(results) {
   btn.classList.add('loading');
   tableWrap.hidden = true;
   status.hidden = false;
-  status.textContent = 'Pesquisando na web com Gemini…';
+  status.textContent = 'Conectando ao Gemini…';
+
+  const apiKey = await getGeminiKey();
+  if (!apiKey) {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    status.textContent = 'Gemini não configurado. Adicione GEMINI_API_KEY no servidor.';
+    return;
+  }
 
   const allRows = [];
   const errors = [];
 
   for (const result of results) {
     const product = allCatalogProducts.find((p) => p.ean === result.ean);
-    const nome = product?.name || result.ean;
-    status.textContent = `Gemini: pesquisando "${nome}"…`;
+    const nome = product?.name || null;
+    status.textContent = `Gemini: pesquisando "${nome || result.ean}"…`;
     try {
-      const data = await request('/gemini/buscar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ean: result.ean, nome })
-      });
-      (data.resultados || []).forEach((r) => allRows.push(r));
+      const rows = await geminiSearchProduct(nome, result.ean, apiKey);
+      rows.forEach((r) => allRows.push(r));
     } catch (err) {
-      errors.push(`${nome}: ${err.message}`);
+      errors.push(err.message);
     }
   }
 
@@ -1656,7 +1708,7 @@ async function runGeminiSearch(results) {
   tbody.replaceChildren();
 
   if (errors.length && !allRows.length) {
-    status.textContent = `Gemini indisponível no momento. Tente novamente em instantes.`;
+    status.textContent = `Gemini indisponível: ${errors[0]}`;
     status.hidden = false;
     count.textContent = '';
     return;
