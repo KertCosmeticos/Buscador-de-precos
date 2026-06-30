@@ -7,6 +7,7 @@ const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
 const siteRoutes = require('./routes/sites');
 const learningRoutes = require('./routes/learning');
+const geminiRoutes = require('./routes/gemini');
 const productCatalog = require('./services/productCatalog');
 const ProductLearning = require('./models/ProductLearning');
 const { calculateCompatibility } = require('./services/compatibilityScore');
@@ -36,6 +37,7 @@ app.use('/auth', authRoutes);
 app.use('/produtos', productRoutes);
 app.use('/sites', siteRoutes);
 app.use('/aprendizado', learningRoutes);
+app.use('/gemini', geminiRoutes);
 
 function shouldHideListing(listing) {
   if (listing.rejectedByLearning) return true;

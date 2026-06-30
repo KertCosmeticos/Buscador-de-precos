@@ -11,7 +11,7 @@
   <script>(function(){var t=localStorage.getItem('pm-theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.setAttribute('data-theme','dark')}})();</script>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
-  <script src="app.js?v=6" defer></script>
+  <script src="app.js?v=7" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -105,6 +105,27 @@
               <th>EAN</th><th>Produto</th><th>Preço</th><th>Vendedor</th><th>Status vendedor</th><th>Anúncio</th>
             </tr></thead>
             <tbody id="details-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="gemini-card" class="card results-card" hidden>
+        <div class="card-heading">
+          <div>
+            <h2 style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:1.1rem">✨</span> Gemini — Busca na Web
+            </h2>
+            <p id="gemini-count" style="margin:0"></p>
+          </div>
+          <button class="button primary" id="gemini-search-btn" style="margin-left:auto;white-space:nowrap">Pesquisar com Gemini</button>
+        </div>
+        <div id="gemini-status" style="padding:14px 24px;font-size:.875rem;color:var(--muted)" hidden></div>
+        <div class="table-wrap" id="gemini-table-wrap" hidden>
+          <table>
+            <thead><tr>
+              <th>Produto</th><th>Preço</th><th>Loja</th><th>Link</th>
+            </tr></thead>
+            <tbody id="gemini-body"></tbody>
           </table>
         </div>
       </div>
