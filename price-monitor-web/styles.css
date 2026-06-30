@@ -104,8 +104,8 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .logout-btn { margin-left: auto; padding: 6px 14px; font-size: .875rem; align-self: center; }
 .registration-guide h2 { font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: 10px; }
 .instruction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.instruction-grid h3 { margin: 0 0 6px; font-size: .875rem; font-weight: 700; color: var(--text); }
-.instruction-grid ol { margin: 0; padding-left: 16px; color: var(--muted); line-height: 1.45; font-size: .78rem; }
+.instruction-grid h3 { margin: 0 0 6px; font-size: .82rem; font-weight: 700; color: var(--text); }
+.instruction-grid ol { margin: 0; padding-left: 15px; color: #94a3b8; line-height: 1.6; font-size: .72rem; font-weight: 400; }
 .instruction-grid li + li { margin-top: 4px; }
 .import-heading { display: flex; justify-content: space-between; align-items: start; gap: 18px; }
 .import-heading p { margin-bottom: 18px; }
