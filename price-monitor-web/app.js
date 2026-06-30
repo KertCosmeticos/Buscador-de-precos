@@ -1247,6 +1247,15 @@ byId('confirm-change-pwd').addEventListener('click', async () => {
   } catch (error) { setMessage(msgEl, error.message, 'error'); }
 });
 
+byId('chrome-ext-link')?.addEventListener('click', () => {
+  window.postMessage({ source: 'price-monitor-web', type: 'OPEN_URL', url: 'chrome://extensions/' }, window.location.origin);
+  if (!window.__extAvailable) {
+    navigator.clipboard.writeText('chrome://extensions/').catch(() => {});
+    const hint = byId('chrome-ext-hint');
+    if (hint) { hint.hidden = false; clearTimeout(hint._chromeHintTimer); hint._chromeHintTimer = setTimeout(() => { hint.hidden = true; }, 3000); }
+  }
+});
+
 loadApiMode();
 restoreAdminSession();
 Promise.all([refreshCatalog(), loadSites()]).catch((error) => {

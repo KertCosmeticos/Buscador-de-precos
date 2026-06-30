@@ -52,7 +52,7 @@
           <summary>Como instalar a extensão</summary>
           <ol>
             <li><a href="price-monitor-chrome.zip" download>Baixe a extensão</a> e extraia o arquivo ZIP.</li>
-            <li>Abra <button class="chrome-url-btn" onclick="if(window.__extAvailable){window.postMessage({source:'price-monitor-web',type:'OPEN_URL',url:'chrome://extensions/'},window.location.origin)}else{navigator.clipboard.writeText('chrome://extensions/');this.textContent='Copiado!';setTimeout(()=>this.textContent='chrome://extensions/',2000)}">chrome://extensions/</button> e ative <strong>Modo do desenvolvedor</strong>.</li>
+            <li>Abra <button class="chrome-url-btn" id="chrome-ext-link">chrome://extensions/</button><span id="chrome-ext-hint" class="chrome-ext-hint" hidden>— URL copiada, cole na barra do Chrome</span> e ative <strong>Modo do desenvolvedor</strong>.</li>
             <li>Clique em <strong>Carregar sem compactação</strong> e selecione a pasta extraída.</li>
             <li>Atualize esta página; o indicador acima ficará verde.</li>
           </ol>

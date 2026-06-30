@@ -104,6 +104,7 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .embedded-import { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
 .file-picker-extra { margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 .chrome-url-btn { appearance: none; border: none; background: none; padding: 0; margin: 0; color: var(--blue); font: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; display: inline; vertical-align: baseline; }
+.chrome-ext-hint { font-size: .78rem; color: var(--muted); margin-left: 4px; }
 .search-card h2 { margin-bottom: 2px; }
 .embedded-import h3 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 700; color: var(--text); }
 .embedded-import .import-heading { margin-bottom: 16px; }
