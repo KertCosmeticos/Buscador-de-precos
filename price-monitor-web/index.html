@@ -401,12 +401,17 @@
     <div class="modal-card">
       <h2>Alterar Senha</h2>
       <p id="modal-pwd-for" class="modal-user-label"></p>
-      <div class="field"><label for="modal-new-pwd">Nova Senha * <span class="field-hint">(mínimo 6 caracteres)</span></label><input id="modal-new-pwd" type="password" autocomplete="new-password"></div>
+      <div class="field"><label for="modal-new-pwd">Nova senha * <span class="field-hint">(mínimo 6 caracteres)</span></label><input id="modal-new-pwd" type="password" autocomplete="new-password"></div>
       <div id="modal-change-pwd-msg" class="message" role="status"></div>
       <div class="modal-footer">
         <button class="button secondary" type="button" id="cancel-change-pwd">Cancelar</button>
-        <button class="button primary" type="button" id="confirm-change-pwd">Salvar</button>
+        <button class="button primary" type="button" id="confirm-change-pwd">Salvar senha</button>
       </div>
+      <div class="modal-divider"><span>ou</span></div>
+      <div style="text-align:center">
+        <button class="button secondary" type="button" id="send-reset-link-btn" style="width:100%">Enviar link de redefinição por e-mail</button>
+      </div>
+      <div id="modal-send-link-msg" class="message" role="status" style="margin-top:8px"></div>
     </div>
   </div>
 

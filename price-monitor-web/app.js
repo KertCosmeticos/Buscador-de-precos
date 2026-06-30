@@ -1273,7 +1273,7 @@ async function loadUsers() {
         ? (paiSelf
             ? `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`
             : `<button class="table-action ghost" disabled>Senha</button>`)
-        : `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`;
+        : `<button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Senha</button>`;
       const deleteBtn = u.isRoot
         ? `<button class="table-action danger ghost" disabled>Excluir</button>`
         : `<button class="table-action danger" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`;
@@ -1294,6 +1294,7 @@ function openChangePwd(id, username) {
   byId('modal-pwd-for').textContent = `Usuário: ${username}`;
   byId('modal-new-pwd').value = '';
   setMessage(byId('modal-change-pwd-msg'));
+  setMessage(byId('modal-send-link-msg'));
   byId('modal-change-pwd').hidden = false;
   setTimeout(() => byId('modal-new-pwd').focus(), 50);
 }
@@ -1356,6 +1357,29 @@ byId('confirm-change-pwd').addEventListener('click', async () => {
     });
     byId('modal-change-pwd').hidden = true;
     setMessage(byId('users-message'), 'Senha alterada com sucesso.', 'success');
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+byId('send-reset-link-btn').addEventListener('click', async () => {
+  const msgEl = byId('modal-send-link-msg');
+  setMessage(msgEl, 'Enviando link…');
+  try {
+    const result = await request(`/auth/usuarios/${changePwdUserId}/resetar-senha`, { method: 'POST' });
+    if (result.emailSent) {
+      setMessage(msgEl, 'Link enviado para o e-mail cadastrado.', 'success');
+    } else if (result.resetUrl) {
+      byId('modal-change-pwd').hidden = true;
+      const infoEl = byId('modal-reset-link-info');
+      const urlWrap = byId('modal-reset-link-url-wrap');
+      const urlInput = byId('modal-reset-link-url');
+      const copyBtn = byId('copy-reset-link');
+      infoEl.textContent = result.hasEmail ? 'Não foi possível enviar o e-mail. Copie e compartilhe o link:' : 'Usuário sem e-mail. Compartilhe o link manualmente:';
+      urlInput.value = result.resetUrl;
+      urlWrap.hidden = false;
+      copyBtn.hidden = false;
+      setMessage(byId('modal-reset-link-msg'));
+      byId('modal-reset-link').hidden = false;
+    }
   } catch (error) { setMessage(msgEl, error.message, 'error'); }
 });
 
