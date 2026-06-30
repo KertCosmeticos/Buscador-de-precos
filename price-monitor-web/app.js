@@ -1365,7 +1365,10 @@ byId('confirm-change-pwd').addEventListener('click', async () => {
   } catch (error) { setMessage(msgEl, error.message, 'error'); }
 });
 
-byId('send-reset-link-btn').addEventListener('click', async () => {
+byId('send-reset-link-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return;
+  btn.disabled = true;
   const msgEl = byId('modal-send-link-msg');
   setMessage(msgEl, 'Enviando link…');
   try {
@@ -1388,7 +1391,11 @@ byId('send-reset-link-btn').addEventListener('click', async () => {
       setMessage(byId('modal-reset-link-msg'), errMsg || null, errMsg ? 'error' : null);
       byId('modal-reset-link').hidden = false;
     }
-  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+  } catch (error) {
+    setMessage(msgEl, error.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // ── Editar nome ───────────────────────────────────────────────────────────
