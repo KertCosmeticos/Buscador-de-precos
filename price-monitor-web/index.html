@@ -52,7 +52,7 @@
           <summary>Como instalar a extensão</summary>
           <ol>
             <li><a href="price-monitor-chrome.zip" download>Baixe a extensão</a> e extraia o arquivo ZIP.</li>
-            <li>Abra <code>chrome://extensions/</code> e ative <strong>Modo do desenvolvedor</strong>.</li>
+            <li>Abra <button class="chrome-url-btn" onclick="navigator.clipboard.writeText('chrome://extensions/').then(()=>{this.textContent='Copiado!';setTimeout(()=>this.textContent='chrome://extensions/',1500)})">chrome://extensions/</button> e ative <strong>Modo do desenvolvedor</strong>.</li>
             <li>Clique em <strong>Carregar sem compactação</strong> e selecione a pasta extraída.</li>
             <li>Atualize esta página; o indicador acima ficará verde.</li>
           </ol>
@@ -166,13 +166,11 @@
               <li>EANs existentes serão atualizados; novos EANs serão cadastrados.</li>
             </ol>
           </div>
-          <div class="file-row">
-            <label class="file-picker" for="product-import-file">
-              <span class="file-picker-action">Escolher arquivo</span>
-              <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-            </label>
-            <a id="download-template" class="button secondary" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download>Baixar modelo de importação</a>
-          </div>
+          <label class="file-picker" for="product-import-file">
+            <span class="file-picker-action">Escolher arquivo</span>
+            <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            <a id="download-template" class="button secondary file-picker-extra" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download onclick="event.stopPropagation()">Baixar modelo de importação</a>
+          </label>
           <p id="import-file-summary" class="file-summary">Nenhum arquivo selecionado.</p>
           <div id="import-progress" class="import-progress" hidden>
             <div class="progress-label"><span id="import-progress-text">Preparando importação…</span><strong id="import-progress-percent">0%</strong></div>
@@ -217,13 +215,11 @@
               <li>Sites existentes serão atualizados pelo nome.</li>
             </ol>
           </div>
-          <div class="file-row">
-            <label class="file-picker" for="site-import-file">
-              <span class="file-picker-action">Escolher arquivo</span>
-              <input id="site-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-            </label>
-            <button id="download-site-template" class="button secondary" type="button">Baixar modelo de importação</button>
-          </div>
+          <label class="file-picker" for="site-import-file">
+            <span class="file-picker-action">Escolher arquivo</span>
+            <input id="site-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            <button id="download-site-template" class="button secondary file-picker-extra" type="button" onclick="event.stopPropagation()">Baixar modelo de importação</button>
+          </label>
           <p id="site-import-summary" class="file-summary">Nenhum arquivo selecionado.</p>
           <button id="import-sites-button" class="button primary" type="button" disabled>Importar sites</button>
           <div id="site-import-message" class="message" role="status" aria-live="polite"></div>
