@@ -25,7 +25,7 @@
     <nav class="tabs" aria-label="Seções">
       <button class="tab active" type="button" data-tab="search" aria-selected="true">Consulta</button>
       <button class="tab" type="button" data-tab="catalog" aria-selected="false">Catálogo de produtos</button>
-      <button class="tab" type="button" data-tab="registrations" aria-selected="false">Cadastros</button>
+      <button class="tab" type="button" data-tab="registrations" aria-selected="false">Gerenciar painel</button>
     </nav>
 
     <section id="search-panel" class="panel active" aria-labelledby="Busca">
@@ -127,6 +127,7 @@
       <nav class="sub-tabs" aria-label="Seções de cadastro">
         <button class="sub-tab active" type="button" data-subtab="products" aria-selected="true">Gerenciar produtos</button>
         <button class="sub-tab" type="button" data-subtab="sites" aria-selected="false">Gerenciar sites</button>
+        <button class="sub-tab" type="button" data-subtab="users" aria-selected="false">Gerenciar usuários</button>
         <button id="logout-button" class="button secondary logout-btn" type="button">Sair</button>
       </nav>
       <div id="products-subtab" class="sub-panel">
@@ -230,8 +231,79 @@
         <div class="table-wrap"><table><thead><tr><th>Nome</th><th>URL de busca</th><th>Ações</th></tr></thead><tbody id="sites-body"></tbody></table></div>
       </div>
       </div>
+      <div id="users-subtab" class="sub-panel" hidden>
+        <div class="card">
+          <h2>Gerenciar usuários</h2>
+          <p class="section-sub">Gerencie os usuários com acesso ao painel administrativo.</p>
+          <nav class="user-tabs">
+            <button class="user-tab active" type="button" data-panel="admins">Administradores</button>
+            <button class="user-tab" type="button" data-panel="modelos">Modelos de Importação</button>
+          </nav>
+          <div id="user-panel-admins" class="user-panel active">
+            <div class="users-header">
+              <span id="users-count" class="users-count-label"></span>
+              <button id="new-admin-btn" class="button primary" type="button">+ Novo administrador</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Usuário</th><th>Criado em</th><th style="text-align:right">Ações</th></tr></thead>
+                <tbody id="users-tbody"></tbody>
+              </table>
+            </div>
+            <div id="users-message" class="message" role="status" aria-live="polite"></div>
+          </div>
+          <div id="user-panel-modelos" class="user-panel">
+            <p class="template-hint">Arquivos usados como modelo na área de importação. Clique em <strong>Baixar</strong> para obter o modelo mais recente.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Modelo</th><th>Arquivo</th><th style="text-align:right">Ações</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Produtos</strong></td>
+                    <td class="template-filename">MODELO_IMPORTACAO_PRODUTOS.xlsx</td>
+                    <td style="text-align:right"><button class="button secondary" type="button" onclick="document.getElementById('download-template').click()">Baixar</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sites</strong></td>
+                    <td class="template-filename">MODELO_IMPORTACAO_SITES.xlsx</td>
+                    <td style="text-align:right"><button class="button secondary" type="button" onclick="document.getElementById('download-site-template').click()">Baixar</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
     </section>
+
+  <!-- Modal: Novo Administrador -->
+  <div id="modal-new-admin" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Novo Administrador</h2>
+      <div class="field"><label for="modal-admin-username">Usuário *</label><input id="modal-admin-username" autocomplete="off"></div>
+      <div class="field"><label for="modal-admin-password">Senha * <span class="field-hint">(mínimo 6 caracteres)</span></label><input id="modal-admin-password" type="password" autocomplete="new-password"></div>
+      <div id="modal-new-admin-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="cancel-new-admin">Cancelar</button>
+        <button class="button primary" type="button" id="confirm-new-admin">Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Alterar Senha -->
+  <div id="modal-change-pwd" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Alterar Senha</h2>
+      <p id="modal-pwd-for" class="modal-user-label"></p>
+      <div class="field"><label for="modal-new-pwd">Nova Senha * <span class="field-hint">(mínimo 6 caracteres)</span></label><input id="modal-new-pwd" type="password" autocomplete="new-password"></div>
+      <div id="modal-change-pwd-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="cancel-change-pwd">Cancelar</button>
+        <button class="button primary" type="button" id="confirm-change-pwd">Salvar</button>
+      </div>
+    </div>
+  </div>
 
   </main>
   <footer>Monitoramento consolidado de ofertas em diferentes lojas e marketplaces.</footer>

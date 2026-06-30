@@ -1129,6 +1129,124 @@ byId('logout-button').addEventListener('click', () => {
   setMessage(byId('login-message'), 'Sessão encerrada.', 'success');
 });
 
+// ── Inner tabs (Administradores / Modelos de Importação) ──────────────────
+document.querySelectorAll('.user-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.user-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.user-panel').forEach((p) => {
+      p.classList.toggle('active', p.id === `user-panel-${tab.dataset.panel}`);
+    });
+  });
+});
+
+// Carrega usuários ao abrir sub-aba
+document.querySelector('.sub-tab[data-subtab="users"]')?.addEventListener('click', loadUsers);
+
+// ── Gestão de usuários ────────────────────────────────────────────────────
+
+let changePwdUserId = null;
+
+function escHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function loadUsers() {
+  const tbody = byId('users-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--muted)">Carregando…</td></tr>';
+  try {
+    const users = await request('/auth/usuarios');
+    byId('users-count').textContent = `${users.length} administrador${users.length !== 1 ? 'es' : ''} cadastrado${users.length !== 1 ? 's' : ''}`;
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map((u) => {
+      const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
+      const badge = u.isRoot ? ' <span class="root-badge">principal</span>' : '';
+      const deleteBtn = !u.isRoot
+        ? `<button class="table-action" style="color:var(--danger)" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`
+        : '';
+      return `<tr>
+        <td>${escHtml(u.username)}${badge}</td>
+        <td>${date}</td>
+        <td style="text-align:right">
+          <button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Alterar senha</button>
+          ${deleteBtn}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (error) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--danger)">${error.message}</td></tr>`;
+  }
+}
+
+function openChangePwd(id, username) {
+  changePwdUserId = id;
+  byId('modal-pwd-for').textContent = `Usuário: ${username}`;
+  byId('modal-new-pwd').value = '';
+  setMessage(byId('modal-change-pwd-msg'));
+  byId('modal-change-pwd').hidden = false;
+  setTimeout(() => byId('modal-new-pwd').focus(), 50);
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Excluir o usuário "${username}"?\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    await request(`/auth/usuarios/${id}`, { method: 'DELETE' });
+    setMessage(byId('users-message'), `Usuário "${username}" excluído.`, 'success');
+    await loadUsers();
+  } catch (error) {
+    setMessage(byId('users-message'), error.message, 'error');
+  }
+}
+
+byId('new-admin-btn').addEventListener('click', () => {
+  byId('modal-admin-username').value = '';
+  byId('modal-admin-password').value = '';
+  setMessage(byId('modal-new-admin-msg'));
+  byId('modal-new-admin').hidden = false;
+  setTimeout(() => byId('modal-admin-username').focus(), 50);
+});
+
+byId('cancel-new-admin').addEventListener('click', () => { byId('modal-new-admin').hidden = true; });
+byId('cancel-change-pwd').addEventListener('click', () => { byId('modal-change-pwd').hidden = true; });
+
+byId('modal-new-admin').addEventListener('click', (e) => { if (e.target === byId('modal-new-admin')) byId('modal-new-admin').hidden = true; });
+byId('modal-change-pwd').addEventListener('click', (e) => { if (e.target === byId('modal-change-pwd')) byId('modal-change-pwd').hidden = true; });
+
+byId('confirm-new-admin').addEventListener('click', async () => {
+  const username = byId('modal-admin-username').value.trim();
+  const password = byId('modal-admin-password').value;
+  const msgEl = byId('modal-new-admin-msg');
+  if (!username || !password) { setMessage(msgEl, 'Usuário e senha são obrigatórios.', 'error'); return; }
+  try {
+    await request('/auth/usuarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    byId('modal-new-admin').hidden = true;
+    setMessage(byId('users-message'), `Usuário "${username}" criado com sucesso.`, 'success');
+    await loadUsers();
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+byId('confirm-change-pwd').addEventListener('click', async () => {
+  const password = byId('modal-new-pwd').value;
+  const msgEl = byId('modal-change-pwd-msg');
+  if (!password) { setMessage(msgEl, 'Informe a nova senha.', 'error'); return; }
+  try {
+    await request(`/auth/usuarios/${changePwdUserId}/senha`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    byId('modal-change-pwd').hidden = true;
+    setMessage(byId('users-message'), 'Senha alterada com sucesso.', 'success');
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
 loadApiMode();
 restoreAdminSession();
 Promise.all([refreshCatalog(), loadSites()]).catch((error) => {
