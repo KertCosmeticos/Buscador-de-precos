@@ -1256,7 +1256,9 @@ async function loadUsers() {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
-      const emailBtn = `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
+      const emailBtn = u.isRoot
+        ? `<button class="table-action ghost" disabled>E-mail</button>`
+        : `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
       const pwdBtn = u.isRoot
         ? `<button class="table-action ghost" disabled>Senha</button>`
         : `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`;
