@@ -1220,8 +1220,8 @@ byId('login-form').addEventListener('submit', async (event) => {
 });
 
 byId('logout-button').addEventListener('click', () => {
-  setAdminAccess(false);
-  setMessage(byId('login-message'), 'Sessão encerrada.', 'success');
+  sessionStorage.removeItem('priceMonitorAdminToken');
+  location.reload(true);
 });
 
 // ── Inner tabs (Administradores / Modelos de Importação) ──────────────────
