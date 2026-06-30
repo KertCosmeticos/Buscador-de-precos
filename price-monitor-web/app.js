@@ -123,7 +123,6 @@ function readImportSpreadsheet(file) {
     const products = [];
     const errors = [];
     const seenEans = new Map();
-    const seenNames = new Map();
     rows.slice(1).forEach((row, offset) => {
       const line = offset + 2;
       if (!row.some((value) => spreadsheetCell(value))) return;
@@ -146,11 +145,8 @@ function readImportSpreadsheet(file) {
         errors.push(`Linha ${line}: EAN inválido (${product.ean}).`);
       } else if (seenEans.has(product.ean)) {
         errors.push(`Linha ${line}: EAN ${product.ean} duplicado com a linha ${seenEans.get(product.ean)}.`);
-      } else if (seenNames.has(product.name.toLowerCase())) {
-        errors.push(`Linha ${line}: produto "${product.name}" duplicado com a linha ${seenNames.get(product.name.toLowerCase())}.`);
       } else {
         seenEans.set(product.ean, line);
-        seenNames.set(product.name.toLowerCase(), line);
         products.push(product);
       }
     });
