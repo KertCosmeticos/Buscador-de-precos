@@ -1206,6 +1206,8 @@ document.querySelector('.sub-tab[data-subtab="users"]')?.addEventListener('click
 // ── Gestão de usuários ────────────────────────────────────────────────────
 
 let changePwdUserId = null;
+let editNameUserId = null;
+let editEmailUserId = null;
 
 function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1214,31 +1216,40 @@ function escHtml(str) {
 async function loadUsers() {
   const tbody = byId('users-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--muted)">Carregando…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Carregando…</td></tr>';
   try {
     const users = await request('/auth/usuarios');
     byId('users-count').textContent = `${users.length} administrador${users.length !== 1 ? 'es' : ''} cadastrado${users.length !== 1 ? 's' : ''}`;
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
       return;
     }
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">principal</span>' : '';
+      const emailBtn = !u.isRoot
+        ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
+        : '';
+      const pwdBtn = u.isRoot
+        ? `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`
+        : `<button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Senha</button>`;
       const deleteBtn = !u.isRoot
-        ? `<button class="table-action" style="color:var(--danger)" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`
+        ? `<button class="table-action danger" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`
         : '';
       return `<tr>
         <td>${escHtml(u.username)}${badge}</td>
+        <td style="color:var(--muted);font-size:.82rem">${escHtml(u.email || '—')}</td>
         <td>${date}</td>
         <td style="text-align:right">
-          <button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Alterar senha</button>
+          <button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>
+          ${emailBtn}
+          ${pwdBtn}
           ${deleteBtn}
         </td>
       </tr>`;
     }).join('');
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:18px;color:var(--danger)">${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--danger)">${error.message}</td></tr>`;
   }
 }
 
@@ -1305,6 +1316,153 @@ byId('confirm-change-pwd').addEventListener('click', async () => {
     });
     byId('modal-change-pwd').hidden = true;
     setMessage(byId('users-message'), 'Senha alterada com sucesso.', 'success');
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+// ── Editar nome ───────────────────────────────────────────────────────────
+
+function openEditName(id, username) {
+  editNameUserId = id;
+  byId('modal-edit-name-for').textContent = `Usuário atual: ${username}`;
+  byId('modal-new-name').value = username;
+  setMessage(byId('modal-edit-name-msg'));
+  byId('modal-edit-name').hidden = false;
+  setTimeout(() => byId('modal-new-name').focus(), 50);
+}
+
+byId('cancel-edit-name').addEventListener('click', () => { byId('modal-edit-name').hidden = true; });
+byId('modal-edit-name').addEventListener('click', (e) => { if (e.target === byId('modal-edit-name')) byId('modal-edit-name').hidden = true; });
+
+byId('confirm-edit-name').addEventListener('click', async () => {
+  const username = byId('modal-new-name').value.trim();
+  const msgEl = byId('modal-edit-name-msg');
+  if (!username) { setMessage(msgEl, 'Informe o nome.', 'error'); return; }
+  try {
+    await request(`/auth/usuarios/${editNameUserId}/nome`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    byId('modal-edit-name').hidden = true;
+    setMessage(byId('users-message'), 'Nome atualizado com sucesso.', 'success');
+    await loadUsers();
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+// ── Editar e-mail ─────────────────────────────────────────────────────────
+
+function openEditEmail(id, email, username) {
+  editEmailUserId = id;
+  byId('modal-edit-email-for').textContent = `Usuário: ${username}`;
+  byId('modal-new-email').value = email;
+  setMessage(byId('modal-edit-email-msg'));
+  byId('modal-edit-email').hidden = false;
+  setTimeout(() => byId('modal-new-email').focus(), 50);
+}
+
+byId('cancel-edit-email').addEventListener('click', () => { byId('modal-edit-email').hidden = true; });
+byId('modal-edit-email').addEventListener('click', (e) => { if (e.target === byId('modal-edit-email')) byId('modal-edit-email').hidden = true; });
+
+byId('confirm-edit-email').addEventListener('click', async () => {
+  const email = byId('modal-new-email').value.trim();
+  const msgEl = byId('modal-edit-email-msg');
+  try {
+    await request(`/auth/usuarios/${editEmailUserId}/email`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    byId('modal-edit-email').hidden = true;
+    setMessage(byId('users-message'), 'E-mail atualizado com sucesso.', 'success');
+    await loadUsers();
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+// ── Redefinir senha por link (admin raiz) ─────────────────────────────────
+
+async function openResetPwdLink(id, username) {
+  const infoEl = byId('modal-reset-link-info');
+  const urlWrap = byId('modal-reset-link-url-wrap');
+  const urlInput = byId('modal-reset-link-url');
+  const copyBtn = byId('copy-reset-link');
+  setMessage(byId('modal-reset-link-msg'));
+  infoEl.textContent = `Gerando link para ${username}…`;
+  urlWrap.hidden = true;
+  copyBtn.hidden = true;
+  byId('modal-reset-link').hidden = false;
+  try {
+    const result = await request(`/auth/usuarios/${id}/resetar-senha`, { method: 'POST' });
+    if (result.emailSent) {
+      infoEl.textContent = `Link enviado para ${result.hasEmail ? 'o e-mail cadastrado' : username}.`;
+    } else {
+      infoEl.textContent = result.hasEmail
+        ? 'Não foi possível enviar o e-mail. Copie e compartilhe o link abaixo:'
+        : 'Usuário sem e-mail cadastrado. Compartilhe o link manualmente:';
+      urlInput.value = result.resetUrl;
+      urlWrap.hidden = false;
+      copyBtn.hidden = false;
+    }
+  } catch (error) {
+    setMessage(byId('modal-reset-link-msg'), error.message, 'error');
+    infoEl.textContent = '';
+  }
+}
+
+byId('close-reset-link').addEventListener('click', () => { byId('modal-reset-link').hidden = true; });
+byId('copy-reset-link').addEventListener('click', () => {
+  const url = byId('modal-reset-link-url').value;
+  navigator.clipboard.writeText(url).then(() => setMessage(byId('modal-reset-link-msg'), 'Link copiado!', 'success'));
+});
+
+// ── Definir nova senha via link de reset ──────────────────────────────────
+
+function handleResetToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('reset_token');
+  if (!token) return;
+  window.history.replaceState({}, '', window.location.pathname);
+  window._resetToken = token;
+  byId('set-new-pwd-input').value = '';
+  setMessage(byId('modal-set-new-pwd-msg'));
+  byId('modal-set-new-pwd').hidden = false;
+}
+
+byId('confirm-set-new-pwd').addEventListener('click', async () => {
+  const password = byId('set-new-pwd-input').value;
+  const msgEl = byId('modal-set-new-pwd-msg');
+  if (!password) { setMessage(msgEl, 'Informe a nova senha.', 'error'); return; }
+  try {
+    await request('/auth/redefinir-senha', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: window._resetToken, password })
+    });
+    byId('modal-set-new-pwd').hidden = true;
+    window._resetToken = null;
+    setMessage(byId('login-message'), 'Senha redefinida com sucesso. Faça login com a nova senha.', 'success');
+  } catch (error) { setMessage(msgEl, error.message, 'error'); }
+});
+
+// ── Esqueci minha senha ───────────────────────────────────────────────────
+
+byId('forgot-pwd-link').addEventListener('click', () => {
+  byId('forgot-pwd-email').value = '';
+  setMessage(byId('modal-forgot-pwd-msg'));
+  byId('modal-forgot-pwd').hidden = false;
+  setTimeout(() => byId('forgot-pwd-email').focus(), 50);
+});
+
+byId('cancel-forgot-pwd').addEventListener('click', () => { byId('modal-forgot-pwd').hidden = true; });
+byId('modal-forgot-pwd').addEventListener('click', (e) => { if (e.target === byId('modal-forgot-pwd')) byId('modal-forgot-pwd').hidden = true; });
+
+byId('confirm-forgot-pwd').addEventListener('click', async () => {
+  const email = byId('forgot-pwd-email').value.trim();
+  const msgEl = byId('modal-forgot-pwd-msg');
+  if (!email) { setMessage(msgEl, 'Informe o e-mail.', 'error'); return; }
+  try {
+    await request('/auth/esqueci-senha', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    setMessage(msgEl, 'Se este e-mail estiver cadastrado, você receberá o link em breve.', 'success');
+    setTimeout(() => { byId('modal-forgot-pwd').hidden = true; }, 3000);
   } catch (error) { setMessage(msgEl, error.message, 'error'); }
 });
 
@@ -1376,6 +1534,7 @@ async function desfazerImportacao(id, arquivo, tipo, criados) {
 
 loadApiMode();
 restoreAdminSession();
+handleResetToken();
 Promise.all([refreshCatalog(), loadSites()]).catch((error) => {
   byId('product-picker-list').textContent = error.message;
   setMessage(byId('catalog-message'), error.message, 'error');

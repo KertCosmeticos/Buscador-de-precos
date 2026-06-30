@@ -120,6 +120,7 @@
           <div class="field"><label for="login-password">Senha</label><input id="login-password" type="password" autocomplete="current-password" required></div>
           <button class="button primary" type="submit">Entrar</button>
         </form>
+        <button type="button" class="forgot-pwd-link" id="forgot-pwd-link">Esqueci minha senha</button>
         <p id="demo-login-hint" class="login-hint" hidden>Demonstração: usuário <strong>admin</strong> e senha <strong>admin123</strong>.</p>
         <div id="login-message" class="message" role="status" aria-live="polite"></div>
       </div>
@@ -247,7 +248,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Usuário</th><th>Criado em</th><th style="text-align:right">Ações</th></tr></thead>
+                <thead><tr><th>Usuário</th><th>E-mail</th><th>Criado em</th><th style="text-align:right">Ações</th></tr></thead>
                 <tbody id="users-tbody"></tbody>
               </table>
             </div>
@@ -308,6 +309,77 @@
       </div>
       </div>
     </section>
+
+  <!-- Modal: Editar Nome -->
+  <div id="modal-edit-name" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Editar Nome</h2>
+      <p id="modal-edit-name-for" class="modal-user-label"></p>
+      <div class="field"><label for="modal-new-name">Nome de usuário *</label><input id="modal-new-name" autocomplete="off"></div>
+      <div id="modal-edit-name-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="cancel-edit-name">Cancelar</button>
+        <button class="button primary" type="button" id="confirm-edit-name">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar E-mail -->
+  <div id="modal-edit-email" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Editar E-mail</h2>
+      <p id="modal-edit-email-for" class="modal-user-label"></p>
+      <div class="field"><label for="modal-new-email">E-mail</label><input id="modal-new-email" type="email" autocomplete="email"></div>
+      <div id="modal-edit-email-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="cancel-edit-email">Cancelar</button>
+        <button class="button primary" type="button" id="confirm-edit-email">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Link de Redefinição de Senha -->
+  <div id="modal-reset-link" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Redefinir Senha</h2>
+      <p id="modal-reset-link-info" class="modal-user-label"></p>
+      <div id="modal-reset-link-url-wrap" hidden>
+        <div class="field"><label>Link de redefinição <span class="field-hint">(expira em 1 hora)</span></label><input id="modal-reset-link-url" readonly onclick="this.select()"></div>
+      </div>
+      <div id="modal-reset-link-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="close-reset-link">Fechar</button>
+        <button class="button primary" type="button" id="copy-reset-link" hidden>Copiar link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Definir nova senha (via link de reset) -->
+  <div id="modal-set-new-pwd" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Definir Nova Senha</h2>
+      <p class="modal-user-label">Crie a nova senha para sua conta.</p>
+      <div class="field"><label for="set-new-pwd-input">Nova senha * <span class="field-hint">(mínimo 6 caracteres)</span></label><input id="set-new-pwd-input" type="password" autocomplete="new-password"></div>
+      <div id="modal-set-new-pwd-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button primary" type="button" id="confirm-set-new-pwd">Definir senha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Esqueci minha senha -->
+  <div id="modal-forgot-pwd" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>Esqueci minha senha</h2>
+      <p class="modal-user-label">Informe o e-mail cadastrado para receber o link de redefinição.</p>
+      <div class="field"><label for="forgot-pwd-email">E-mail</label><input id="forgot-pwd-email" type="email" autocomplete="email"></div>
+      <div id="modal-forgot-pwd-msg" class="message" role="status"></div>
+      <div class="modal-footer">
+        <button class="button secondary" type="button" id="cancel-forgot-pwd">Cancelar</button>
+        <button class="button primary" type="button" id="confirm-forgot-pwd">Enviar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Novo Administrador -->
   <div id="modal-new-admin" class="modal-overlay" hidden>

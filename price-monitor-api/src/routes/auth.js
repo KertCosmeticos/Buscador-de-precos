@@ -78,7 +78,7 @@ router.get('/me', requireAdmin, (req, res) => res.json({ user: req.admin.sub, ro
 
 router.get('/usuarios', requireAdmin, async (req, res) => {
   try {
-    const users = await AdminUser.find({}, { passwordHash: 0 }).sort({ createdAt: 1 }).lean();
+    const users = await AdminUser.find({}, { passwordHash: 0, resetToken: 0, resetTokenExp: 0 }).sort({ createdAt: 1 }).lean();
     return res.json(users);
   } catch { return res.status(500).json({ error: 'Erro ao listar usuários.' }); }
 });
@@ -108,6 +108,28 @@ router.put('/usuarios/:id/senha', requireAdmin, async (req, res) => {
   } catch { return res.status(500).json({ error: 'Erro ao alterar senha.' }); }
 });
 
+router.put('/usuarios/:id/nome', requireAdmin, async (req, res) => {
+  const username = String(req.body?.username || '').trim();
+  if (!username) return res.status(400).json({ error: 'Nome é obrigatório.' });
+  try {
+    const result = await AdminUser.updateOne({ _id: req.params.id }, { $set: { username } });
+    if (!result.matchedCount) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    return res.json({ ok: true });
+  } catch (e) {
+    if (e.code === 11000) return res.status(409).json({ error: 'Este nome já está em uso.' });
+    return res.status(500).json({ error: 'Erro ao atualizar nome.' });
+  }
+});
+
+router.put('/usuarios/:id/email', requireAdmin, async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  try {
+    const result = await AdminUser.updateOne({ _id: req.params.id }, { $set: { email } });
+    if (!result.matchedCount) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: 'Erro ao atualizar e-mail.' }); }
+});
+
 router.delete('/usuarios/:id', requireAdmin, async (req, res) => {
   try {
     const user = await AdminUser.findById(req.params.id).lean();
@@ -118,6 +140,79 @@ router.delete('/usuarios/:id', requireAdmin, async (req, res) => {
     await AdminUser.deleteOne({ _id: req.params.id });
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: 'Erro ao excluir usuário.' }); }
+});
+
+// ── Redefinição de senha por e-mail ──────────────────────────────────────
+
+async function sendResetEmail(toEmail, username, resetUrl) {
+  if (!process.env.SMTP_HOST) return false;
+  const nodemailer = require('nodemailer');
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+  });
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: toEmail,
+    subject: 'Price Monitor — Redefinição de Senha',
+    html: `<p>Olá, <strong>${username}</strong>!</p>
+           <p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>
+           <p><a href="${resetUrl}">${resetUrl}</a></p>
+           <p>Se você não solicitou a redefinição, ignore este e-mail.</p>`
+  });
+  return true;
+}
+
+router.post('/usuarios/:id/resetar-senha', requireAdmin, async (req, res) => {
+  try {
+    const user = await AdminUser.findById(req.params.id).lean();
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    const token = crypto.randomBytes(32).toString('hex');
+    const exp = new Date(Date.now() + 60 * 60 * 1000);
+    await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
+    const baseUrl = (process.env.PANEL_URL || req.headers.origin || '').replace(/\/$/, '');
+    const resetUrl = `${baseUrl}?reset_token=${token}`;
+    let emailSent = false;
+    if (user.email) {
+      try { emailSent = await sendResetEmail(user.email, user.username, resetUrl); } catch {}
+    }
+    return res.json({ ok: true, resetUrl, emailSent, hasEmail: !!user.email });
+  } catch { return res.status(500).json({ error: 'Erro ao gerar link de redefinição.' }); }
+});
+
+router.post('/redefinir-senha', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) return res.status(400).json({ error: 'Token e senha são obrigatórios.' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
+  try {
+    const user = await AdminUser.findOne({ resetToken: token }).lean();
+    if (!user || !user.resetTokenExp || new Date(user.resetTokenExp) < new Date()) {
+      return res.status(400).json({ error: 'Link inválido ou expirado.' });
+    }
+    await AdminUser.updateOne({ _id: user._id }, { $set: { passwordHash: hashPassword(String(password)), resetToken: null, resetTokenExp: null } });
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: 'Erro ao redefinir senha.' }); }
+});
+
+router.post('/esqueci-senha', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' });
+  try {
+    const user = await AdminUser.findOne({ email }).lean();
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const exp = new Date(Date.now() + 60 * 60 * 1000);
+      await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
+      const baseUrl = (process.env.PANEL_URL || '').replace(/\/$/, '');
+      if (baseUrl) {
+        const resetUrl = `${baseUrl}?reset_token=${token}`;
+        try { await sendResetEmail(email, user.username, resetUrl); } catch {}
+      }
+    }
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: 'Erro ao processar solicitação.' }); }
 });
 
 // ── Registro de importações ───────────────────────────────────────────────
