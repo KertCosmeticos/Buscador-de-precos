@@ -1241,6 +1241,13 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function getCurrentUserInfo() {
+  try {
+    const payload = JSON.parse(atob(adminToken.split('.')[1]));
+    return { uid: payload.uid || null, username: payload.sub || null };
+  } catch { return { uid: null, username: null }; }
+}
+
 async function loadUsers() {
   const tbody = byId('users-tbody');
   if (!tbody) return;
@@ -1252,15 +1259,20 @@ async function loadUsers() {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
       return;
     }
+    const me = getCurrentUserInfo();
+    const isMe = (u) => (me.uid && me.uid === String(u._id)) || (!me.uid && me.username === u.username);
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
+      const paiSelf = u.isRoot && isMe(u);
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
-      const emailBtn = u.isRoot
-        ? `<button class="table-action ghost" disabled>E-mail</button>`
-        : `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
+      const emailBtn = (!u.isRoot || paiSelf)
+        ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
+        : `<button class="table-action ghost" disabled>E-mail</button>`;
       const pwdBtn = u.isRoot
-        ? `<button class="table-action ghost" disabled>Senha</button>`
+        ? (paiSelf
+            ? `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`
+            : `<button class="table-action ghost" disabled>Senha</button>`)
         : `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`;
       const deleteBtn = u.isRoot
         ? `<button class="table-action danger ghost" disabled>Excluir</button>`
