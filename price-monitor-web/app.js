@@ -1270,7 +1270,9 @@ async function loadUsers() {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
       const paiSelf = u.isRoot && viewerIsRoot;
-      const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
+      const nomeBtn = (!u.isRoot || paiSelf)
+        ? `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`
+        : `<button class="table-action ghost" disabled>Nome</button>`;
       const emailBtn = (!u.isRoot || paiSelf)
         ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
         : `<button class="table-action ghost" disabled>E-mail</button>`;
