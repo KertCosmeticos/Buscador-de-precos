@@ -179,7 +179,7 @@ router.post('/usuarios/:id/resetar-senha', requireAdmin, async (req, res) => {
     const user = await AdminUser.findById(req.params.id).lean();
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
     const token = crypto.randomBytes(32).toString('hex');
-    const exp = new Date(Date.now() + 60 * 60 * 1000);
+    const exp = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
     const baseUrl = (process.env.PANEL_URL || req.headers.referer || req.headers.origin || '').replace(/[?#].*$/, '').replace(/\/$/, '');
     const resetUrl = `${baseUrl}?reset_token=${token}`;
@@ -199,8 +199,9 @@ router.post('/redefinir-senha', async (req, res) => {
   if (String(password).length < 6) return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
   try {
     const user = await AdminUser.findOne({ resetToken: token }).lean();
-    if (!user || !user.resetTokenExp || new Date(user.resetTokenExp) < new Date()) {
-      return res.status(400).json({ error: 'Link inválido ou expirado.' });
+    if (!user) return res.status(400).json({ error: 'Link inválido. Gere um novo link de redefinição.' });
+    if (!user.resetTokenExp || new Date(user.resetTokenExp) < new Date()) {
+      return res.status(400).json({ error: 'Link expirado. Gere um novo link de redefinição.' });
     }
     await AdminUser.updateOne({ _id: user._id }, { $set: { passwordHash: hashPassword(String(password)), resetToken: null, resetTokenExp: null } });
     return res.json({ ok: true });
@@ -214,7 +215,7 @@ router.post('/esqueci-senha', async (req, res) => {
     const user = await AdminUser.findOne({ email }).lean();
     if (user) {
       const token = crypto.randomBytes(32).toString('hex');
-      const exp = new Date(Date.now() + 60 * 60 * 1000);
+      const exp = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
       const baseUrl = (process.env.PANEL_URL || req.headers.referer || req.headers.origin || '').replace(/[?#].*$/, '').replace(/\/$/, '');
       const resetUrl = `${baseUrl}?reset_token=${token}`;
