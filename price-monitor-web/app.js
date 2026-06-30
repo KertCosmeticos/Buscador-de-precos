@@ -1255,18 +1255,13 @@ async function loadUsers() {
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
-      const ghost = u.isRoot ? ' ghost' : '';
-      const nomeBtn = u.isRoot
-        ? `<button class="table-action${ghost}" disabled>Nome</button>`
-        : `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
-      const emailBtn = u.isRoot
-        ? `<button class="table-action${ghost}" disabled>E-mail</button>`
-        : `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
+      const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
+      const emailBtn = `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
       const pwdBtn = u.isRoot
-        ? `<button class="table-action${ghost}" disabled>Senha</button>`
+        ? `<button class="table-action ghost" disabled>Senha</button>`
         : `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`;
       const deleteBtn = u.isRoot
-        ? `<button class="table-action danger${ghost}" disabled>Excluir</button>`
+        ? `<button class="table-action danger ghost" disabled>Excluir</button>`
         : `<button class="table-action danger" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`;
       return `<tr>
         <td>${escHtml(u.username)}${badge}</td>
