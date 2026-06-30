@@ -130,20 +130,6 @@
         <button id="logout-button" class="button secondary logout-btn" type="button">Sair</button>
       </nav>
       <div id="products-subtab" class="sub-panel">
-      <div class="card registration-guide">
-        <h2>Como cadastrar produtos</h2>
-        <div class="instruction-grid">
-          <section>
-            <h3>Importação por arquivo</h3>
-            <ol>
-              <li>Baixe a base-modelo atualizada e mantenha os seis cabeçalhos existentes.</li>
-              <li>Selecione o arquivo Excel nos formatos <strong>.xls</strong> ou <strong>.xlsx</strong>.</li>
-              <li>Confira a validação e clique em <strong>Importar produtos</strong>.</li>
-              <li>EANs existentes serão atualizados; novos EANs serão cadastrados.</li>
-            </ol>
-          </section>
-        </div>
-      </div>
       <div class="card">
         <h2 id="product-form-title">Cadastrar produto</h2>
         <div class="form-guide">
@@ -175,6 +161,14 @@
             <div><h3>Importar planilha de produtos</h3></div>
             <a id="download-template" class="button secondary" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download>Baixar modelo atualizado</a>
           </div>
+          <div class="form-guide">
+            <ol>
+              <li>Baixe a base-modelo atualizada e mantenha os seis cabeçalhos existentes.</li>
+              <li>Selecione o arquivo Excel nos formatos <strong>.xls</strong> ou <strong>.xlsx</strong>.</li>
+              <li>Confira a validação e clique em <strong>Importar produtos</strong>.</li>
+              <li>EANs existentes serão atualizados; novos EANs serão cadastrados.</li>
+            </ol>
+          </div>
           <label class="file-picker" for="product-import-file">
             <span class="file-picker-action">Escolher arquivo</span>
             <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -197,20 +191,6 @@
       </div>
       </div>
       <div id="sites-subtab" class="sub-panel" hidden>
-      <div class="card registration-guide">
-        <h2>Como cadastrar sites</h2>
-        <div class="instruction-grid">
-          <section>
-            <h3>Importação por arquivo</h3>
-            <ol>
-              <li>Baixe o modelo e preencha NOME e URL DE BUSCA.</li>
-              <li>Selecione o arquivo Excel nos formatos <strong>.xls</strong> ou <strong>.xlsx</strong>.</li>
-              <li>Clique em <strong>Importar sites</strong>.</li>
-              <li>Sites existentes serão atualizados pelo nome.</li>
-            </ol>
-          </section>
-        </div>
-      </div>
       <div class="card">
         <h2 id="site-form-title">Cadastrar site monitorado</h2>
         <div class="form-guide">
@@ -231,6 +211,14 @@
           <div class="import-heading">
             <div><h3>Importar sites por planilha</h3></div>
             <button id="download-site-template" class="button secondary" type="button">Baixar modelo</button>
+          </div>
+          <div class="form-guide">
+            <ol>
+              <li>Baixe o modelo e preencha NOME e URL DE BUSCA.</li>
+              <li>Selecione o arquivo Excel nos formatos <strong>.xls</strong> ou <strong>.xlsx</strong>.</li>
+              <li>Clique em <strong>Importar sites</strong>.</li>
+              <li>Sites existentes serão atualizados pelo nome.</li>
+            </ol>
           </div>
           <label class="file-picker" for="site-import-file">
             <span class="file-picker-action">Escolher arquivo</span>
