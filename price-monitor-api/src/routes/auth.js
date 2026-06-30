@@ -79,7 +79,8 @@ router.get('/me', requireAdmin, (req, res) => res.json({ user: req.admin.sub, ro
 router.get('/usuarios', requireAdmin, async (req, res) => {
   try {
     const users = await AdminUser.find({}, { passwordHash: 0, resetToken: 0, resetTokenExp: 0 }).sort({ createdAt: 1 }).lean();
-    return res.json(users);
+    const me = req.admin.sub;
+    return res.json(users.map(u => ({ ...u, isCurrentUser: u.username === me })));
   } catch { return res.status(500).json({ error: 'Erro ao listar usuários.' }); }
 });
 

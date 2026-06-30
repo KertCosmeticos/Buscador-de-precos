@@ -355,9 +355,11 @@ async function request(path, options = {}) {
   return data;
 }
 
-function setAdminAccess(authenticated) {
+function setAdminAccess(authenticated, username) {
   byId('restricted-login').hidden = authenticated;
   byId('admin-content').hidden = !authenticated;
+  const nameEl = byId('logged-user-name');
+  if (nameEl) nameEl.textContent = authenticated && username ? username : '';
   if (!authenticated) {
     adminToken = '';
     sessionStorage.removeItem('priceMonitorAdminToken');
@@ -368,8 +370,8 @@ function setAdminAccess(authenticated) {
 async function restoreAdminSession() {
   if (!adminToken) return setAdminAccess(false);
   try {
-    await request('/auth/me');
-    setAdminAccess(true);
+    const me = await request('/auth/me');
+    setAdminAccess(true, me.user);
     await loadSites();
   } catch {
     setAdminAccess(false);
@@ -1204,7 +1206,7 @@ byId('login-form').addEventListener('submit', async (event) => {
     sessionStorage.setItem('priceMonitorAdminToken', adminToken);
     byId('login-form').reset();
     setMessage(byId('login-message'));
-    setAdminAccess(true);
+    setAdminAccess(true, data.user);
     await Promise.all([loadCatalogTable(), loadSites()]);
   } catch (error) {
     setMessage(byId('login-message'), error.message, 'error');
@@ -1259,12 +1261,10 @@ async function loadUsers() {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
       return;
     }
-    let meUsername = null;
-    try { const meData = await request('/auth/me'); meUsername = meData.user || null; } catch {}
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
-      const paiSelf = u.isRoot && meUsername === u.username;
+      const paiSelf = u.isRoot && u.isCurrentUser;
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
       const emailBtn = (!u.isRoot || paiSelf)
         ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
