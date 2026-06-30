@@ -1271,7 +1271,7 @@ async function loadUsers() {
         : `<button class="table-action ghost" disabled>E-mail</button>`;
       const pwdBtn = u.isRoot
         ? (paiSelf
-            ? `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`
+            ? `<button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Senha</button>`
             : `<button class="table-action ghost" disabled>Senha</button>`)
         : `<button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Senha</button>`;
       const deleteBtn = u.isRoot
