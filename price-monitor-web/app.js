@@ -5,6 +5,7 @@ const API_URL = IS_LOCAL
 
 let currentResults = [];
 let adminToken = sessionStorage.getItem('priceMonitorAdminToken') || '';
+let loggedInUsername = '';
 let allCatalogProducts = [];
 let allSites = [];
 let catalogProducts = [];
@@ -358,8 +359,9 @@ async function request(path, options = {}) {
 function setAdminAccess(authenticated, username) {
   byId('restricted-login').hidden = authenticated;
   byId('admin-content').hidden = !authenticated;
+  loggedInUsername = authenticated && username ? username : '';
   const nameEl = byId('logged-user-name');
-  if (nameEl) nameEl.textContent = authenticated && username ? username : '';
+  if (nameEl) nameEl.textContent = loggedInUsername;
   if (!authenticated) {
     adminToken = '';
     sessionStorage.removeItem('priceMonitorAdminToken');
@@ -1264,7 +1266,7 @@ async function loadUsers() {
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
-      const paiSelf = u.isRoot && u.isCurrentUser;
+      const paiSelf = u.isRoot && loggedInUsername === u.username;
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
       const emailBtn = (!u.isRoot || paiSelf)
         ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
