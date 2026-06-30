@@ -72,14 +72,6 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .picker-product { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: .875rem; font-weight: normal; }
 .picker-product:last-child { border-bottom: 0; }
 .picker-product small { color: var(--muted); font-size: .78rem; }
-.search-source-card { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: white; }
-.search-source-card > div:first-child { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
-.search-source-card p { margin: 0; font-size: .875rem; }
-.search-source-options { display: flex; gap: 12px; margin-top: 13px; }
-.source-option { flex: 1; display: flex; align-items: center; gap: 9px; margin: 0; padding: 11px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
-.source-option input { width: auto; margin: 0; }
-.source-option span { margin-left: auto; color: var(--muted); font-size: .78rem; font-weight: 500; }
-.source-option .recommended { color: var(--success); }
 .extension-status { margin-top: 11px; font-size: .875rem; color: var(--success); }
 .extension-status.unavailable { color: var(--danger); }
 .extension-help { margin-top: 11px; color: var(--muted); font-size: .78rem; }
@@ -153,23 +145,12 @@ td a { color: var(--blue); text-decoration: none; font-weight: 650; }
 .inline-form { display: flex; gap: 12px; align-items: end; max-width: 600px; }
 .field { flex: 1; }
 footer { text-align: center; color: var(--muted); font-size: .78rem; padding: 18px 16px 30px; }
-.modal-overlay { position: fixed; inset: 0; background: #0f172a99; display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal-card { background: white; border-radius: 14px; padding: 28px; max-width: 460px; width: calc(100% - 32px); box-shadow: 0 20px 60px #0f172a44; }
-.modal-card h2 { margin-bottom: 6px; }
-.modal-subtitle { color: var(--muted); font-size: .875rem; margin-bottom: 18px; }
-.modal-section { margin-bottom: 16px; }
-.modal-section h3 { margin-bottom: 10px; }
-.modal-check-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); cursor: pointer; font-size: .875rem; }
-.modal-check-row:last-child { border-bottom: 0; }
-.modal-check-row input { width: auto; margin: 0; }
-.modal-actions { display: flex; gap: 10px; margin-top: 22px; justify-content: flex-end; }
 @media (max-width: 700px) {
   .container { width: min(100% - 22px, 1180px); }
   .card { padding: 18px; border-radius: 11px; }
   .brand p { display: none; }
   .actions, .inline-form { flex-direction: column; align-items: stretch; }
-  .search-source-options { flex-direction: column; }
-  .filter-grid, .product-form, .instruction-grid { grid-template-columns: 1fr; }
+.filter-grid, .product-form, .instruction-grid { grid-template-columns: 1fr; }
   .import-heading { flex-direction: column; }
   .file-picker { align-items: flex-start; flex-direction: column; }
   .span-2 { grid-column: auto; }

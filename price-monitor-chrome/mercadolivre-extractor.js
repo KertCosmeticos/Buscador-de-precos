@@ -27,16 +27,8 @@ function tokenize(value) {
     .filter((t) => t.length >= 2 && !/^\d+(?:ml|g|gr|kg|un|l)$/.test(t));
 }
 
-function tokens(value) {
-  return tokenize(value).filter((t) => !genericWords.has(t));
-}
-
 function tokenMatches(a, b) {
   return a === b || (a.length >= 6 && b.length >= 6 && a.slice(0, 6) === b.slice(0, 6));
-}
-
-function extractColorTokens(productName) {
-  return tokens(productName).filter((t) => !ownBrands.has(t));
 }
 
 function relevant(text, product) {

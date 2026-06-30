@@ -31,9 +31,9 @@ window.addEventListener('message', (event) => {
   if (event.source !== window || event.origin !== window.location.origin) return;
   const message = event.data;
   if (!message || message.source !== FROM_PAGE) return;
-  if (!['BROWSER_SEARCH_REQUEST', 'BROWSER_EXTENSION_PING'].includes(message.type)) return;
+  if (!['BROWSER_SEARCH_REQUEST', 'BROWSER_EXTENSION_PING', 'OPEN_URL'].includes(message.type)) return;
   if (!port) {
-    tellPage('BROWSER_SEARCH_ERROR', { requestId: message.requestId, error: 'A extensão não está conectada.' });
+    if (message.type !== 'OPEN_URL') tellPage('BROWSER_SEARCH_ERROR', { requestId: message.requestId, error: 'A extensão não está conectada.' });
     return;
   }
   port.postMessage(message);

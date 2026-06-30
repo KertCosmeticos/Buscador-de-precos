@@ -461,16 +461,6 @@ function siteDomain(site) {
   } catch { return ''; }
 }
 
-function listingMatchesSites(listing, sites) {
-  if (!sites.length) return true;
-  try {
-    const hostname = new URL(listing.link).hostname.replace(/^www\./, '').toLowerCase();
-    return sites.some((site) => {
-      const domain = siteDomain(site);
-      return domain && (hostname === domain || hostname.endsWith(`.${domain}`));
-    });
-  } catch { return false; }
-}
 
 const priorityDomainGroups = [
   ['amazon.com.br', 'mercadolivre.com.br', 'shopee.com.br', 'magazineluiza.com.br'],
@@ -576,6 +566,10 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((message) => {
     if (message.type === 'BROWSER_EXTENSION_PING') {
       safePost(port, { type: 'BROWSER_EXTENSION_STATUS', available: true });
+      return;
+    }
+    if (message.type === 'OPEN_URL') {
+      chrome.tabs.create({ url: message.url });
       return;
     }
     if (message.type !== 'BROWSER_SEARCH_REQUEST') return;
