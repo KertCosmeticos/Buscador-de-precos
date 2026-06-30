@@ -2,6 +2,13 @@
 **/.env
 *.log
 *.xlsx
-!PRODUTOS EM LINHA 2026 - BASE LARISSA.xlsx
 .DS_Store
 Thumbs.db
+STATUS_PROJETO.md
+CRITERIO_PONTUACAO_PRODUTOS.md
+**/test/
+**/scripts/
+**/*.test.js
+price-monitor-api/README.md
+price-monitor-chrome/README.md
+price-monitor-web/README.md
