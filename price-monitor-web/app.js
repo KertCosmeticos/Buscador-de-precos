@@ -1254,26 +1254,25 @@ async function loadUsers() {
     }
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
-      const badge = u.isRoot ? ' <span class="root-badge">principal</span>' : '';
-      const emailBtn = !u.isRoot
-        ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
-        : '';
+      const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
+      const ghost = u.isRoot ? ' ghost' : '';
+      const nomeBtn = u.isRoot
+        ? `<button class="table-action${ghost}" disabled>Nome</button>`
+        : `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
+      const emailBtn = u.isRoot
+        ? `<button class="table-action${ghost}" disabled>E-mail</button>`
+        : `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`;
       const pwdBtn = u.isRoot
-        ? `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`
-        : `<button class="table-action" onclick="openChangePwd('${u._id}','${escHtml(u.username)}')">Senha</button>`;
-      const deleteBtn = !u.isRoot
-        ? `<button class="table-action danger" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`
-        : '';
+        ? `<button class="table-action${ghost}" disabled>Senha</button>`
+        : `<button class="table-action" onclick="openResetPwdLink('${u._id}','${escHtml(u.username)}')">Senha</button>`;
+      const deleteBtn = u.isRoot
+        ? `<button class="table-action danger${ghost}" disabled>Excluir</button>`
+        : `<button class="table-action danger" onclick="deleteUser('${u._id}','${escHtml(u.username)}')">Excluir</button>`;
       return `<tr>
         <td>${escHtml(u.username)}${badge}</td>
         <td style="color:var(--muted);font-size:.82rem">${escHtml(u.email || '—')}</td>
         <td>${date}</td>
-        <td style="text-align:right">
-          <button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>
-          ${emailBtn}
-          ${pwdBtn}
-          ${deleteBtn}
-        </td>
+        <td style="text-align:right">${nomeBtn}${emailBtn}${pwdBtn}${deleteBtn}</td>
       </tr>`;
     }).join('');
   } catch (error) {
@@ -1303,6 +1302,7 @@ async function deleteUser(id, username) {
 
 byId('new-admin-btn').addEventListener('click', () => {
   byId('modal-admin-username').value = '';
+  byId('modal-admin-email').value = '';
   byId('modal-admin-password').value = '';
   setMessage(byId('modal-new-admin-msg'));
   byId('modal-new-admin').hidden = false;
@@ -1317,14 +1317,17 @@ byId('modal-change-pwd').addEventListener('click', (e) => { if (e.target === byI
 
 byId('confirm-new-admin').addEventListener('click', async () => {
   const username = byId('modal-admin-username').value.trim();
+  const email = byId('modal-admin-email').value.trim();
   const password = byId('modal-admin-password').value;
   const msgEl = byId('modal-new-admin-msg');
-  if (!username || !password) { setMessage(msgEl, 'Usuário e senha são obrigatórios.', 'error'); return; }
+  if (!username) { setMessage(msgEl, 'Nome de usuário é obrigatório.', 'error'); return; }
+  if (!email) { setMessage(msgEl, 'E-mail é obrigatório.', 'error'); return; }
+  if (!password) { setMessage(msgEl, 'Senha é obrigatória.', 'error'); return; }
   try {
     await request('/auth/usuarios', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, email, password })
     });
     byId('modal-new-admin').hidden = true;
     setMessage(byId('users-message'), `Usuário "${username}" criado com sucesso.`, 'success');

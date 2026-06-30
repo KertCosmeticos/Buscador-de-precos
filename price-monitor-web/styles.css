@@ -84,7 +84,8 @@ textarea:focus, input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #
 .form-actions { display: flex; gap: 10px; }
 .table-action { border: 0; background: none; color: var(--blue); cursor: pointer; font: inherit; font-weight: 650; padding: 3px 7px; font-size: .875rem; }
 .table-action.danger { color: var(--danger); }
-.table-action:disabled { cursor: wait; opacity: .55; }
+.table-action:disabled { cursor: default; opacity: .55; }
+.table-action.ghost { opacity: .18; pointer-events: none; }
 .seller-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: .78rem; font-weight: 750; }
 .seller-status.active { color: #475569; background: #eef2f6; }
 .seller-status.new { color: var(--success); background: #dcfae6; }

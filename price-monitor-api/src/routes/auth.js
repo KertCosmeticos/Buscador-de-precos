@@ -85,11 +85,13 @@ router.get('/usuarios', requireAdmin, async (req, res) => {
 
 router.post('/usuarios', requireAdmin, async (req, res) => {
   const username = String(req.body?.username || '').trim();
+  const email = String(req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
   if (!username || !password) return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
+  if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' });
   if (password.length < 6) return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
   try {
-    await AdminUser.create({ username, passwordHash: hashPassword(password) });
+    await AdminUser.create({ username, email, passwordHash: hashPassword(password) });
     return res.status(201).json({ ok: true });
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ error: 'Este usuário já existe.' });
