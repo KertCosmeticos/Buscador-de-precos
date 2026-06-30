@@ -342,7 +342,7 @@ async function request(path, options = {}) {
   if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
   let response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    response = await fetch(`${API_URL}${path}`, { cache: 'no-store', ...options, headers });
   } catch {
     throw new Error('Não foi possível conectar à API. Verifique se o backend está disponível.');
   }
