@@ -58,8 +58,8 @@ router.post('/login', async (req, res) => {
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
     }
-    const token = jwt.sign({ sub: user.username, role: 'admin', uid: String(user._id) }, jwtSecret(), { expiresIn: '8h' });
-    return res.json({ token, user: user.username, expiresIn: 28800 });
+    const token = jwt.sign({ sub: user.username, role: 'admin', uid: String(user._id), isRoot: !!user.isRoot }, jwtSecret(), { expiresIn: '8h' });
+    return res.json({ token, user: user.username, isRoot: !!user.isRoot, expiresIn: 28800 });
   } catch {
     // fallback para credenciais do .env se MongoDB indisponível
     const envUser = process.env.ADMIN_USERNAME;
@@ -72,7 +72,14 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', requireAdmin, (req, res) => res.json({ user: req.admin.sub, role: req.admin.role }));
+router.get('/me', requireAdmin, async (req, res) => {
+  try {
+    const user = await AdminUser.findOne({ username: req.admin.sub }, { isRoot: 1 }).lean();
+    return res.json({ user: req.admin.sub, role: req.admin.role, isRoot: !!(user?.isRoot) });
+  } catch {
+    return res.json({ user: req.admin.sub, role: req.admin.role, isRoot: !!(req.admin.isRoot) });
+  }
+});
 
 // ── Gestão de usuários administradores ────────────────────────────────────
 
