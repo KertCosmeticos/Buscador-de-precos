@@ -254,24 +254,43 @@
             <div id="users-message" class="message" role="status" aria-live="polite"></div>
           </div>
           <div id="user-panel-modelos" class="user-panel">
-            <p class="template-hint">Arquivos usados como modelo na área de importação. Clique em <strong>Baixar</strong> para obter o modelo mais recente.</p>
+            <p class="template-hint">Arquivos usados como modelo na área de importação. Use <strong>Importar modelo</strong> para substituir o arquivo padrão por um personalizado.</p>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Modelo</th><th>Arquivo</th><th style="text-align:right">Ações</th></tr></thead>
                 <tbody>
                   <tr>
                     <td><strong>Produtos</strong></td>
-                    <td class="template-filename">MODELO_IMPORTACAO_PRODUTOS.xlsx</td>
-                    <td style="text-align:right"><button class="button secondary" type="button" onclick="document.getElementById('download-template').click()">Baixar</button></td>
+                    <td class="template-filename">
+                      <span id="template-name-produtos">MODELO_IMPORTACAO_PRODUTOS.xlsx</span>
+                      <a href="#" id="template-reset-produtos" style="display:none;font-size:.72rem;color:var(--muted);margin-left:8px" onclick="resetCustomTemplate('produtos');return false">Usar padrão</a>
+                    </td>
+                    <td style="text-align:right">
+                      <input id="custom-produtos-template-file" type="file" accept=".xls,.xlsx" hidden>
+                      <div style="display:flex;gap:8px;justify-content:flex-end">
+                        <button class="button secondary" type="button" id="import-custom-produtos-btn">Importar modelo</button>
+                        <button class="button secondary" type="button" onclick="document.getElementById('download-template').click()">Baixar</button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td><strong>Sites</strong></td>
-                    <td class="template-filename">MODELO_IMPORTACAO_SITES.xlsx</td>
-                    <td style="text-align:right"><button class="button secondary" type="button" onclick="document.getElementById('download-site-template').click()">Baixar</button></td>
+                    <td class="template-filename">
+                      <span id="template-name-sites">MODELO_IMPORTACAO_SITES.xlsx</span>
+                      <a href="#" id="template-reset-sites" style="display:none;font-size:.72rem;color:var(--muted);margin-left:8px" onclick="resetCustomTemplate('sites');return false">Usar padrão</a>
+                    </td>
+                    <td style="text-align:right">
+                      <input id="custom-sites-template-file" type="file" accept=".xls,.xlsx" hidden>
+                      <div style="display:flex;gap:8px;justify-content:flex-end">
+                        <button class="button secondary" type="button" id="import-custom-sites-btn">Importar modelo</button>
+                        <button class="button secondary" type="button" onclick="document.getElementById('download-site-template').click()">Baixar</button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <div id="modelos-message" class="message" role="status" aria-live="polite"></div>
           </div>
           <div id="user-panel-importacoes" class="user-panel">
             <div class="users-header">

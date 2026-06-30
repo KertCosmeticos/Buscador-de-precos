@@ -173,7 +173,7 @@ function readSiteSpreadsheet(file) {
       searchUrl: headers.findIndex((header) => ['URL DE BUSCA', 'URL BUSCA', 'URL'].includes(header)),
       type: headers.findIndex((header) => ['TIPO', 'TIPO DO SITE'].includes(header))
     };
-    if (Object.values(positions).some((index) => index < 0)) throw new Error('Use os cabeçalhos NOME, URL DE BUSCA e TIPO.');
+    if (positions.name < 0 || positions.searchUrl < 0) throw new Error('Use os cabeçalhos NOME e URL DE BUSCA.');
     const typeAliases = { marketplace: 'marketplace', perfumaria: 'perfumaria', drogaria: 'drogaria', 'loja propria': 'loja_propria' };
     const sites = [];
     const errors = [];
@@ -183,9 +183,9 @@ function readSiteSpreadsheet(file) {
       const line = offset + 2;
       const name = spreadsheetCell(row[positions.name]);
       const searchUrl = spreadsheetCell(row[positions.searchUrl]);
-      const rawType = normalizeSpreadsheetHeader(row[positions.type]).toLocaleLowerCase('pt-BR');
-      const type = typeAliases[rawType];
-      if (!name || !searchUrl || !type) errors.push(`Linha ${line}: nome, URL e tipo válido são obrigatórios.`);
+      const rawType = positions.type >= 0 ? normalizeSpreadsheetHeader(row[positions.type]).toLocaleLowerCase('pt-BR') : '';
+      const type = typeAliases[rawType] || 'perfumaria';
+      if (!name || !searchUrl) errors.push(`Linha ${line}: nome e URL são obrigatórios.`);
       else {
         try { new URL(searchUrl); } catch { errors.push(`Linha ${line}: URL de busca inválida.`); return; }
         const key = name.toLocaleLowerCase('pt-BR');
@@ -1029,7 +1029,55 @@ byId('product-form').addEventListener('submit', async (event) => {
 });
 
 byId('cancel-site-edit').addEventListener('click', resetSiteForm);
+// ── Modelos de importação personalizados ─────────────────────────────────
+
+function downloadStoredTemplate(key, filename) {
+  const data = localStorage.getItem(`pm_tpl_${key}`);
+  if (!data) return false;
+  const storedName = localStorage.getItem(`pm_tpl_${key}_name`) || filename;
+  const link = document.createElement('a');
+  link.href = data;
+  link.download = storedName;
+  link.click();
+  return true;
+}
+
+function updateTemplateDisplay(key) {
+  const storedName = localStorage.getItem(`pm_tpl_${key}_name`);
+  const nameEl = byId(`template-name-${key}`);
+  const resetEl = byId(`template-reset-${key}`);
+  const defaultName = key === 'produtos' ? 'MODELO_IMPORTACAO_PRODUTOS.xlsx' : 'MODELO_IMPORTACAO_SITES.xlsx';
+  if (nameEl) nameEl.textContent = storedName || defaultName;
+  if (resetEl) resetEl.style.display = storedName ? '' : 'none';
+}
+
+function resetCustomTemplate(key) {
+  localStorage.removeItem(`pm_tpl_${key}`);
+  localStorage.removeItem(`pm_tpl_${key}_name`);
+  updateTemplateDisplay(key);
+  setMessage(byId('modelos-message'), 'Modelo resetado para o padrão.', 'success');
+}
+
+function setupCustomTemplateInput(inputId, key) {
+  byId(inputId)?.addEventListener('change', (event) => {
+    const [file] = event.target.files;
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      localStorage.setItem(`pm_tpl_${key}`, e.target.result);
+      localStorage.setItem(`pm_tpl_${key}_name`, file.name);
+      updateTemplateDisplay(key);
+      setMessage(byId('modelos-message'), `Modelo de ${key} atualizado: ${file.name}`, 'success');
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  });
+  byId(`import-custom-${key}-btn`)?.addEventListener('click', () => byId(inputId)?.click());
+  updateTemplateDisplay(key);
+}
+
 byId('download-template').addEventListener('click', () => {
+  if (downloadStoredTemplate('produtos', 'MODELO_IMPORTACAO_PRODUTOS.xlsx')) return;
   if (!globalThis.XLSX) {
     setMessage(byId('import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
     return;
@@ -1042,16 +1090,20 @@ byId('download-template').addEventListener('click', () => {
   XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_PRODUTOS.xlsx');
 });
 byId('download-site-template').addEventListener('click', () => {
+  if (downloadStoredTemplate('sites', 'MODELO_IMPORTACAO_SITES.xlsx')) return;
   if (!globalThis.XLSX) {
     setMessage(byId('site-import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
     return;
   }
-  const worksheet = XLSX.utils.aoa_to_sheet([['NOME', 'URL DE BUSCA', 'TIPO']]);
-  worksheet['!cols'] = [{ wch: 28 }, { wch: 62 }, { wch: 20 }];
+  const worksheet = XLSX.utils.aoa_to_sheet([['NOME', 'URL DE BUSCA']]);
+  worksheet['!cols'] = [{ wch: 28 }, { wch: 62 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Sites');
   XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_SITES.xlsx');
 });
+
+setupCustomTemplateInput('custom-produtos-template-file', 'produtos');
+setupCustomTemplateInput('custom-sites-template-file', 'sites');
 byId('site-import-file').addEventListener('change', async (event) => {
   pendingImportSites = [];
   byId('import-sites-button').disabled = true;
