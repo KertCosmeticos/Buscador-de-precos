@@ -1259,7 +1259,8 @@ async function loadUsers() {
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Carregando…</td></tr>';
   try {
-    const users = await request('/auth/usuarios');
+    const [users, me] = await Promise.all([request('/auth/usuarios'), request('/auth/me')]);
+    const viewerIsRoot = !!(me?.isRoot);
     byId('users-count').textContent = `${users.length} administrador${users.length !== 1 ? 'es' : ''} cadastrado${users.length !== 1 ? 's' : ''}`;
     if (!users.length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
@@ -1268,7 +1269,7 @@ async function loadUsers() {
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
-      const paiSelf = u.isRoot && loggedInIsRoot;
+      const paiSelf = u.isRoot && viewerIsRoot;
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
       const emailBtn = (!u.isRoot || paiSelf)
         ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
