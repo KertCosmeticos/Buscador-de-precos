@@ -169,7 +169,7 @@
           <label class="file-picker" for="product-import-file">
             <span class="file-picker-action">Escolher arquivo</span>
             <input id="product-import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-            <a id="download-template" class="button secondary file-picker-extra" href="MODELO_IMPORTACAO_PRODUTOS.xlsx" download onclick="event.stopPropagation()">Baixar modelo de importação</a>
+            <button id="download-template" class="button secondary file-picker-extra" type="button" onclick="event.stopPropagation()">Baixar modelo de importação</button>
           </label>
           <p id="import-file-summary" class="file-summary">Nenhum arquivo selecionado.</p>
           <div id="import-progress" class="import-progress" hidden>

@@ -96,47 +96,61 @@ function readImportSpreadsheet(file) {
     if (rows.length < 2) throw new Error('A planilha não contém produtos.');
 
     const headers = rows[0].map(normalizeSpreadsheetHeader);
-    const aliases = {
-      sku: ['COD SFA', 'COD DO SFA', 'SKU', 'CODIGO INTERNO'],
-      name: ['NOME', 'PRODUTO', 'NOME DO PRODUTO'],
-      volume: ['GRAMATURA', 'VOLUME', 'VOLUME GRAMATURA'],
+    const requiredAliases = {
       ean: ['CODBARRAS', 'COD BARRAS', 'EAN', 'CODIGO DE BARRAS'],
+      name: ['NOME', 'PRODUTO', 'NOME DO PRODUTO'],
       category: ['CATEGORIA'],
       line: ['LINHA', 'FAMILIA']
     };
-    const positions = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [
+    const optionalAliases = {
+      sku: ['COD SFA', 'COD DO SFA', 'SKU', 'CODIGO INTERNO'],
+      volume: ['GRAMATURA', 'VOLUME', 'VOLUME GRAMATURA'],
+      nuance: ['NUANCE', 'TOM'],
+      color: ['COR'],
+      variant: ['VARIANTE', 'VARIACAO']
+    };
+    const allAliases = { ...requiredAliases, ...optionalAliases };
+    const positions = Object.fromEntries(Object.entries(allAliases).map(([field, names]) => [
       field,
       headers.findIndex((header) => names.includes(header))
     ]));
-    const missing = Object.entries(positions).filter(([, index]) => index < 0).map(([field]) => field);
+    const missing = Object.keys(requiredAliases).filter((field) => positions[field] < 0);
     if (missing.length) {
       throw new Error('Cabeçalhos obrigatórios ausentes. Use a planilha-modelo disponível no painel.');
     }
+    const cell = (row, pos) => pos >= 0 ? spreadsheetCell(row[pos]) : '';
 
     const products = [];
     const errors = [];
     const seenEans = new Map();
+    const seenNames = new Map();
     rows.slice(1).forEach((row, offset) => {
       const line = offset + 2;
       if (!row.some((value) => spreadsheetCell(value))) return;
       const product = {
-        sku: spreadsheetCell(row[positions.sku]),
-        name: spreadsheetCell(row[positions.name]),
-        volume: spreadsheetCell(row[positions.volume]),
-        ean: spreadsheetCell(row[positions.ean]),
-        category: spreadsheetCell(row[positions.category]),
-        line: spreadsheetCell(row[positions.line]),
+        ean: cell(row, positions.ean),
+        name: cell(row, positions.name),
+        category: cell(row, positions.category),
+        line: cell(row, positions.line),
+        sku: cell(row, positions.sku),
+        volume: cell(row, positions.volume),
+        nuance: cell(row, positions.nuance),
+        color: cell(row, positions.color),
+        variant: cell(row, positions.variant),
         active: true
       };
-      const emptyFields = ['sku', 'name', 'volume', 'ean', 'category', 'line'].filter((field) => !product[field]);
+      const emptyFields = ['ean', 'name', 'category', 'line'].filter((field) => !product[field]);
       if (emptyFields.length) {
-        errors.push(`Linha ${line}: existem campos obrigatórios vazios.`);
+        errors.push(`Linha ${line}: campos obrigatórios vazios (${emptyFields.join(', ')}).`);
       } else if (!/^\d{8,14}$/.test(product.ean)) {
-        errors.push(`Linha ${line}: EAN inválido (${product.ean || 'vazio'}).`);
+        errors.push(`Linha ${line}: EAN inválido (${product.ean}).`);
       } else if (seenEans.has(product.ean)) {
-        errors.push(`Linha ${line}: EAN duplicado com a linha ${seenEans.get(product.ean)}.`);
+        errors.push(`Linha ${line}: EAN ${product.ean} duplicado com a linha ${seenEans.get(product.ean)}.`);
+      } else if (seenNames.has(product.name.toLowerCase())) {
+        errors.push(`Linha ${line}: produto "${product.name}" duplicado com a linha ${seenNames.get(product.name.toLowerCase())}.`);
       } else {
         seenEans.set(product.ean, line);
+        seenNames.set(product.name.toLowerCase(), line);
         products.push(product);
       }
     });
@@ -1011,6 +1025,18 @@ byId('product-form').addEventListener('submit', async (event) => {
 });
 
 byId('cancel-site-edit').addEventListener('click', resetSiteForm);
+byId('download-template').addEventListener('click', () => {
+  if (!globalThis.XLSX) {
+    setMessage(byId('import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
+    return;
+  }
+  const headers = ['EAN', 'COD SFA', 'NOME', 'CATEGORIA', 'LINHA', 'GRAMATURA', 'NUANCE', 'COR', 'VARIANTE'];
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  worksheet['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 40 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
+  XLSX.writeFile(workbook, 'MODELO_IMPORTACAO_PRODUTOS.xlsx');
+});
 byId('download-site-template').addEventListener('click', () => {
   if (!globalThis.XLSX) {
     setMessage(byId('site-import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
