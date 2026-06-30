@@ -1,8 +1,8 @@
 const express = require('express');
+const axios = require('axios');
 
 const router = express.Router();
-
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 router.post('/buscar', async (req, res) => {
   const { ean, nome } = req.body || {};
@@ -20,29 +20,17 @@ router.post('/buscar', async (req, res) => {
     `Se não encontrar nenhuma oferta, retorne: {"resultados":[]}`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    const { data } = await axios.post(
+      `${GEMINI_URL}?key=${apiKey}`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0, maxOutputTokens: 2048 }
-        })
-      }
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+      },
+      { timeout: 30000 }
     );
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const msg = err?.error?.message || response.statusText || `HTTP ${response.status}`;
-      return res.status(502).json({ error: `Gemini: ${msg}` });
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // Extrai JSON da resposta (o modelo pode adicionar markdown)
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return res.json({ resultados: [] });
 
@@ -53,7 +41,8 @@ router.post('/buscar', async (req, res) => {
       return res.json({ resultados: [] });
     }
   } catch (error) {
-    return res.status(500).json({ error: `Erro ao consultar Gemini: ${error.message}` });
+    const msg = error.response?.data?.error?.message || error.message;
+    return res.status(502).json({ error: `Gemini: ${msg}` });
   }
 });
 
