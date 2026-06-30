@@ -155,7 +155,7 @@ router.delete('/usuarios/:id', requireAdmin, async (req, res) => {
 // ── Redefinição de senha por e-mail ──────────────────────────────────────
 
 async function sendResetEmail(toEmail, username, resetUrl) {
-  if (!process.env.SMTP_HOST) return false;
+  if (!process.env.SMTP_HOST) throw new Error('SMTP não configurado (variável SMTP_HOST ausente).');
   const nodemailer = require('nodemailer');
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -172,7 +172,6 @@ async function sendResetEmail(toEmail, username, resetUrl) {
            <p><a href="${resetUrl}">${resetUrl}</a></p>
            <p>Se você não solicitou a redefinição, ignore este e-mail.</p>`
   });
-  return true;
 }
 
 router.post('/usuarios/:id/resetar-senha', requireAdmin, async (req, res) => {
@@ -182,13 +181,15 @@ router.post('/usuarios/:id/resetar-senha', requireAdmin, async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     const exp = new Date(Date.now() + 60 * 60 * 1000);
     await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
-    const baseUrl = (process.env.PANEL_URL || req.headers.origin || '').replace(/\/$/, '');
+    const baseUrl = (process.env.PANEL_URL || req.headers.referer || req.headers.origin || '').replace(/[?#].*$/, '').replace(/\/$/, '');
     const resetUrl = `${baseUrl}?reset_token=${token}`;
     let emailSent = false;
+    let emailError = null;
     if (user.email) {
-      try { emailSent = await sendResetEmail(user.email, user.username, resetUrl); } catch {}
+      try { await sendResetEmail(user.email, user.username, resetUrl); emailSent = true; }
+      catch (e) { emailError = e.message; }
     }
-    return res.json({ ok: true, resetUrl, emailSent, hasEmail: !!user.email });
+    return res.json({ ok: true, resetUrl, emailSent, hasEmail: !!user.email, emailError });
   } catch { return res.status(500).json({ error: 'Erro ao gerar link de redefinição.' }); }
 });
 
@@ -215,11 +216,9 @@ router.post('/esqueci-senha', async (req, res) => {
       const token = crypto.randomBytes(32).toString('hex');
       const exp = new Date(Date.now() + 60 * 60 * 1000);
       await AdminUser.updateOne({ _id: user._id }, { $set: { resetToken: token, resetTokenExp: exp } });
-      const baseUrl = (process.env.PANEL_URL || '').replace(/\/$/, '');
-      if (baseUrl) {
-        const resetUrl = `${baseUrl}?reset_token=${token}`;
-        try { await sendResetEmail(email, user.username, resetUrl); } catch {}
-      }
+      const baseUrl = (process.env.PANEL_URL || req.headers.referer || req.headers.origin || '').replace(/[?#].*$/, '').replace(/\/$/, '');
+      const resetUrl = `${baseUrl}?reset_token=${token}`;
+      try { await sendResetEmail(email, user.username, resetUrl); } catch {}
     }
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: 'Erro ao processar solicitação.' }); }

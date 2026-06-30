@@ -1371,18 +1371,21 @@ byId('send-reset-link-btn').addEventListener('click', async () => {
   try {
     const result = await request(`/auth/usuarios/${changePwdUserId}/resetar-senha`, { method: 'POST' });
     if (result.emailSent) {
-      setMessage(msgEl, 'Link enviado para o e-mail cadastrado.', 'success');
-    } else if (result.resetUrl) {
+      setMessage(msgEl, 'E-mail enviado com sucesso!', 'success');
+    } else {
       byId('modal-change-pwd').hidden = true;
       const infoEl = byId('modal-reset-link-info');
       const urlWrap = byId('modal-reset-link-url-wrap');
       const urlInput = byId('modal-reset-link-url');
       const copyBtn = byId('copy-reset-link');
-      infoEl.textContent = result.hasEmail ? 'Não foi possível enviar o e-mail. Copie e compartilhe o link:' : 'Usuário sem e-mail. Compartilhe o link manualmente:';
+      const errMsg = result.emailError ? `Erro ao enviar e-mail: ${result.emailError}` : null;
+      infoEl.textContent = !result.hasEmail
+        ? 'Usuário sem e-mail cadastrado. Copie e compartilhe o link:'
+        : errMsg || 'Não foi possível enviar o e-mail. Copie e compartilhe o link:';
       urlInput.value = result.resetUrl;
       urlWrap.hidden = false;
       copyBtn.hidden = false;
-      setMessage(byId('modal-reset-link-msg'));
+      setMessage(byId('modal-reset-link-msg'), errMsg || null, errMsg ? 'error' : null);
       byId('modal-reset-link').hidden = false;
     }
   } catch (error) { setMessage(msgEl, error.message, 'error'); }
