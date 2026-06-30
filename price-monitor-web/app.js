@@ -688,7 +688,6 @@ function renderResults(results) {
     (result.sources || []).some((source) => source.name?.includes('Demonstração'))
   );
   renderDetails(results);
-  showGeminiCard(results);
 }
 
 function renderDetails(results) {
@@ -1614,106 +1613,6 @@ async function desfazerImportacao(id, arquivo, tipo, criados) {
   }
 }
 
-// ── Google Shopping via Serper ────────────────────────────────────────────
-
-async function runSerperSearch(results) {
-  const btn = byId('gemini-search-btn');
-  const status = byId('gemini-status');
-  const tableWrap = byId('gemini-table-wrap');
-  const tbody = byId('gemini-body');
-  const count = byId('gemini-count');
-
-  btn.disabled = true;
-  btn.classList.add('loading');
-  tableWrap.hidden = true;
-  status.hidden = false;
-  status.textContent = 'Buscando no Google Shopping…';
-
-  const allRows = [];
-  const errors = [];
-
-  for (const result of results) {
-    const product = allCatalogProducts.find((p) => p.ean === result.ean);
-    const nome = product?.name || null;
-    status.textContent = `Buscando "${nome || result.ean}"…`;
-    try {
-      const data = await request('/serper/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, ean: result.ean })
-      });
-      (data.resultados || []).forEach((r) => allRows.push(r));
-    } catch (err) {
-      errors.push(err.message);
-    }
-  }
-
-  btn.disabled = false;
-  btn.classList.remove('loading');
-  btn.textContent = 'Pesquisar novamente';
-  status.hidden = true;
-
-  tbody.replaceChildren();
-
-  if (errors.length && !allRows.length) {
-    status.textContent = `Google Shopping indisponível: ${errors[0]}`;
-    status.hidden = false;
-    count.textContent = '';
-    return;
-  }
-
-  if (!allRows.length) {
-    count.textContent = 'Nenhuma oferta encontrada no Google Shopping.';
-    tableWrap.hidden = true;
-    return;
-  }
-
-  allRows.forEach((row) => {
-    const tr = tbody.insertRow();
-    const tdProduto = tr.insertCell(); tdProduto.textContent = row.produto || '—';
-    const tdPreco = tr.insertCell();
-    tdPreco.textContent = row.preco != null ? currency.format(row.preco) : '—';
-    tdPreco.style.fontVariantNumeric = 'tabular-nums';
-    const tdLoja = tr.insertCell(); tdLoja.textContent = row.loja || '—';
-    const tdLink = tr.insertCell();
-    if (row.url) {
-      const a = document.createElement('a');
-      a.href = row.url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = 'Ver oferta →';
-      tdLink.append(a);
-    } else {
-      tdLink.textContent = '—';
-    }
-  });
-
-  count.textContent = `${allRows.length} oferta(s) encontrada(s) no Google Shopping`;
-  tableWrap.hidden = false;
-}
-
-function showGeminiCard(results) {
-  const card = byId('gemini-card');
-  const count = byId('gemini-count');
-  const status = byId('gemini-status');
-  const tableWrap = byId('gemini-table-wrap');
-  const btn = byId('gemini-search-btn');
-
-  tableWrap.hidden = true;
-  status.hidden = true;
-  count.textContent = '';
-  btn.textContent = 'Pesquisar no Google Shopping';
-  card.hidden = false;
-
-  serperCurrentResults = results;
-  runSerperSearch(results);
-}
-
-byId('gemini-search-btn').addEventListener('click', () => {
-  if (serperCurrentResults.length) runSerperSearch(serperCurrentResults);
-});
-
-let serperCurrentResults = [];
 
 // ── Tema claro/escuro ─────────────────────────────────────────────────────
 
