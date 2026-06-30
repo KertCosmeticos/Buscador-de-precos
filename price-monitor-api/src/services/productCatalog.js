@@ -136,6 +136,7 @@ async function importProducts(inputs) {
   const existing = await Product.find({ ean: { $in: eans } }).lean();
   const existingByEan = new Map(existing.map((product) => [product.ean, cleanProduct(product)]));
   const operations = [];
+  const createdEans = [];
   let created = 0;
   let updated = 0;
   let unchanged = 0;
@@ -144,6 +145,7 @@ async function importProducts(inputs) {
     const current = existingByEan.get(product.ean);
     if (!current) {
       created += 1;
+      createdEans.push(product.ean);
     } else if (sameProduct(current, product)) {
       unchanged += 1;
       return;
@@ -160,7 +162,7 @@ async function importProducts(inputs) {
   });
 
   if (operations.length) await Product.bulkWrite(operations, { ordered: false });
-  return { total: products.length, created, updated, unchanged };
+  return { total: products.length, created, updated, unchanged, createdEans };
 }
 
 module.exports = { listProducts, getFilters, getProductByEan, createProduct, updateProduct, deleteProduct, importProducts };

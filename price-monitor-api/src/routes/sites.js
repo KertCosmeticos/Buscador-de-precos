@@ -53,19 +53,20 @@ router.post('/importar', requireAdmin, async (req, res, next) => {
 
     let created = 0;
     let updated = 0;
+    const createdRefs = [];
     for (const item of input) {
       const site = validateSite(item);
       if (isDemo()) {
         const index = demoSites.findIndex((current) => current.name.toLocaleLowerCase('pt-BR') === site.name.toLocaleLowerCase('pt-BR'));
         if (index >= 0) { demoSites[index] = { ...demoSites[index], ...site }; updated += 1; }
-        else { demoSites.push({ _id: `demo-site-${Date.now()}-${created}`, ...site }); created += 1; }
+        else { demoSites.push({ _id: `demo-site-${Date.now()}-${created}`, ...site }); created += 1; createdRefs.push(site.name); }
         continue;
       }
       const existing = await Site.findOne({ name: site.name }).lean();
       await Site.updateOne({ name: site.name }, { $set: site }, { upsert: true });
-      existing ? updated += 1 : created += 1;
+      if (existing) { updated += 1; } else { created += 1; createdRefs.push(site.name); }
     }
-    return res.json({ created, updated });
+    return res.json({ created, updated, createdRefs });
   } catch (error) { return next(error); }
 });
 router.put('/:id', requireAdmin, async (req, res, next) => {

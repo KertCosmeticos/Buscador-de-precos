@@ -951,6 +951,9 @@ byId('import-products-button').addEventListener('click', async () => {
   const fileInput = byId('product-import-file');
   const batchSize = 50;
   const totals = { total: 0, created: 0, updated: 0, unchanged: 0 };
+  const allCreatedEans = [];
+  const importId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  const importArquivo = fileInput.files[0]?.name || '';
   let processed = 0;
   setLoading(button, true);
   fileInput.disabled = true;
@@ -963,9 +966,10 @@ byId('import-products-button').addEventListener('click', async () => {
       const result = await request('/produtos/importar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products: batch })
+        body: JSON.stringify({ products: batch, importId })
       });
       Object.keys(totals).forEach((key) => { totals[key] += Number(result[key] || 0); });
+      if (result.createdEans?.length) allCreatedEans.push(...result.createdEans);
       processed += batch.length;
       setImportProgress(5 + (processed / pendingImportProducts.length) * 90, `${processed} de ${pendingImportProducts.length} produtos processados…`);
     }
@@ -977,6 +981,10 @@ byId('import-products-button').addEventListener('click', async () => {
       `Importação concluída: ${totals.created} criado(s), ${totals.updated} atualizado(s) e ${totals.unchanged} sem alteração.`,
       'success'
     );
+    request('/auth/importacoes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ importId, tipo: 'produtos', arquivo: importArquivo, total: totals.total, criados: totals.created, atualizados: totals.updated, refs: allCreatedEans })
+    }).catch(() => {});
     pendingImportProducts = [];
     fileInput.value = '';
     byId('import-file-summary').textContent = 'Nenhum arquivo selecionado.';
@@ -1068,12 +1076,17 @@ byId('site-import-file').addEventListener('change', async (event) => {
 byId('import-sites-button').addEventListener('click', async () => {
   if (!pendingImportSites.length) return;
   const button = byId('import-sites-button');
+  const importArquivo = byId('site-import-file').files[0]?.name || '';
   setLoading(button, true);
   try {
     const result = await request('/sites/importar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sites: pendingImportSites })
     });
     await loadSites();
+    request('/auth/importacoes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ importId: crypto.randomUUID().replace(/-/g, '').slice(0, 16), tipo: 'sites', arquivo: importArquivo, total: (result.created || 0) + (result.updated || 0), criados: result.created || 0, atualizados: result.updated || 0, refs: result.createdRefs || [] })
+    }).catch(() => {});
     pendingImportSites = [];
     byId('site-import-file').value = '';
     byId('site-import-summary').textContent = 'Nenhum arquivo selecionado.';
@@ -1255,6 +1268,63 @@ byId('chrome-ext-link')?.addEventListener('click', () => {
     if (hint) { hint.hidden = false; clearTimeout(hint._chromeHintTimer); hint._chromeHintTimer = setTimeout(() => { hint.hidden = true; }, 3000); }
   }
 });
+
+// ── Histórico de importações ──────────────────────────────────────────────
+
+document.querySelector('.user-tab[data-panel="importacoes"]')?.addEventListener('click', loadImportLogs);
+
+async function loadImportLogs() {
+  const tbody = byId('logs-tbody');
+  const countEl = byId('logs-count');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)">Carregando…</td></tr>';
+  try {
+    const logs = await request('/auth/importacoes');
+    if (countEl) countEl.textContent = `${logs.length} importação(ões) registrada(s)`;
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--muted)">Nenhuma importação registrada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map((log) => {
+      const dt = new Date(log.data);
+      const dataStr = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const tipo = log.tipo === 'produtos' ? 'Produtos' : 'Sites';
+      return `<tr>
+        <td style="white-space:nowrap">${dataStr} ${horaStr}</td>
+        <td>${escHtml(log.usuario || '?')}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(log.arquivo || '')}">${escHtml(log.arquivo || '?')}</td>
+        <td>${escHtml(tipo)}</td>
+        <td style="text-align:right">${log.total ?? '?'}</td>
+        <td style="text-align:right">${log.criados ?? '?'}</td>
+        <td style="text-align:right">
+          <button class="table-action danger" onclick="desfazerImportacao('${escHtml(String(log._id))}','${escHtml(log.arquivo || '')}','${escHtml(tipo)}',${log.criados || 0})">Desfazer</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (error) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--danger)">${escHtml(error.message)}</td></tr>`;
+  }
+}
+
+async function desfazerImportacao(id, arquivo, tipo, criados) {
+  const aviso = criados > 0
+    ? `Desfazer importação "${arquivo}"?\n\n${criados} ${tipo.toLowerCase()} criados nesta importação serão DELETADOS permanentemente.\n\nEsta ação não pode ser desfeita.`
+    : `Remover registro da importação "${arquivo}"?\n\nNenhum dado será deletado (esta importação não criou novos registros).`;
+  if (!confirm(aviso)) return;
+  const msgEl = byId('logs-message');
+  setMessage(msgEl, 'Desfazendo importação…');
+  try {
+    const result = await request(`/auth/importacoes/${id}`, { method: 'DELETE' });
+    setMessage(msgEl, result.removidos > 0 ? `Importação desfeita: ${result.removidos} registro(s) deletado(s).` : 'Registro removido do histórico.', 'success');
+    await loadImportLogs();
+    if (tipo === 'Produtos') await refreshCatalog();
+    else if (tipo === 'Sites') await loadSites();
+    setTimeout(() => setMessage(msgEl), 4000);
+  } catch (error) {
+    setMessage(msgEl, error.message, 'error');
+  }
+}
 
 loadApiMode();
 restoreAdminSession();

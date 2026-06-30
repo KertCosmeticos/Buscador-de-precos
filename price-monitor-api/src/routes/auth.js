@@ -3,6 +3,9 @@ const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const { requireAdmin, jwtSecret } = require('../middleware/auth');
 const AdminUser = require('../models/AdminUser');
+const ImportLog = require('../models/ImportLog');
+const Product = require('../models/Product');
+const Site = require('../models/Site');
 
 const router = express.Router();
 
@@ -115,6 +118,52 @@ router.delete('/usuarios/:id', requireAdmin, async (req, res) => {
     await AdminUser.deleteOne({ _id: req.params.id });
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: 'Erro ao excluir usuário.' }); }
+});
+
+// ── Registro de importações ───────────────────────────────────────────────
+
+router.post('/importacoes', requireAdmin, async (req, res) => {
+  const { importId, tipo, arquivo, total, criados, atualizados, refs } = req.body || {};
+  if (!importId || !tipo) return res.status(400).json({ error: 'importId e tipo são obrigatórios.' });
+  try {
+    await ImportLog.create({
+      importId, tipo,
+      arquivo: arquivo || '',
+      usuario: req.admin?.sub || '',
+      total: total || 0,
+      criados: criados || 0,
+      atualizados: atualizados || 0,
+      refs: refs || []
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    if (e.code === 11000) return res.json({ ok: true });
+    return res.status(500).json({ error: 'Erro ao salvar log.' });
+  }
+});
+
+router.get('/importacoes', requireAdmin, async (req, res) => {
+  try {
+    const logs = await ImportLog.find({}, { refs: 0 }).sort({ data: -1 }).limit(200).lean();
+    return res.json(logs);
+  } catch { return res.status(500).json({ error: 'Erro ao listar importações.' }); }
+});
+
+router.delete('/importacoes/:id', requireAdmin, async (req, res) => {
+  try {
+    const log = await ImportLog.findById(req.params.id).lean();
+    if (!log) return res.status(404).json({ error: 'Log não encontrado.' });
+    let removidos = 0;
+    if (log.tipo === 'produtos' && log.refs?.length) {
+      const result = await Product.deleteMany({ ean: { $in: log.refs } });
+      removidos = result.deletedCount;
+    } else if (log.tipo === 'sites' && log.refs?.length) {
+      const result = await Site.deleteMany({ name: { $in: log.refs } });
+      removidos = result.deletedCount;
+    }
+    await ImportLog.deleteOne({ _id: req.params.id });
+    return res.json({ ok: true, removidos });
+  } catch { return res.status(500).json({ error: 'Erro ao desfazer importação.' }); }
 });
 
 module.exports = router;

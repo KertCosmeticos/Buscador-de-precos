@@ -238,6 +238,7 @@
           <nav class="user-tabs">
             <button class="user-tab active" type="button" data-panel="admins">Administradores</button>
             <button class="user-tab" type="button" data-panel="modelos">Modelos de Importação</button>
+            <button class="user-tab" type="button" data-panel="importacoes">Importações</button>
           </nav>
           <div id="user-panel-admins" class="user-panel active">
             <div class="users-header">
@@ -271,6 +272,18 @@
                 </tbody>
               </table>
             </div>
+          </div>
+          <div id="user-panel-importacoes" class="user-panel">
+            <div class="users-header">
+              <span id="logs-count" class="users-count-label"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Data</th><th>Usuário</th><th>Arquivo</th><th>Tipo</th><th style="text-align:right">Total</th><th style="text-align:right">Criados</th><th style="text-align:right">Ações</th></tr></thead>
+                <tbody id="logs-tbody"></tbody>
+              </table>
+            </div>
+            <div id="logs-message" class="message" role="status" aria-live="polite"></div>
           </div>
         </div>
       </div>
