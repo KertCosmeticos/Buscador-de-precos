@@ -3,6 +3,7 @@
   --blue: #2563eb;
   --blue-dark: #1d4ed8;
   --surface: #ffffff;
+  --surface-alt: #f8fafc;
   --background: #f3f6fa;
   --border: #dbe3ee;
   --text: #172033;
@@ -179,3 +180,87 @@ footer { text-align: center; color: var(--muted); font-size: .78rem; padding: 18
   .span-2 { grid-column: auto; }
   .button { width: 100%; }
 }
+
+/* ── Theme toggle ────────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  color: #cbd5e1;
+  font-size: .82rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+.th-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.13);
+  border: 1px solid rgba(255,255,255,.25);
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.th-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  transition: left .2s ease;
+}
+.theme-toggle:hover .th-track { background: rgba(255,255,255,.22); }
+[data-theme="dark"] .th-track { background: rgba(37,99,235,.38); border-color: rgba(37,99,235,.6); }
+[data-theme="dark"] .th-thumb { left: 18px; }
+[data-theme="dark"] .theme-toggle:hover .th-track { background: rgba(37,99,235,.55); }
+
+/* ── Dark mode ───────────────────────────────────────────── */
+[data-theme="dark"] {
+  --navy: #080f1e;
+  --surface: #1e293b;
+  --surface-alt: #162032;
+  --background: #0f172a;
+  --border: #2a3f5a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  color-scheme: dark;
+}
+[data-theme="dark"] body { background: var(--background); }
+[data-theme="dark"] .topbar { background: var(--navy); }
+[data-theme="dark"] .card { background: var(--surface); box-shadow: 0 4px 18px rgba(0,0,0,.3); }
+[data-theme="dark"] textarea,
+[data-theme="dark"] input,
+[data-theme="dark"] select { background: var(--surface); color: var(--text); border-color: var(--border); }
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] input:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.25); }
+[data-theme="dark"] .filter-options { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .filter-option { border-color: var(--border); }
+[data-theme="dark"] .catalog-picker { background: var(--surface-alt); border-color: var(--border); }
+[data-theme="dark"] .form-guide { background: var(--surface-alt); border-color: var(--border); }
+[data-theme="dark"] .file-picker { background: var(--surface); border-color: var(--border); }
+[data-theme="dark"] .file-picker-action { background: var(--surface-alt); border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .product-picker-list { background: var(--surface); }
+[data-theme="dark"] .picker-product { border-color: var(--border); }
+[data-theme="dark"] .import-progress { background: var(--surface-alt); border-color: var(--border); }
+[data-theme="dark"] .button.secondary { background: var(--surface); border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .button.secondary:hover { background: var(--surface-alt); }
+[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,.62); }
+[data-theme="dark"] .modal-card { background: var(--surface); }
+[data-theme="dark"] th { background: var(--surface-alt); }
+[data-theme="dark"] .login-hint { background: var(--surface-alt); }
+[data-theme="dark"] .demo-notice { background: #1c1200; border-color: #7c5a00; color: #fde68a; }
+[data-theme="dark"] .root-badge { background: #1e3a8a; color: #93c5fd; }
+[data-theme="dark"] .seller-status.active { background: #1e293b; color: var(--muted); }
+[data-theme="dark"] .seller-status.new { background: #052e16; color: #4ade80; }
+[data-theme="dark"] .embedded-import { border-color: var(--border); }
+[data-theme="dark"] .mode-badge { border-color: rgba(255,255,255,.22); }
+[data-theme="dark"] .mode-badge.real { border-color: #22c55e44; }
+[data-theme="dark"] .mode-badge.demo { border-color: #f59e0b44; }

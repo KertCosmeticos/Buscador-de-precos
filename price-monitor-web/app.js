@@ -1613,6 +1613,18 @@ async function desfazerImportacao(id, arquivo, tipo, criados) {
   }
 }
 
+// ── Tema claro/escuro ─────────────────────────────────────────────────────
+
+(function initTheme() {
+  const toggle = byId('theme-toggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', () => {
+    const dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('pm-theme', dark ? 'dark' : 'light');
+  });
+})();
+
 loadApiMode();
 restoreAdminSession();
 handleResetToken();
