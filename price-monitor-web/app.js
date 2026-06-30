@@ -1259,12 +1259,12 @@ async function loadUsers() {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--muted)">Nenhum usuário cadastrado.</td></tr>';
       return;
     }
-    const me = getCurrentUserInfo();
-    const isMe = (u) => (me.uid && me.uid === String(u._id)) || (!me.uid && me.username === u.username);
+    let meUsername = null;
+    try { const meData = await request('/auth/me'); meUsername = meData.user || null; } catch {}
     tbody.innerHTML = users.map((u) => {
       const date = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
       const badge = u.isRoot ? ' <span class="root-badge">PAI</span>' : '';
-      const paiSelf = u.isRoot && isMe(u);
+      const paiSelf = u.isRoot && meUsername === u.username;
       const nomeBtn = `<button class="table-action" onclick="openEditName('${u._id}','${escHtml(u.username)}')">Nome</button>`;
       const emailBtn = (!u.isRoot || paiSelf)
         ? `<button class="table-action" onclick="openEditEmail('${u._id}','${escHtml(u.email || '')}','${escHtml(u.username)}')">E-mail</button>`
