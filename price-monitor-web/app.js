@@ -200,6 +200,7 @@ function setImportProgress(percent, text) {
 
 function setBrowserExtensionStatus(available) {
   browserExtensionAvailable = Boolean(available);
+  window.__extAvailable = browserExtensionAvailable;
   const status = byId('browser-extension-status');
   status.textContent = available
     ? 'Extensão do Chrome conectada e pronta para pesquisar.'
