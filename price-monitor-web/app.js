@@ -1616,59 +1616,54 @@ async function desfazerImportacao(id, arquivo, tipo, criados) {
 
 // ── Gemini — busca na web ─────────────────────────────────────────────────
 
-let geminiSearchResults = [];
-
-function showGeminiCard(results) {
-  const card = byId('gemini-card');
-  const status = byId('gemini-status');
-  const tableWrap = byId('gemini-table-wrap');
-  const count = byId('gemini-count');
-  // Reseta estado para nova busca
-  tableWrap.hidden = true;
-  status.hidden = true;
-  count.textContent = 'Clique em "Pesquisar com Gemini" para buscar preços na web em tempo real.';
-  geminiSearchResults = results;
-  card.hidden = false;
-}
-
-byId('gemini-search-btn').addEventListener('click', async () => {
+async function runGeminiSearch(results) {
   const btn = byId('gemini-search-btn');
   const status = byId('gemini-status');
   const tableWrap = byId('gemini-table-wrap');
   const tbody = byId('gemini-body');
   const count = byId('gemini-count');
 
-  if (!geminiSearchResults.length) return;
-
   btn.disabled = true;
   btn.classList.add('loading');
   tableWrap.hidden = true;
   status.hidden = false;
+  status.textContent = 'Pesquisando na web com Gemini…';
 
   const allRows = [];
-  for (const result of geminiSearchResults) {
+  const errors = [];
+
+  for (const result of results) {
     const product = allCatalogProducts.find((p) => p.ean === result.ean);
     const nome = product?.name || result.ean;
-    status.textContent = `Pesquisando "${nome}"…`;
+    status.textContent = `Gemini: pesquisando "${nome}"…`;
     try {
       const data = await request('/gemini/buscar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ean: result.ean, nome })
       });
-      (data.resultados || []).forEach((r) => allRows.push({ ...r, eanRef: result.ean }));
+      (data.resultados || []).forEach((r) => allRows.push(r));
     } catch (err) {
-      allRows.push({ produto: `Erro para ${nome}`, preco: null, loja: err.message, url: null, eanRef: result.ean });
+      errors.push(`${nome}: ${err.message}`);
     }
   }
 
   btn.disabled = false;
   btn.classList.remove('loading');
+  btn.textContent = 'Pesquisar novamente';
   status.hidden = true;
 
   tbody.replaceChildren();
+
+  if (errors.length && !allRows.length) {
+    status.textContent = `Gemini indisponível no momento. Tente novamente em instantes.`;
+    status.hidden = false;
+    count.textContent = '';
+    return;
+  }
+
   if (!allRows.length) {
-    count.textContent = 'Gemini não encontrou ofertas para os produtos pesquisados.';
+    count.textContent = 'Gemini não encontrou ofertas para esses produtos.';
     tableWrap.hidden = true;
     return;
   }
@@ -1695,7 +1690,31 @@ byId('gemini-search-btn').addEventListener('click', async () => {
 
   count.textContent = `${allRows.length} oferta(s) encontrada(s) pelo Gemini`;
   tableWrap.hidden = false;
+}
+
+function showGeminiCard(results) {
+  const card = byId('gemini-card');
+  const count = byId('gemini-count');
+  const status = byId('gemini-status');
+  const tableWrap = byId('gemini-table-wrap');
+  const btn = byId('gemini-search-btn');
+
+  tableWrap.hidden = true;
+  status.hidden = true;
+  count.textContent = '';
+  btn.textContent = 'Pesquisar com Gemini';
+  card.hidden = false;
+
+  // Dispara automaticamente junto com os outros resultados
+  geminiCurrentResults = results;
+  runGeminiSearch(results);
+}
+
+byId('gemini-search-btn').addEventListener('click', () => {
+  if (geminiCurrentResults.length) runGeminiSearch(geminiCurrentResults);
 });
+
+let geminiCurrentResults = [];
 
 // ── Tema claro/escuro ─────────────────────────────────────────────────────
 
