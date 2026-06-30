@@ -1082,8 +1082,15 @@ byId('download-template').addEventListener('click', () => {
     setMessage(byId('import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
     return;
   }
-  const headers = ['EAN', 'COD SFA', 'NOME', 'CATEGORIA', 'LINHA', 'GRAMATURA', 'NUANCE', 'COR', 'VARIANTE'];
-  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  const rows = [
+    ['EAN', 'COD SFA', 'NOME', 'CATEGORIA', 'LINHA', 'GRAMATURA', 'NUANCE', 'COR', 'VARIANTE'],
+    ['7891234560001', 'SFA001', 'Shampoo Hidratação Intensa', 'Cabelos', 'Hidratação', '300ml', '', '', ''],
+    ['7891234560002', 'SFA002', 'Condicionador Nutrição Profunda', 'Cabelos', 'Nutrição', '250ml', '', '', ''],
+    ['7891234560003', 'SFA003', 'Batom Matte Clássico', 'Maquiagem', 'Lips', '', '', 'Vermelho', 'Tom 01'],
+    ['7891234560004', 'SFA004', 'Base Líquida Cobertura Total', 'Maquiagem', 'Face', '', 'Bege Médio', '', 'N30'],
+    ['7891234560005', 'SFA005', 'Perfume Floral Feminino', 'Fragrâncias', 'Floral', '75ml', '', '', 'EDP'],
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
   worksheet['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 40 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
@@ -1095,7 +1102,14 @@ byId('download-site-template').addEventListener('click', () => {
     setMessage(byId('site-import-message'), 'O gerador do modelo não foi carregado. Atualize a página e tente novamente.', 'error');
     return;
   }
-  const worksheet = XLSX.utils.aoa_to_sheet([['NOME', 'URL DE BUSCA']]);
+  const rows = [
+    ['NOME', 'URL DE BUSCA'],
+    ['Beleza na Web', 'https://www.belezanaweb.com.br/search?q='],
+    ['Sephora Brasil', 'https://www.sephora.com.br/search?q='],
+    ['O Boticário', 'https://www.boticario.com.br/busca?q='],
+    ['Natura', 'https://www.natura.com.br/busca#q='],
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
   worksheet['!cols'] = [{ wch: 28 }, { wch: 62 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Sites');
