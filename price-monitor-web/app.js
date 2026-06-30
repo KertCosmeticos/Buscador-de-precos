@@ -1044,16 +1044,25 @@ function downloadStoredTemplate(key, filename) {
 
 function updateTemplateDisplay(key) {
   const storedName = localStorage.getItem(`pm_tpl_${key}_name`);
+  const storedDate = localStorage.getItem(`pm_tpl_${key}_date`);
   const nameEl = byId(`template-name-${key}`);
   const resetEl = byId(`template-reset-${key}`);
   const defaultName = key === 'produtos' ? 'MODELO_IMPORTACAO_PRODUTOS.xlsx' : 'MODELO_IMPORTACAO_SITES.xlsx';
-  if (nameEl) nameEl.textContent = storedName || defaultName;
+  if (nameEl) {
+    if (storedName) {
+      const dateStr = storedDate ? ` · importado em ${new Date(storedDate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '';
+      nameEl.innerHTML = `${escHtml(storedName)}<span style="color:var(--muted);font-size:.75rem">${dateStr}</span>`;
+    } else {
+      nameEl.textContent = defaultName;
+    }
+  }
   if (resetEl) resetEl.style.display = storedName ? '' : 'none';
 }
 
 function resetCustomTemplate(key) {
   localStorage.removeItem(`pm_tpl_${key}`);
   localStorage.removeItem(`pm_tpl_${key}_name`);
+  localStorage.removeItem(`pm_tpl_${key}_date`);
   updateTemplateDisplay(key);
   setMessage(byId('modelos-message'), 'Modelo resetado para o padrão.', 'success');
 }
@@ -1062,12 +1071,17 @@ function setupCustomTemplateInput(inputId, key) {
   byId(inputId)?.addEventListener('change', (event) => {
     const [file] = event.target.files;
     if (!file) return;
+    const hadPrevious = !!localStorage.getItem(`pm_tpl_${key}`);
     const reader = new FileReader();
     reader.onload = (e) => {
+      const now = new Date().toISOString();
       localStorage.setItem(`pm_tpl_${key}`, e.target.result);
       localStorage.setItem(`pm_tpl_${key}_name`, file.name);
+      localStorage.setItem(`pm_tpl_${key}_date`, now);
       updateTemplateDisplay(key);
-      setMessage(byId('modelos-message'), `Modelo de ${key} atualizado: ${file.name}`, 'success');
+      const label = key === 'produtos' ? 'Produtos' : 'Sites';
+      const action = hadPrevious ? 'substituído' : 'importado';
+      setMessage(byId('modelos-message'), `Modelo de ${label} ${action}: ${file.name}`, 'success');
     };
     reader.readAsDataURL(file);
     event.target.value = '';
